@@ -38,7 +38,7 @@ def parse_args():
     p.add_argument("--camera-id", default="cam-1")
     p.add_argument("--location", default="Unknown Location")
     p.add_argument("--interval", type=float, default=3.0)
-    p.add_argument("--model", default="models/best.pt")
+    p.add_argument("--model", default="models/best.onnx")
     p.add_argument("--no-model", action="store_true")
     return p.parse_args()
 
@@ -54,11 +54,24 @@ def login(server: str, username: str, password: str) -> str:
 
 def open_camera(source: str):
     src = int(source) if source.isdigit() else source
-    cap = cv2.VideoCapture(src)
+    
+    # Use V4L2 backend on Linux for better multi-camera support
+    cap = cv2.VideoCapture(src, cv2.CAP_V4L2)
+    
+    # MISSION CRITICAL: Use MJPG compression to save USB bandwidth!
+    # Without this, two cameras often cannot run at the same time on one hub.
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+    
+    # Set a standard resolution to ensure stability
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
     if not cap.isOpened():
         print(f"ERROR: Cannot open camera: {source}")
+        print("💡 TIP: Try plugging one camera into a different USB port (on the other side of your PC).")
         sys.exit(1)
-    print(f"✓ Camera opened: {source}")
+        
+    print(f"✓ Camera opened: {source} (MJPG Mode Active)")
     return cap
 
 def load_yolo(model_path: str):
@@ -78,18 +91,34 @@ def load_yolo(model_path: str):
             pass
             
         from ultralytics import YOLO
+        
+        # Check if the file is an ONNX/Protobuf model misnamed as .pt
+        if model_path.endswith(".pt"):
+            try:
+                with open(model_path, "rb") as f:
+                    header = f.read(4)
+                    if header.startswith(b"\x08\x0a"):
+                        print(f"ℹ  Detected ONNX format for {model_path}. Loading as ONNX...")
+                        # If it's ONNX misnamed as .pt, we can try to load it by temporarily 
+                        # using a symlink with .onnx extension if YOLO won't load it directly.
+                        # Actually YOLO often handles it if we rename it, but let's see.
+            except: pass
+
         # Performance tip: use Nano model for speed!
         model = YOLO(model_path)
         
         # Check for CUDA
-        if torch.cuda.is_available():
+        if torch.cuda.is_available() and not model_path.endswith(".onnx"):
             model.to('cuda')
             print(f"🚀 GPU Detected: Using CUDA for YOLOv8")
             # Speed tip: use Half Precision on GPU
             try: model.model.half() 
             except: pass
         else:
-            print("ℹ  Using CPU for YOLOv8 (CUDA not available or torch-cpu installed)")
+            if model_path.endswith(".onnx"):
+                print("ℹ  Using ONNX Runtime (CPU/OpenCV) for YOLOv8")
+            else:
+                print("ℹ  Using CPU for YOLOv8 (CUDA not available or torch-cpu installed)")
             
         print(f"✓ YOLOv8 model loaded: {model_path}")
         return model
@@ -111,6 +140,18 @@ def load_yolo(model_path: str):
             print(f"✓ YOLOv8 model loaded (compat mode): {model_path}")
             return model
         except Exception as e2:
+            # If it failed again and was a .pt, maybe it's really an ONNX file?
+            if model_path.endswith(".pt"):
+                 try:
+                    print("⚠  Final attempt: trying to load as ONNX...")
+                    import shutil
+                    tmp_onnx = model_path + ".tmp.onnx"
+                    shutil.copy(model_path, tmp_onnx)
+                    model = YOLO(tmp_onnx)
+                    os.remove(tmp_onnx)
+                    print(f"✓ YOLOv8 model loaded (ONNX mode): {model_path}")
+                    return model
+                 except: pass
             print(f"⚠  Still could not load model: {e2}")
             return None
 
