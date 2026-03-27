@@ -611,6 +611,7 @@ let TOKEN = '', ROLE = '', USERNAME = '';
 let sse = null;
 let audioCtx = null;
 let alertCount = 0;
+let refreshTimer = null;
 
 const API = location.origin;
 
@@ -726,7 +727,10 @@ function initSSE() {
       showAlert(data);
       playBeep();
     }
-    loadDashboard();
+    
+    // Debounce refresh: Wait 1s after last alert to reload dashboard
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => loadDashboard(true), 1000);
   });
 
   es.addEventListener('ping', () => {
@@ -810,7 +814,11 @@ async function apiFetch(path, opts = {}) {
   return r.json();
 }
 
-async function loadDashboard() {
+async function loadDashboard(isAuto = false) {
+  // If we just loaded manually, don't double-load if triggered by SSE
+  if (isAuto && loadDashboard.lastRun && Date.now() - loadDashboard.lastRun < 1500) return;
+  loadDashboard.lastRun = Date.now();
+
   const sightings = await apiFetch('/api/sightings?limit=20');
   if (!sightings) return;
 

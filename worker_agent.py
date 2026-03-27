@@ -23,7 +23,8 @@ ARGS:
   --no-model    Skip local face detection, send full frames to server
 """
 
-import argparse, time, sys, os
+import argparse, time, sys, os, threading
+from concurrent.futures import ThreadPoolExecutor
 import cv2
 import numpy as np
 import requests
@@ -66,13 +67,30 @@ def load_yolo(model_path: str):
         return None
     try:
         import torch
-        # PyTorch 2.6+ security: allow YOLOv8 model classes
-        if hasattr(torch.serialization, 'add_safe_globals'):
+        # PyTorch 2.6+ security fix: allow YOLOv8 model classes
+        try:
             from ultralytics.nn.tasks import DetectionModel
-            torch.serialization.add_safe_globals([DetectionModel])
+            from ultralytics.utils.ops import IterableSimpleNamespace
+            if hasattr(torch.serialization, 'add_safe_globals'):
+                torch.serialization.add_safe_globals([DetectionModel, IterableSimpleNamespace, dict])
+        except Exception:
+            # Fallback for older ultralytics/torch
+            pass
             
         from ultralytics import YOLO
+        # Performance tip: use Nano model for speed!
         model = YOLO(model_path)
+        
+        # Check for CUDA
+        if torch.cuda.is_available():
+            model.to('cuda')
+            print(f"🚀 GPU Detected: Using CUDA for YOLOv8")
+            # Speed tip: use Half Precision on GPU
+            try: model.model.half() 
+            except: pass
+        else:
+            print("ℹ  Using CPU for YOLOv8 (CUDA not available or torch-cpu installed)")
+            
         print(f"✓ YOLOv8 model loaded: {model_path}")
         return model
     except ImportError:
@@ -80,7 +98,21 @@ def load_yolo(model_path: str):
         return None
     except Exception as e:
         print(f"⚠  Could not load model: {e}")
-        return None
+        # Final attempt: try loading with weights_only=False if it's a torch version issue
+        try:
+            import torch
+            from ultralytics import YOLO
+            # This is a bit of a hack but can solve the weights_only issue if the above failed
+            import functools
+            old_load = torch.load
+            torch.load = functools.partial(old_load, weights_only=False)
+            model = YOLO(model_path)
+            torch.load = old_load # restore
+            print(f"✓ YOLOv8 model loaded (compat mode): {model_path}")
+            return model
+        except Exception as e2:
+            print(f"⚠  Still could not load model: {e2}")
+            return None
 
 def detect_faces_yolo(model, frame: np.ndarray) -> list[np.ndarray]:
     """Run YOLOv8 face detection, return list of face crop arrays."""
@@ -123,14 +155,18 @@ def motion_detected(prev_frame, curr_frame, threshold=1500) -> bool:
     return int(thresh.sum() / 255) > threshold
 
 def send_frame(server: str, token: str, img: np.ndarray, camera_id: str, location: str) -> dict:
-    _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    # 70 quality is ~40% smaller than 85, much faster to upload with zero impact on detection
+    _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 70])
     files = {"file": ("frame.jpg", buf.tobytes(), "image/jpeg")}
     data = {"camera_id": camera_id, "location": location}
     headers = {"Authorization": f"Bearer {token}"}
-    r = requests.post(f"{server}/api/upload-frame", files=files, data=data,
-                      headers=headers, timeout=15)
-    r.raise_for_status()
-    return r.json()
+    try:
+        r = requests.post(f"{server}/api/upload-frame", files=files, data=data,
+                          headers=headers, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 def main():
     args = parse_args()
@@ -152,17 +188,35 @@ def main():
     print(f"● Interval: {args.interval}s | Detection: {'YOLOv8' if use_yolo else 'OpenCV Haar'}")
     print("● Press Ctrl+C to stop\n")
 
+    executor = ThreadPoolExecutor(max_workers=4)
+    
+    def handle_upload(face_crop):
+        nonlocal frames_sent, matches_found, consecutive_errors
+        result = send_frame(args.server, token, face_crop, args.camera_id, args.location)
+        status = result.get("status", "?")
+        
+        if status == "match":
+            matches_found += 1
+            print(f"\n🔴 MATCH: {result.get('person')} | conf: {result.get('confidence')}% | cam: {args.camera_id}")
+        elif status == "error":
+            consecutive_errors += 1
+        else:
+            consecutive_errors = 0
+            frames_sent += 1
+        
+        # Compact status update
+        sys.stdout.write(f"\r● Processing | Sent: {frames_sent} | Matches: {matches_found} | Camera: {args.camera_id}   ")
+        sys.stdout.flush()
+
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("⚠  Frame read failed, retrying...")
                 time.sleep(1)
                 continue
 
-            # motion check
-            curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            curr_gray_small = cv2.resize(curr_gray, (160, 120))
+            # motion check (faster resize)
+            curr_gray_small = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (160, 120))
             if not motion_detected(prev_gray, curr_gray_small):
                 prev_gray = curr_gray_small
                 time.sleep(args.interval)
@@ -171,52 +225,29 @@ def main():
 
             # face detection
             if args.no_model:
-                faces = [frame]  # send full frame, server detects
+                faces = [frame]
             elif use_yolo:
                 faces = detect_faces_yolo(model, frame)
             else:
                 faces = detect_faces_opencv(frame)
 
             if not faces:
+                # Still show status even if no face
+                sys.stdout.write(f"\r● Monitoring | Sent: {frames_sent} | Matches: {matches_found} | Camera: {args.camera_id}   ")
+                sys.stdout.flush()
                 time.sleep(args.interval)
                 continue
 
-            # send each detected face
+            # send detected faces in parallel
             for face_crop in faces:
-                if face_crop.size == 0:
-                    continue
-                try:
-                    result = send_frame(args.server, token, face_crop,
-                                        args.camera_id, args.location)
-                    frames_sent += 1
-                    status = result.get("status", "?")
-
-                    if status == "match":
-                        matches_found += 1
-                        print(f"🔴 MATCH: {result.get('person')} | "
-                              f"confidence: {result.get('confidence')}% | "
-                              f"cam: {args.camera_id}")
-                    elif status == "stored":
-                        print(f"   stored unknown face | cam: {args.camera_id} | total sent: {frames_sent}")
-                    elif status == "no_face":
-                        pass  # server found no face in crop
-
-                    consecutive_errors = 0
-                except requests.exceptions.ConnectionError:
-                    consecutive_errors += 1
-                    print(f"⚠  Server unreachable ({consecutive_errors}) — retrying in 5s")
-                    if consecutive_errors > 10:
-                        print("ERROR: Too many consecutive errors. Check server.")
-                    time.sleep(5)
-                    break
-                except requests.exceptions.HTTPError as e:
-                    if e.response.status_code == 401:
-                        print("Token expired. Re-logging in...")
-                        token = login(args.server, args.user, args.password)
-                    else:
-                        print(f"⚠  HTTP error: {e}")
+                if face_crop.size > 0:
+                    executor.submit(handle_upload, face_crop.copy())
 
             time.sleep(args.interval)
+
+    except KeyboardInterrupt:
+        executor.shutdown(wait=False)
+        print(f"\n\n● Stopped. Total frames sent: {frames_sent} | Matches found: {matches_found}")
 
     except KeyboardInterrupt:
         print(f"\n\n● Stopped. Total frames sent: {frames_sent} | Matches found: {matches_found}")

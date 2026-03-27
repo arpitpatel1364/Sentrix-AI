@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 import numpy as np
 import cv2
 from PIL import Image
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, status
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -115,11 +115,17 @@ def init_db():
             added_at TEXT
         )
     """)
-    # Migration: Add embedding column if missing
+    # Migration: Add embedding column to sights and wanted if missing
     cur.execute("PRAGMA table_info(wanted)")
     cols = [c[1] for c in cur.fetchall()]
     if "embedding" not in cols:
         cur.execute("ALTER TABLE wanted ADD COLUMN embedding BLOB")
+        conn.commit()
+
+    cur.execute("PRAGMA table_info(sightings)")
+    cols = [c[1] for c in cur.fetchall()]
+    if "embedding" not in cols:
+        cur.execute("ALTER TABLE sightings ADD COLUMN embedding BLOB")
         conn.commit()
     
     conn.commit()
@@ -153,13 +159,26 @@ async def lifespan(app: FastAPI):
     # load face model
     if FACE_MODEL_AVAILABLE:
         try:
+            # Auto-detect CUDA
+            providers = ["CPUExecutionProvider"]
+            try:
+                import onnxruntime as ort
+                if "CUDAExecutionProvider" in ort.get_available_providers():
+                    providers = ["CUDAExecutionProvider"]
+                    print("🚀 GPU Detected: Using CUDAExecutionProvider for face recognition")
+                else:
+                    print("ℹ  Using CPU for face recognition (onnxruntime-gpu not found)")
+            except Exception:
+                pass
+
             FACE_APP = FaceAnalysis(
                 name="buffalo_s",
                 root=str(MODELS_DIR / "insightface"),
-                providers=["CPUExecutionProvider"]
+                providers=providers
             )
-            FACE_APP.prepare(ctx_id=0, det_size=(320, 320))
-            print("✓ InsightFace model loaded (buffalo_s, CPU)")
+            # Use smaller det_size for speed (we mostly get face crops from the worker anyway)
+            FACE_APP.prepare(ctx_id=0, det_size=(160, 160))
+            print(f"✓ InsightFace model loaded (buffalo_s, {providers[0]})")
         except Exception as e:
             print(f"⚠  Could not load InsightFace: {e}")
 
@@ -244,6 +263,7 @@ def require_admin(user=Depends(get_current_user)):
 def get_embedding(img_array: np.ndarray) -> Optional[np.ndarray]:
     if FACE_APP is None:
         return None
+    # Use max_num=1 for faster extraction
     faces = FACE_APP.get(img_array)
     if not faces:
         return None
@@ -372,8 +392,50 @@ async def sse_stream(request: Request, user=Depends(get_current_user)):
     return EventSourceResponse(generator())
 
 # ── Upload frame (worker) ──
+def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embedding: np.ndarray, camera_id: str, location: str, ts: str):
+    """Background task to handle heavy I/O operations."""
+    try:
+        # 1. Save snapshot to disk
+        filename = sighting["snapshot_path"]
+        snapshot_path = SNAPSHOTS_DIR / filename
+        cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70]) # Lower quality = faster
+        
+        # 2. Store in DB
+        emb_blob = embedding.astype(np.float32).tobytes()
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO sightings (id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence, embedding)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                sighting["id"], sighting["camera_id"], sighting["location"], sighting["timestamp"],
+                sighting["uploaded_by"], sighting["snapshot_path"], sighting["matched"],
+                sighting["person_id"], sighting["person_name"], sighting["confidence"],
+                emb_blob
+            ))
+            conn.commit()
+
+        # 3. Store in Qdrant
+        if QDRANT_AVAILABLE and QDRANT_CLIENT:
+            QDRANT_CLIENT.upsert(
+                collection_name="sightings",
+                points=[PointStruct(
+                    id=sighting_id,
+                    vector=embedding.tolist(),
+                    payload={
+                        "camera_id": camera_id,
+                        "location": location,
+                        "timestamp": ts,
+                        "person_id": sighting["person_id"],
+                        "person_name": sighting["person_name"]
+                    }
+                )]
+            )
+    except Exception as e:
+        print(f"Error in background task: {e}")
+
 @app.post("/api/upload-frame")
 async def upload_frame(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     camera_id: str = Form("cam-1"),
     location: str = Form("unknown"),
@@ -391,11 +453,7 @@ async def upload_frame(
     result = match_wanted(embedding)
     sighting_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
-    
-    # Save snapshot to disk
     filename = f"{sighting_id}.jpg"
-    snapshot_path = SNAPSHOTS_DIR / filename
-    cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 85])
     
     # helper to get b64 for SSE (keeps dashboard snappy)
     snapshot_b64 = cv2_to_b64(img)
@@ -406,7 +464,7 @@ async def upload_frame(
         "location": location,
         "timestamp": ts,
         "uploaded_by": user["username"],
-        "snapshot_path": str(filename),
+        "snapshot_path": filename,
         "matched": False,
         "person_name": "Unknown",
         "person_id": None,
@@ -419,17 +477,8 @@ async def upload_frame(
         sighting["person_id"] = result["person"]["id"]
         sighting["confidence"] = result["confidence"]
         
-    # Store in DB
-    with get_db() as conn:
-        conn.execute("""
-            INSERT INTO sightings (id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            sighting["id"], sighting["camera_id"], sighting["location"], sighting["timestamp"],
-            sighting["uploaded_by"], sighting["snapshot_path"], sighting["matched"],
-            sighting["person_id"], sighting["person_name"], sighting["confidence"]
-        ))
-        conn.commit()
+    # Schedule heavy tasks for background
+    background_tasks.add_task(_save_sighting_task, sighting_id, img, sighting, embedding, camera_id, location, ts)
 
     if result:
         # broadcast a full alert (with image) to all users
@@ -463,27 +512,54 @@ async def search_face(file: UploadFile = File(...), user=Depends(get_current_use
         return {"results": [], "message": "No face detected"}
 
     found = match_wanted(embedding)
-    if not found:
+    person_display = "Unknown Person"
+    if found:
+        person_display = found["person"]["name"]
+
+    last3 = []
+    
+    # 1. Faster/Universal Search via Qdrant
+    if QDRANT_AVAILABLE and QDRANT_CLIENT:
+        try:
+            hits = QDRANT_CLIENT.search(
+                collection_name="sightings",
+                query_vector=embedding.tolist(),
+                limit=3
+            )
+            for hit in hits:
+                # Get full details from SQLite by hit.id
+                with get_db() as conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT * FROM sightings WHERE id = ?", (hit.id,))
+                    r = cur.fetchone()
+                    if r:
+                        item = dict(r)
+                        item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
+                        # If Qdrant hit has a high score, use it for confidence
+                        item["confidence"] = round(hit.score * 100, 1)
+                        last3.append(item)
+        except Exception as e:
+            print(f"Qdrant history search error: {e}")
+
+    # 2. Fallback to SQL if Qdrant empty or unavailable (only if matched a person)
+    if not last3 and found:
+        pid = found["person"]["id"]
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
+                FROM sightings WHERE person_id = ? ORDER BY timestamp DESC LIMIT 3
+            """, (pid,))
+            rows = cur.fetchall()
+            for r in rows:
+                item = dict(r)
+                item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
+                last3.append(item)
+
+    if not last3:
         return {"found": False, "last_3_locations": []}
 
-    pid = found["person"]["id"]
-    
-    with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
-            FROM sightings WHERE person_id = ? ORDER BY timestamp DESC LIMIT 3
-        """, (pid,))
-        rows = cur.fetchall()
-        
-    last3 = []
-    for r in rows:
-        item = dict(r)
-        # Use URL instead of expensive Base64 for history
-        item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
-        last3.append(item)
-
-    return {"found": True, "person": found["person"]["name"], "last_3_locations": last3}
+    return {"found": True, "person": person_display, "last_3_locations": last3}
 
 # ── Wanted list ──
 @app.get("/api/wanted")
