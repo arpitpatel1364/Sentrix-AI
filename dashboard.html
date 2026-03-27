@@ -170,6 +170,72 @@
   #toast-container { position: fixed; top: 2rem; right: 2rem; z-index: 1000; display: flex; flex-direction: column; gap: 1rem; }
   .toast { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); border: 2px solid var(--danger); border-radius: 1.5rem; padding: 1.5rem; width: 380px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); animation: toastSlide 0.5s cubic-bezier(0.17, 0.89, 0.32, 1.49); }
   @keyframes toastSlide { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
+  /* --- VISUAL INTEL TOGGLE --- */
+  .v-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .v-toggle:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--accent); }
+  .v-switch {
+    width: 32px;
+    height: 18px;
+    background: #1e293b;
+    border-radius: 1rem;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+  .v-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: #94a3b8;
+    border-radius: 50%;
+    transition: all 0.3s;
+  }
+  .v-toggle.active .v-switch { background: rgba(56, 189, 248, 0.2); border-color: var(--accent); }
+  .v-toggle.active .v-switch::after { transform: translateX(14px); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .v-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .v-toggle.active .v-label { color: var(--accent); }
+
+  /* --- PLACEHOLDER --- */
+  .img-placeholder {
+    width: 100%;
+    height: 260px;
+    background: repeating-linear-gradient(45deg, #0f172a, #0f172a 10px, #1e293b 10px, #1e293b 20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .img-placeholder svg { opacity: 0.3; }
+  .row-placeholder {
+    width: 44px;
+    height: 44px;
+    border-radius: 0.75rem;
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    border: 1px solid var(--border);
+  }
 </style>
 </head>
 <body>
@@ -231,27 +297,58 @@
 
       <!-- VIEW: MONITOR -->
       <section class="view active" id="view-dashboard">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+            <h3 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted)">Sector Performance</h3>
+            <div id="live-entry-badge" style="background:rgba(56, 189, 248, 0.1); border:1px solid var(--accent); color:var(--accent); padding:0.5rem 1.25rem; border-radius:1rem; font-weight:900; font-size:0.8rem; display:flex; align-items:center; gap:0.5rem;">
+                <div class="logo-pulse" style="width:8px; height:8px;"></div> LIVE DETECTIONS: <span id="live-count">0</span>
+            </div>
+        </div>
+
         <div class="grid-stats">
           <div class="stat-card">
-             <div class="stat-label">Sightings</div>
-             <div id="stat-sightings" class="stat-val" style="color:var(--accent)">0</div>
+             <div class="stat-label">Total Logs</div>
+             <div id="stat-sightings" class="stat-val" style="color:var(--text-primary)">0</div>
           </div>
           <div class="stat-card">
-             <div class="stat-label">Identified</div>
+             <div class="stat-label">High Priority Hits</div>
              <div id="stat-matches" class="stat-val" style="color:var(--danger)">0</div>
           </div>
           <div class="stat-card">
-             <div class="stat-label">Targets</div>
-             <div id="stat-wanted" class="stat-val">0</div>
+             <div class="stat-label">Watchlist Active</div>
+             <div id="stat-wanted" class="stat-val" style="color:var(--accent)">0</div>
           </div>
           <div class="stat-card">
-             <div class="stat-label">Live Nodes</div>
+             <div class="stat-label">System Nodes</div>
              <div id="stat-nodes" class="stat-val" style="color:var(--success)">0</div>
           </div>
         </div>
         
-        <h3 style="margin-bottom:1.5rem; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted)">Live Intercepts</h3>
-        <div class="feed" id="live-feed"></div>
+        <!-- NODE MONITOR -->
+        <div style="display:grid; grid-template-columns: 280px 1fr; gap:1.5rem; height:400px;">
+          <!-- Active Nodes List -->
+          <div style="background:var(--bg-side); border:1px solid var(--border); border-radius:1.5rem; display:flex; flex-direction:column;">
+            <div style="padding:1.25rem; border-bottom:1px solid var(--border); font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Active Nodes</div>
+            <div id="active-nodes-list" style="flex:1; padding:1.25rem; overflow-y:auto; display:flex; flex-direction:column; gap:0.75rem;">
+               <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; margin-top:2rem;">Scanning for nodes...</div>
+            </div>
+          </div>
+          
+          <!-- Live Activity Stream -->
+          <div style="background:var(--bg-side); border:1px solid var(--border); border-radius:1.5rem; display:flex; flex-direction:column;">
+             <div style="padding:1.25rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Live Activity Log</div>
+                <div style="color:var(--success); font-size:0.65rem; font-weight:800;">REAL-TIME BYPASS</div>
+             </div>
+             <div id="live-log" style="flex:1; overflow-y:auto; padding:1.25rem; display:flex; flex-direction:column; gap:1rem;">
+                <!-- Feed items will be prepended here -->
+                <div id="log-placeholder" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.3;">
+                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                   <div style="font-size:0.8rem; margin-top:1rem; font-weight:600;">Awaiting camera connection...</div>
+                </div>
+             </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- VIEW: INTELLIGENCE -->
@@ -350,6 +447,7 @@
   <script>
     const Core = {
       TOKEN: localStorage.getItem('s_token'),
+      SHOW_VISUALS: true, // Always show in Registry
       USER: null,
       SSE: null,
 
@@ -431,31 +529,46 @@
       },
 
       async fetchStats() {
-        const sightings = await this.fetch('/api/sightings?limit=40');
+        const sightings = await this.fetch('/api/sightings?limit=1');
         if (!sightings) return;
         
+        const allSightings = await this.fetch('/api/sightings?limit=1000');
         const wanted = await this.fetch('/api/wanted');
         const active = await this.fetch('/api/active-users');
 
-        document.getElementById('stat-sightings').textContent = sightings.length;
-        document.getElementById('stat-matches').textContent = sightings.filter(s => s.matched).length;
+        document.getElementById('stat-sightings').textContent = allSightings?.length || 0;
+        document.getElementById('live-count').textContent = allSightings?.length || 0;
+        document.getElementById('stat-matches').textContent = allSightings?.filter(s => s.matched).length || 0;
         document.getElementById('stat-wanted').textContent = wanted?.length || 0;
         document.getElementById('stat-nodes').textContent = active?.count || 0;
-        
-        const feed = document.getElementById('live-feed');
-        feed.innerHTML = sightings.slice(0, 15).map(s => `
-          <div class="card">
-            ${s.matched ? `<div class="card-tag">WANTED</div>` : ''}
-            <img class="card-img" src="${s.snapshot}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%231e293b%22/></svg>'">
-            <div class="card-content">
-              <div class="card-title">${s.person_name}</div>
-              <div class="card-meta">
-                <span>${s.location}</span>
-                <span style="opacity:0.5">${this.relTime(s.timestamp)}</span>
-              </div>
-            </div>
-          </div>
-        `).join('');
+
+        // Update Node Monitor with per-camera counts
+        const nodeContainer = document.getElementById('active-nodes-list');
+        if (active?.active && nodeContainer) {
+            // Calculate counts per node
+            const counts = {};
+            allSightings.forEach(s => {
+                counts[s.camera_id] = (counts[s.camera_id] || 0) + 1;
+            });
+
+            nodeContainer.innerHTML = active.active.length ? active.active.map(user => {
+                // Try to find if this user matches a camera_id in sightings
+                // (Assuming camera_id often matches or includes the username/node name)
+                const nodeCount = counts[user] || 0;
+                return `
+                    <div style="padding:1rem; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:1rem; display:flex; flex-direction:column; gap:0.5rem;">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <div class="led"></div>
+                                <div style="font-weight:700; font-size:0.85rem;">${user}</div>
+                            </div>
+                            <div style="font-size:0.6rem; font-weight:800; color:var(--accent);">${nodeCount} SHOTS</div>
+                        </div>
+                        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Surveillance Active</div>
+                    </div>
+                `;
+            }).join('') : '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; margin-top:2rem;">No active nodes</div>';
+        }
       },
 
       relTime(iso) {
@@ -470,8 +583,45 @@
         this.SSE = new EventSource(`/api/stream?token=${this.TOKEN}`);
         this.SSE.addEventListener('alert', e => {
           const data = JSON.parse(e.data);
+          
+          // Update Live Log
+          const log = document.getElementById('live-log');
+          const placeholder = document.getElementById('log-placeholder');
+          if (log) {
+              if (placeholder) placeholder.remove();
+              const item = document.createElement('div');
+              item.style.cssText = 'padding:1rem; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:1rem; display:flex; gap:1rem; align-items:center; animation: fadeIn 0.3s ease-out;';
+              
+              const isMatch = data.type === 'wanted_match';
+              const imgSize = isMatch ? '50px' : '40px';
+              const imgHtml = data.snapshot ? `<img src="${data.snapshot}" style="width:${imgSize}; height:${imgSize}; border-radius:0.75rem; object-fit:cover; border:${isMatch ? '2px solid var(--danger)' : '1px solid var(--border)'};">` : '';
+              
+              item.innerHTML = `
+                  ${imgHtml}
+                  <div style="flex:1">
+                      <div style="font-size:0.85rem; font-weight:700; color:${isMatch ? 'var(--danger)' : 'var(--text-primary)'}">${isMatch ? 'CRITICAL MATCH: ' + data.person_name : 'New Sighting Detected'}</div>
+                      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">Node: ${data.camera_id || 'Remote Node'} · ${new Date().toLocaleTimeString()}</div>
+                  </div>
+              `;
+              log.prepend(item);
+              if (log.children.length > 20) log.lastElementChild.remove();
+          }
+
           if (data.type === 'wanted_match') this.showToast(data);
-          this.fetchStats();
+          
+          // Increment counter immediately for UI feedback
+          const countEl = document.getElementById('live-count');
+          const sightingsEl = document.getElementById('stat-sightings');
+          if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+          if (sightingsEl) sightingsEl.textContent = parseInt(sightingsEl.textContent) + 1;
+          
+          if (data.type === 'wanted_match') {
+              const matchEl = document.getElementById('stat-matches');
+              if (matchEl) matchEl.textContent = parseInt(matchEl.textContent) + 1;
+          }
+
+          // Then fetch real stats to sync
+          setTimeout(() => this.fetchStats(), 1000);
         });
       },
 
@@ -534,7 +684,13 @@
         const items = await this.fetch('/api/sightings?limit=100');
         document.getElementById('history-rows').innerHTML = items?.map(s => `
           <tr>
-            <td><img src="${s.snapshot}" class="row-img"></td>
+            <td>
+              ${this.SHOW_VISUALS ? `
+                <img src="${s.snapshot}" class="row-img">
+              ` : `
+                <div class="row-placeholder">HIDDEN</div>
+              `}
+            </td>
             <td><strong>${s.person_name}</strong></td>
             <td>${s.matched ? '<span style="color:var(--danger); font-weight:800;">CRITICAL</span>' : '<span style="color:var(--text-muted);">ROUTINE</span>'}</td>
             <td>${s.camera_id} / ${s.location}</td>

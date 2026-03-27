@@ -72,8 +72,8 @@ SNAPSHOTS_DIR.mkdir(exist_ok=True)
 # ══════════════════════════════════════════════
 #  IN-MEMORY STORES (replace with DB in prod)
 # ══════════════════════════════════════════════
-# active SSE connections: { username: asyncio.Queue }
-SSE_CONNECTIONS: dict[str, asyncio.Queue] = {}
+# active SSE connections: { username: [asyncio.Queue, ...] }
+SSE_CONNECTIONS: dict[str, List[asyncio.Queue]] = {}
 
 # face analysis model (loaded once)
 FACE_APP = None
@@ -342,13 +342,12 @@ def get_snapshot_b64(filename: str) -> str:
 # ══════════════════════════════════════════════
 async def broadcast_alert(payload: dict):
     dead = []
-    for username, queue in SSE_CONNECTIONS.items():
-        try:
-            await queue.put(payload)
-        except Exception:
-            dead.append(username)
-    for u in dead:
-        SSE_CONNECTIONS.pop(u, None)
+    for username, queues in SSE_CONNECTIONS.items():
+        for q in queues:
+            try:
+                await q.put(payload)
+            except Exception:
+                pass
 
 
 # ══════════════════════════════════════════════
@@ -381,7 +380,9 @@ async def logout(user=Depends(get_current_user)):
 @app.get("/api/stream")
 async def sse_stream(request: Request, user=Depends(get_current_user)):
     queue = asyncio.Queue()
-    SSE_CONNECTIONS[user["username"]] = queue
+    if user["username"] not in SSE_CONNECTIONS:
+        SSE_CONNECTIONS[user["username"]] = []
+    SSE_CONNECTIONS[user["username"]].append(queue)
 
     async def generator():
         # send connected ping
@@ -396,7 +397,11 @@ async def sse_stream(request: Request, user=Depends(get_current_user)):
                 except asyncio.TimeoutError:
                     yield {"event": "ping", "data": "{}"}
         finally:
-            SSE_CONNECTIONS.pop(user["username"], None)
+            if user["username"] in SSE_CONNECTIONS:
+                if queue in SSE_CONNECTIONS[user["username"]]:
+                    SSE_CONNECTIONS[user["username"]].remove(queue)
+                if not SSE_CONNECTIONS[user["username"]]:
+                    SSE_CONNECTIONS.pop(user["username"])
 
     return EventSourceResponse(generator())
 
@@ -404,10 +409,13 @@ async def sse_stream(request: Request, user=Depends(get_current_user)):
 def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embedding: np.ndarray, camera_id: str, location: str, ts: str):
     """Background task to handle heavy I/O operations."""
     try:
-        # 1. Save snapshot to disk
-        filename = sighting["snapshot_path"]
+        # 1. Save snapshot to disk (in a camera-specific folder)
+        cam_dir = SNAPSHOTS_DIR / camera_id
+        cam_dir.mkdir(parents=True, exist_ok=True)
+        
+        filename = sighting["snapshot_path"] # This now includes camera_id/ prefix
         snapshot_path = SNAPSHOTS_DIR / filename
-        cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70]) # Lower quality = faster
+        cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70]) 
         
         # 2. Store in Qdrant
         if QDRANT_AVAILABLE and QDRANT_CLIENT:
@@ -448,7 +456,8 @@ async def upload_frame(
     result = match_wanted(embedding)
     sighting_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
-    filename = f"{sighting_id}.jpg"
+    # Save in subfolder matching the camera ID
+    filename = f"{camera_id}/{sighting_id}.jpg"
     
     # helper to get b64 for SSE (keeps dashboard snappy)
     snapshot_b64 = cv2_to_b64(img)
@@ -640,13 +649,12 @@ async def get_sightings(limit: int = 50, user=Depends(get_current_user)):
             r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
         return rows
         
-@app.get("/api/snapshots/{filename}")
-async def get_snapshot(filename: str):
-    path = SNAPSHOTS_DIR / filename
-    if not path.exists():
+@app.get("/api/snapshots/{path:path}")
+async def get_snapshot(path: str):
+    full_path = SNAPSHOTS_DIR / path
+    if not full_path.exists():
         raise HTTPException(status_code=404)
-    # Simple direct file serving
-    return StreamingResponse(open(path, "rb"), media_type="image/jpeg")
+    return StreamingResponse(open(full_path, "rb"), media_type="image/jpeg")
 
 # ── Users (admin) ──
 @app.get("/api/users")
@@ -686,7 +694,8 @@ async def delete_user(username: str, user=Depends(require_admin)):
 # ── Active users ──
 @app.get("/api/active-users")
 async def active_users(user=Depends(get_current_user)):
-    return {"active": list(SSE_CONNECTIONS.keys()), "count": len(SSE_CONNECTIONS)}
+    total_nodes = sum(len(q) for q in SSE_CONNECTIONS.values())
+    return {"active": list(SSE_CONNECTIONS.keys()), "count": total_nodes}
 
 # ── System Maintenance (Admin Only) ──
 @app.post("/api/system/reset")
@@ -715,10 +724,14 @@ async def system_reset(user=Depends(require_admin)):
             except Exception as e:
                 print(f"Qdrant reset error: {e}")
 
-        # 3. Clear Snapshots
+        # 3. Clear Snapshots (including all sub-folders)
         import shutil
         if SNAPSHOTS_DIR.exists():
-            shutil.rmtree(SNAPSHOTS_DIR)
+            for item in SNAPSHOTS_DIR.iterdir():
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
             SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
         return {"ok": True, "message": "System reset successfully. All data cleared."}
