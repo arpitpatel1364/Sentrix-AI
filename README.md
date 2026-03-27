@@ -33,7 +33,7 @@
 
 ---
 
-## Installation & Setup
+## 📦 Installation & Setup
 
 ### 1. Server Setup (Manager)
 ```bash
