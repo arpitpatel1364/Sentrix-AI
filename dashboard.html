@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCTV Surveillance System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3347;
+    --text: #e8eaf0;
+    --text2: #8b91a8;
+    --accent: #4f8ef7;
+    --danger: #e84040;
+    --success: #3dcc7e;
+    --warn: #f0a030;
+    --radius: 8px;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .login-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 36px;
+    width: 360px;
+  }
+  .login-card h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .login-card p {
+    color: var(--text2);
+    font-size: 13px;
+    margin-bottom: 28px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  input[type=text], input[type=password], input[type=number], select, input[type=file] {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-danger  { background: var(--danger); color: #fff; }
+  .btn-ghost   { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-full    { width: 100%; justify-content: center; }
+  .error-msg { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; }
+
+  /* ── LAYOUT ── */
+  #app { display: none; }
+  .topbar {
+    height: 52px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .brand-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .topbar-spacer { flex: 1; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-admin { background: #2d1f6e; color: #a89cf7; }
+  .badge-worker { background: #1a2d4a; color: #7ab8f5; }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+    background: var(--success); margin-right: 5px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .tab-btn {
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; padding: 24px 20px; }
+  .tab-panel.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 16px;
+  }
+
+  /* ── STAT CARDS ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 600; }
+  .stat-value.danger { color: var(--danger); }
+  .stat-value.success { color: var(--success); }
+  .stat-value.accent { color: var(--accent); }
+
+  /* ── ALERT BANNER ── */
+  #alert-container {
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 360px;
+    width: 100%;
+  }
+  .alert-toast {
+    background: #2a0a0a;
+    border: 1px solid var(--danger);
+    border-radius: 10px;
+    padding: 14px 16px;
+    animation: slideIn .25s ease;
+    cursor: pointer;
+  }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .alert-toast-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .alert-icon {
+    width: 8px; height: 8px; background: var(--danger); border-radius: 50%;
+    animation: pulse 1s infinite;
+  }
+  .alert-toast-title { font-weight: 600; font-size: 14px; color: var(--danger); }
+  .alert-toast-dismiss { margin-left: auto; color: var(--text2); font-size: 18px; line-height: 1; }
+  .alert-toast-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .alert-toast-img {
+    width: 100%;
+    max-height: 100px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+  .alert-conf { display: inline-block; background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
+
+  /* ── TABLE ── */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text2);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: 13px;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--bg3); }
+  .tag-match { color: var(--danger); font-weight: 600; font-size: 12px; }
+  .tag-unknown { color: var(--text2); font-size: 12px; }
+  .thumb {
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  /* ── WANTED GRID ── */
+  .wanted-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .wanted-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    position: relative;
+  }
+  .wanted-card .w-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #2d1f1f;
+    border: 2px solid var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--danger);
+  }
+  .wanted-card .w-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .wanted-card .w-meta { font-size: 11px; color: var(--text2); }
+  .wanted-card .btn-del {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: none; border: none;
+    color: var(--text2); cursor: pointer;
+    font-size: 16px; line-height: 1;
+  }
+  .wanted-card .btn-del:hover { color: var(--danger); }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(79,142,247,.04); }
+  .upload-zone p { color: var(--text2); font-size: 13px; margin-top: 8px; }
+
+  /* ── SEARCH RESULTS ── */
+  .location-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .loc-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent);
+    color: #fff; font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── CONNECTION STATUS ── */
+  .conn-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text2); }
+  .conn-dot.connected { background: var(--success); }
+  .conn-dot.disconnected { background: var(--danger); }
+
+  /* ── MISC ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-header h2 { font-size: 15px; font-weight: 600; }
+  .section-header .spacer { flex: 1; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .empty-state { text-align: center; color: var(--text2); padding: 40px 0; font-size: 13px; }
+
+  /* ── IMAGE PREVIEW MODAL ── */
+  #img-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.85);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  #img-modal.open { display: flex; }
+  #img-modal img { max-width: 90vw; max-height: 80vh; border-radius: 10px; border: 1px solid var(--border); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>CCTV System</h1>
+    <p>Sign in to access the surveillance dashboard</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="Enter username" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="error-msg" id="login-error">Invalid credentials</p>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-dot"></div>
+      CCTV System
+    </div>
+    <div class="conn-status" id="conn-status">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-text">Connecting...</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <span id="user-badge" class="badge"></span>
+    <button class="btn btn-ghost" onclick="doLogout()" style="padding:6px 12px;font-size:12px;">Sign out</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs-row">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="sightings">Sightings</button>
+    <button class="tab-btn" data-tab="wanted" id="tab-wanted">Wanted List</button>
+    <button class="tab-btn" data-tab="search">Face Search</button>
+    <button class="tab-btn" data-tab="users" id="tab-users">Users</button>
+  </div>
+
+  <!-- ── DASHBOARD TAB ── -->
+  <div class="tab-panel active" id="panel-dashboard">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total sightings</div>
+        <div class="stat-value accent" id="stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Wanted matches</div>
+        <div class="stat-value danger" id="stat-matches">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Wanted persons</div>
+        <div class="stat-value" id="stat-wanted">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Online users</div>
+        <div class="stat-value success" id="stat-online">0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent activity</div>
+      <table class="data-table" id="dash-table">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Person</th>
+            <th>Camera</th>
+            <th>Location</th>
+            <th>Confidence</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="dash-tbody">
+          <tr><td colspan="6" class="empty-state">No sightings yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SIGHTINGS TAB ── -->
+  <div class="tab-panel" id="panel-sightings">
+    <div class="section-header">
+      <h2>All sightings</h2>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" onclick="loadSightings()">Refresh</button>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Person</th>
+            <th>Status</th>
+            <th>Camera</th>
+            <th>Location</th>
+            <th>Confidence</th>
+            <th>Uploaded by</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="sightings-tbody">
+          <tr><td colspan="8" class="empty-state">No sightings yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── WANTED TAB ── -->
+  <div class="tab-panel" id="panel-wanted">
+    <div class="grid-2" id="wanted-admin-add" style="display:none;margin-bottom:20px;">
+      <div class="card">
+        <div class="card-title">Add to wanted list</div>
+        <div class="form-group">
+          <label>Full name</label>
+          <input type="text" id="wanted-name" placeholder="Person name">
+        </div>
+        <div class="form-group">
+          <label>Photo</label>
+          <input type="file" id="wanted-photo" accept="image/*">
+        </div>
+        <button class="btn btn-danger" onclick="addWanted()">Add to list</button>
+        <p id="wanted-msg" style="font-size:12px;margin-top:8px;color:var(--success);display:none;"></p>
+      </div>
+      <div class="card" style="display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;color:var(--text2)">
+          <div style="font-size:36px;margin-bottom:10px;">⚠</div>
+          <div style="font-size:13px;">System will alert all online users<br>when a wanted person is detected</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Wanted persons</div>
+      <div class="wanted-grid" id="wanted-grid">
+        <div class="empty-state">No wanted persons added yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SEARCH TAB ── -->
+  <div class="tab-panel" id="panel-search">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Search by face photo</div>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">Upload a photo to find the last 3 locations this person was spotted.</p>
+        <div class="upload-zone" onclick="document.getElementById('search-file').click()">
+          <div style="font-size:28px;">🔍</div>
+          <p>Click to upload photo</p>
+          <input type="file" id="search-file" accept="image/*" style="display:none" onchange="doSearch()">
+        </div>
+      </div>
+      <div id="search-results">
+        <div class="card" style="height:100%">
+          <div class="card-title">Results</div>
+          <div id="search-output" class="empty-state">Upload a photo to search</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USERS TAB ── -->
+  <div class="tab-panel" id="panel-users">
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card" id="add-user-card">
+        <div class="card-title">Add user</div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="new-username" placeholder="Username">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="new-password" placeholder="Password">
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="new-role">
+            <option value="worker">Worker</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addUser()">Add user</button>
+        <p id="user-msg" style="font-size:12px;margin-top:8px;display:none;"></p>
+      </div>
+      <div class="card">
+        <div class="card-title">Worker agent command</div>
+        <p style="color:var(--text2);font-size:12px;margin-bottom:12px;">Run this on the machine with the camera:</p>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#7ab8f5;line-height:1.8;word-break:break-all;">
+          python worker_agent.py \<br>
+          &nbsp;&nbsp;--server <span id="agent-server-url">http://your-server:8000</span> \<br>
+          &nbsp;&nbsp;--user worker1 \<br>
+          &nbsp;&nbsp;--password worker123 \<br>
+          &nbsp;&nbsp;--camera 0 \<br>
+          &nbsp;&nbsp;--camera-id entrance-cam \<br>
+          &nbsp;&nbsp;--location "Main Gate"
+        </div>
+        <p style="font-size:11px;color:var(--text2);margin-top:8px;">Place your best.pt model at <code>models/best.pt</code> on the worker machine.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">All users</div>
+      <table class="data-table">
+        <thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="4" class="empty-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ALERT CONTAINER ══ -->
+<div id="alert-container"></div>
+
+<!-- ══ IMAGE MODAL ══ -->
+<div id="img-modal" onclick="this.classList.remove('open')">
+  <img id="img-modal-src" src="" alt="">
+</div>
+
+<script>
+// ══════════════════════════════
+//  STATE
+// ══════════════════════════════
+let TOKEN = '', ROLE = '', USERNAME = '';
+let sse = null;
+let audioCtx = null;
+let alertCount = 0;
+
+const API = location.origin;
+
+// ══════════════════════════════
+//  AUTH
+// ══════════════════════════════
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try {
+    const r = await fetch(`${API}/api/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username: user, password: pass})
+    });
+    if (!r.ok) throw new Error('bad');
+    const data = await r.json();
+    TOKEN = data.token;
+    ROLE = data.role;
+    USERNAME = data.username;
+    showApp();
+  } catch {
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function doLogout() {
+  fetch(`${API}/api/logout`, {method:'POST', headers: authH()}).catch(()=>{});
+  if (sse) { sse.close(); sse = null; }
+  TOKEN = ''; ROLE = ''; USERNAME = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ══════════════════════════════
+//  SETUP APP
+// ══════════════════════════════
+function authH() {
+  return { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  // badge
+  const badge = document.getElementById('user-badge');
+  badge.textContent = `${USERNAME} · ${ROLE}`;
+  badge.className = `badge badge-${ROLE}`;
+
+  // show/hide admin tabs
+  const isAdmin = ROLE === 'admin';
+  document.getElementById('tab-wanted').style.display = isAdmin ? '' : '';
+  document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
+  document.getElementById('wanted-admin-add').style.display = isAdmin ? 'grid' : 'none';
+
+  // server url in agent command
+  document.getElementById('agent-server-url').textContent = location.origin;
+
+  // init
+  initSSE();
+  loadDashboard();
+  loadWanted();
+  if (isAdmin) loadUsers();
+
+  // tab clicks
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'sightings') loadSightings();
+      if (btn.dataset.tab === 'users' && ROLE === 'admin') loadUsers();
+      if (btn.dataset.tab === 'wanted') loadWanted();
+    });
+  });
+
+  // refresh stats every 15s
+  setInterval(() => { loadDashboard(); updateOnline(); }, 15000);
+}
+
+// ══════════════════════════════
+//  SSE — REAL-TIME ALERTS
+// ══════════════════════════════
+function initSSE() {
+  if (sse) sse.close();
+
+  const url = `${API}/api/stream`;
+  // SSE needs auth — we pass token as query param since EventSource can't set headers
+  const es = new EventSource(`${url}?token=${TOKEN}`);
+
+  es.addEventListener('connected', () => {
+    setConnStatus(true, 'Live');
+  });
+
+  es.addEventListener('alert', (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'wanted_match') {
+      showAlert(data);
+      playBeep();
+    }
+    loadDashboard();
+  });
+
+  es.addEventListener('ping', () => {
+    setConnStatus(true, 'Live');
+  });
+
+  es.onerror = () => {
+    setConnStatus(false, 'Reconnecting...');
+  };
+
+  sse = es;
+}
+
+function setConnStatus(connected, text) {
+  const dot = document.getElementById('conn-dot');
+  const txt = document.getElementById('conn-text');
+  dot.className = 'conn-dot ' + (connected ? 'connected' : 'disconnected');
+  txt.textContent = text;
+}
+
+// ══════════════════════════════
+//  BEEP — Web Audio API
+// ══════════════════════════════
+function playBeep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.6);
+  } catch(e) {}
+}
+
+// ══════════════════════════════
+//  ALERT TOAST
+// ══════════════════════════════
+function showAlert(data) {
+  alertCount++;
+  const container = document.getElementById('alert-container');
+  const id = 'toast-' + alertCount;
+  const ts = new Date(data.timestamp).toLocaleTimeString();
+
+  const toast = document.createElement('div');
+  toast.className = 'alert-toast';
+  toast.id = id;
+  toast.innerHTML = `
+    <div class="alert-toast-header">
+      <div class="alert-icon"></div>
+      <div class="alert-toast-title">WANTED PERSON DETECTED</div>
+      <button class="alert-toast-dismiss" onclick="document.getElementById('${id}').remove()">×</button>
+    </div>
+    <div class="alert-toast-body">
+      <strong style="color:var(--text)">${data.person_name}</strong><br>
+      Camera: ${data.camera_id} &nbsp;·&nbsp; ${data.location}<br>
+      ${ts} &nbsp; <span class="alert-conf">${data.confidence}%</span>
+    </div>
+    ${data.snapshot ? `<img class="alert-toast-img" src="${data.snapshot}" alt="">` : ''}
+  `;
+  container.prepend(toast);
+
+  // auto-dismiss after 30s
+  setTimeout(() => toast.remove(), 30000);
+}
+
+// ══════════════════════════════
+//  DATA LOADERS
+// ══════════════════════════════
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(API + path, {
+    ...opts,
+    headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${TOKEN}` }
+  });
+  if (r.status === 401) { doLogout(); return null; }
+  return r.json();
+}
+
+async function loadDashboard() {
+  const sightings = await apiFetch('/api/sightings?limit=20');
+  if (!sightings) return;
+
+  const matches = sightings.filter(s => s.matched);
+  document.getElementById('stat-total').textContent = sightings.length;
+  document.getElementById('stat-matches').textContent = matches.length;
+
+  const wanted = await apiFetch('/api/wanted');
+  if (wanted) document.getElementById('stat-wanted').textContent = wanted.length;
+
+  await updateOnline();
+
+  const tbody = document.getElementById('dash-tbody');
+  if (!sightings.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No sightings yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sightings.slice(0, 10).map(s => {
+    let img = s.snapshot;
+    if (img && !img.startsWith('data:')) img = API + img;
+    return `
+    <tr>
+      <td>${img ? `<img class="thumb" src="${img}" onclick="openImg('${img}')">` : '—'}</td>
+      <td><strong>${s.person_name}</strong></td>
+      <td>${s.camera_id}</td>
+      <td>${s.location}</td>
+      <td>${s.matched ? `<span class="alert-conf">${s.confidence}%</span>` : '—'}</td>
+      <td style="color:var(--text2)">${fmtTime(s.timestamp)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function updateOnline() {
+  const data = await apiFetch('/api/active-users');
+  if (data) document.getElementById('stat-online').textContent = data.count;
+}
+
+async function loadSightings() {
+  const sightings = await apiFetch('/api/sightings?limit=100');
+  if (!sightings) return;
+  const tbody = document.getElementById('sightings-tbody');
+  if (!sightings.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No sightings yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sightings.map(s => {
+    let img = s.snapshot;
+    if (img && !img.startsWith('data:')) img = API + img;
+    return `
+    <tr>
+      <td>${img ? `<img class="thumb" src="${img}" onclick="openImg('${img}')">` : '—'}</td>
+      <td><strong>${s.person_name}</strong></td>
+      <td>${s.matched ? '<span class="tag-match">● WANTED</span>' : '<span class="tag-unknown">Unknown</span>'}</td>
+      <td>${s.camera_id}</td>
+      <td>${s.location}</td>
+      <td>${s.matched ? `<span class="alert-conf">${s.confidence}%</span>` : '—'}</td>
+      <td style="color:var(--text2)">${s.uploaded_by}</td>
+      <td style="color:var(--text2)">${fmtTime(s.timestamp)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadWanted() {
+  const list = await apiFetch('/api/wanted');
+  if (!list) return;
+  const grid = document.getElementById('wanted-grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No wanted persons added yet</div>';
+    return;
+  }
+  grid.innerHTML = list.map(w => `
+    <div class="wanted-card">
+      ${ROLE === 'admin' ? `<button class="btn-del" onclick="removeWanted('${w.id}')">×</button>` : ''}
+      <div class="w-avatar">${w.name.charAt(0).toUpperCase()}</div>
+      <div class="w-name">${w.name}</div>
+      <div class="w-meta">Added ${fmtTime(w.added_at)}</div>
+    </div>`).join('');
+}
+
+async function addWanted() {
+  const name = document.getElementById('wanted-name').value.trim();
+  const file = document.getElementById('wanted-photo').files[0];
+  const msg = document.getElementById('wanted-msg');
+  if (!name || !file) { alert('Name and photo required'); return; }
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('file', file);
+
+  const r = await fetch(`${API}/api/wanted`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}` },
+    body: fd
+  });
+  const data = await r.json();
+  if (r.ok) {
+    msg.style.display = 'block';
+    msg.style.color = 'var(--success)';
+    msg.textContent = `✓ ${name} added to wanted list`;
+    document.getElementById('wanted-name').value = '';
+    document.getElementById('wanted-photo').value = '';
+    loadWanted();
+  } else {
+    msg.style.display = 'block';
+    msg.style.color = 'var(--danger)';
+    msg.textContent = data.detail || 'Error adding person';
+  }
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+async function removeWanted(id) {
+  if (!confirm('Remove from wanted list?')) return;
+  await apiFetch(`/api/wanted/${id}`, { method: 'DELETE' });
+  loadWanted();
+}
+
+// ══════════════════════════════
+//  FACE SEARCH
+// ══════════════════════════════
+async function doSearch() {
+  const file = document.getElementById('search-file').files[0];
+  if (!file) return;
+  const out = document.getElementById('search-output');
+  out.innerHTML = '<div class="empty-state">Searching...</div>';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  const r = await fetch(`${API}/api/search-face`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}` },
+    body: fd
+  });
+  const data = await r.json();
+
+  if (!data.found) {
+    out.innerHTML = '<div class="empty-state">No match found in database</div>';
+    return;
+  }
+
+  const locs = data.last_3_locations;
+  out.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <strong style="color:var(--danger)">${data.person}</strong>
+      <span style="color:var(--text2);font-size:12px;margin-left:8px;">Last ${locs.length} sighting${locs.length !== 1 ? 's' : ''}</span>
+    </div>
+    ${locs.map((s, i) => {
+      let img = s.snapshot;
+      if (img && !img.startsWith('data:')) img = API + img;
+      return `
+      <div class="location-card">
+        <div class="loc-num">${i + 1}</div>
+        ${img ? `<img src="${img}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:pointer" onclick="openImg('${img}')">` : ''}
+        <div>
+          <div style="font-weight:600;font-size:13px">${s.camera_id} — ${s.location}</div>
+          <div style="color:var(--text2);font-size:12px">${fmtTime(s.timestamp)} &nbsp; <span class="alert-conf">${s.confidence}%</span></div>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+// ══════════════════════════════
+//  USERS
+// ══════════════════════════════
+async function loadUsers() {
+  const [users, active] = await Promise.all([
+    apiFetch('/api/users'),
+    apiFetch('/api/active-users')
+  ]);
+  if (!users) return;
+  const online = new Set((active?.active) || []);
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td><strong>${u.username}</strong></td>
+      <td><span class="badge badge-${u.role}">${u.role}</span></td>
+      <td>
+        <span class="status-dot" style="background:${online.has(u.username) ? 'var(--success)' : 'var(--border)'}"></span>
+        ${online.has(u.username) ? 'Online' : '<span style="color:var(--text2)">Offline</span>'}
+      </td>
+      <td>
+        ${u.username !== 'admin' ? `<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="deleteUser('${u.username}')">Remove</button>` : '—'}
+      </td>
+    </tr>`).join('');
+}
+
+async function addUser() {
+  const username = document.getElementById('new-username').value.trim();
+  const password = document.getElementById('new-password').value;
+  const role = document.getElementById('new-role').value;
+  const msg = document.getElementById('user-msg');
+  if (!username || !password) { alert('Username and password required'); return; }
+
+  const r = await fetch(`${API}/api/users`, {
+    method: 'POST',
+    headers: authH(),
+    body: JSON.stringify({ username, password, role })
+  });
+  const data = await r.json();
+  msg.style.display = 'block';
+  if (r.ok) {
+    msg.style.color = 'var(--success)';
+    msg.textContent = `✓ User ${username} created`;
+    document.getElementById('new-username').value = '';
+    document.getElementById('new-password').value = '';
+    loadUsers();
+  } else {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = data.detail || 'Error';
+  }
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+async function deleteUser(username) {
+  if (!confirm(`Remove user ${username}?`)) return;
+  await apiFetch(`/api/users/${username}`, { method: 'DELETE' });
+  loadUsers();
+}
+
+// ══════════════════════════════
+//  HELPERS
+// ══════════════════════════════
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+}
+
+function openImg(src) {
+  document.getElementById('img-modal-src').src = src;
+  document.getElementById('img-modal').classList.add('open');
+}
+
+// SSE via query param support — patch server to read token from query if header not present
+// (The EventSource API can't set headers, so we pass token in URL query string.
+//  The server.py get_current_user() is patched below to handle both.)
+</script>
+</body>
+</html>
