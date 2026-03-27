@@ -4,18 +4,18 @@
 
 ---
 
-## 🚀 Key Functionality
+##  Key Functionality
 
 ### 📡 Distributed Surveillance Mesh
 *   **Worker Agents**: Light-weight clients (Python) that run on any local machine with a camera. They perform edge-side face detection (YOLOv8/Haar) and stream high-quality crops to the server.
 *   **Central Brain**: A FastAPI-based server that processes visual data, generates neural embeddings, and handles identification across thousands of records.
 
-### 🧠 Neural Intelligence Hub
+### Neural Intelligence Hub
 *   **Face Recognition**: Powered by **InsightFace (Buffalo_S/L)** for near-instant identity verification with high cosine similarity precision.
 *   **Vector Search**: Integrated with **Qdrant** for lightning-fast history lookups and identity cross-referencing across millions of captured sightings.
 *   **Intelligence Tooling**: A "Neural Search" feature allowing operators to upload any face image to find a person's **Last 3 Locations** and travel history.
 
-### 🛡️ Admin Surveillance Dashboard
+### Admin Surveillance Dashboard
 *   **Live Intercept Feed**: Real-time activity timeline with glassmorphism-inspired UI and instant "WANTED" alerts.
 *   **Personnel Management**: Full CRUD interface for managing Field Operatives (Workers) and Site Admins.
 *   **Watchlist Registry**: Neural templates for target individuals, synchronized across the entire network.
@@ -23,7 +23,7 @@
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 *   **Backend**: Python, FastAPI, Uvicorn, SSE (Server-Sent Events)
 *   **Database**: SQLite (Metadata), Qdrant (Vector Embeddings)
@@ -33,7 +33,7 @@
 
 ---
 
-## 📦 Installation & Setup
+## Installation & Setup
 
 ### 1. Server Setup (Manager)
 ```bash
@@ -62,7 +62,7 @@ python3 worker_agent.py --server http://your-server-ip:8000 --user worker1 --pas
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 *   `server.py`: The central Intelligence Hub (API, Auth, Vector Engine).
 *   `worker_agent.py`: Field Node agent for local detection and frame streaming.
@@ -72,20 +72,20 @@ python3 worker_agent.py --server http://your-server-ip:8000 --user worker1 --pas
 
 ---
 
-## 🔑 Default Credentials
+##  Default Credentials
 
 | Identity | Username | Password |
 | :--- | :--- | :--- |
-| **Site Admin** | `admin` | `admin123` |
-| **Field Operative** | `worker1` | `worker123` |
+| **Site Admin** | `admin` | `admin123` | `changeable from code `
+| **Field Operative** | `worker1` | `worker123` |`changeable from code `
 
 ---
 
-## ⚠️ Model Configuration
+##  Model Configuration
 *   **Detection**: Place your YOLOv8 face detection model at `models/best.pt`.
 *   **Recognition**: InsightFace models are auto-downloaded to `models/insightface/` on first launch.
 
 ---
 
-## 📜 License
+##  License
 *Proprietary Security Intelligence Software. Licensed for specialized facility use.*
