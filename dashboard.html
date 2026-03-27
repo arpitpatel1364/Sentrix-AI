@@ -3,1059 +3,619 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CCTV Surveillance System</title>
+<title>Sentrix AI | Intelligence Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg: #0f1117;
-    --bg2: #1a1d27;
-    --bg3: #22263a;
-    --border: #2e3347;
-    --text: #e8eaf0;
-    --text2: #8b91a8;
-    --accent: #4f8ef7;
-    --danger: #e84040;
-    --success: #3dcc7e;
-    --warn: #f0a030;
-    --radius: 8px;
-    --font: 'Inter', system-ui, sans-serif;
+    --bg-main: #020617;
+    --bg-side: #0f172a;
+    --bg-card: rgba(30, 41, 59, 0.5);
+    --border: rgba(255, 255, 255, 0.08);
+    --accent: #38bdf8;
+    --danger: #f43f5e;
+    --success: #10b981;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --font: 'Outfit', sans-serif;
   }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 14px;
-    min-height: 100vh;
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+  body { background: var(--bg-main); color: var(--text-primary); font-family: var(--font); height: 100vh; overflow: hidden; }
 
-  /* ── LOGIN ── */
+  /* --- AUTH SCREEN --- */
   #login-screen {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: radial-gradient(circle at top right, #1e293b, var(--bg-main));
   }
   .login-card {
-    background: var(--bg2);
+    background: var(--bg-side);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 40px 36px;
-    width: 360px;
+    padding: 3rem;
+    border-radius: 2rem;
+    width: 440px;
+    box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7);
+    text-align: center;
   }
-  .login-card h1 {
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  .login-card p {
-    color: var(--text2);
-    font-size: 13px;
-    margin-bottom: 28px;
-  }
-  .form-group { margin-bottom: 16px; }
-  .form-group label {
-    display: block;
-    font-size: 12px;
-    color: var(--text2);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-  }
-  input[type=text], input[type=password], input[type=number], select, input[type=file] {
+  .login-logo { font-size: 2rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem; color: var(--accent); }
+  .logo-pulse { width: 14px; height: 14px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 20px var(--danger); animation: heartbeat 1.5s infinite; }
+  @keyframes heartbeat { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
+  
+  .login-card h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  .login-card p { color: var(--text-muted); margin-bottom: 2.5rem; font-size: 0.9rem; }
+  
+  .field { text-align: left; margin-bottom: 1.5rem; }
+  .field label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+  input {
     width: 100%;
-    background: var(--bg3);
+    background: #000a1f;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    padding: 9px 12px;
-    font-size: 14px;
+    border-radius: 0.75rem;
+    color: #fff;
+    padding: 1rem 1.25rem;
     outline: none;
-    transition: border-color .15s;
+    font-size: 1rem;
   }
-  input:focus, select:focus { border-color: var(--accent); }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15); }
   .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 16px;
-    border-radius: var(--radius);
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    padding: 1.1rem;
     border: none;
-    font-size: 13px;
-    font-weight: 500;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    font-size: 1rem;
     cursor: pointer;
-    transition: opacity .15s, transform .1s;
+    box-shadow: 0 4px 12px rgba(56,189,248,0.3);
   }
-  .btn:active { transform: scale(.98); }
-  .btn:disabled { opacity: .4; cursor: not-allowed; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-danger  { background: var(--danger); color: #fff; }
-  .btn-ghost   { background: transparent; color: var(--text2); border: 1px solid var(--border); }
-  .btn-full    { width: 100%; justify-content: center; }
-  .error-msg { color: var(--danger); font-size: 12px; margin-top: 8px; display: none; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(56,189,248,0.4); }
 
-  /* ── LAYOUT ── */
-  #app { display: none; }
-  .topbar {
-    height: 52px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    gap: 16px;
-    position: sticky;
-    top: 0;
+  /* --- APP LAYOUT --- */
+  #app { display: none; height: 100vh; grid-template-columns: 280px 1fr; }
+  
+  .sidebar { 
+    background: var(--bg-side); 
+    border-right: 1px solid var(--border); 
+    display: flex; 
+    flex-direction: column; 
+    padding: 2rem 1.5rem;
     z-index: 100;
   }
-  .topbar-brand { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-  .brand-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .topbar-spacer { flex: 1; }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 500;
-  }
-  .badge-admin { background: #2d1f6e; color: #a89cf7; }
-  .badge-worker { background: #1a2d4a; color: #7ab8f5; }
-  .status-dot {
-    width: 7px; height: 7px; border-radius: 50%; display: inline-block;
-    background: var(--success); margin-right: 5px;
-  }
-
-  /* ── TABS ── */
-  .tabs {
-    display: flex;
-    gap: 2px;
-    padding: 0 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg2);
-  }
-  .tab-btn {
-    padding: 12px 16px;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--text2);
-    font-size: 13px;
-    font-weight: 500;
+  .nav { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+  .nav-item {
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
     cursor: pointer;
-    transition: color .15s, border-color .15s;
-  }
-  .tab-btn:hover { color: var(--text); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .tab-panel { display: none; padding: 24px 20px; }
-  .tab-panel.active { display: block; }
-
-  /* ── CARDS ── */
-  .card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-  }
-  .card-title {
-    font-size: 13px;
+    color: var(--text-muted);
     font-weight: 600;
-    color: var(--text2);
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    text-decoration: none;
   }
+  .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+  .nav-item.active { background: rgba(56, 189, 248, 0.1); color: var(--accent); border: 1px solid rgba(56,189,248,0.2); }
 
-  /* ── STAT CARDS ── */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
+  .sb-footer { border-top: 1px solid var(--border); padding-top: 2rem; }
+  .user-badge { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .avatar { width: 36px; height: 36px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #000; font-size: 0.8rem; }
+  .logout-btn { color: var(--danger); font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; opacity: 0.7; }
+  .logout-btn:hover { opacity: 1; }
+
+  /* --- MAIN CONTENT --- */
+  .main { background: var(--bg-main); overflow: hidden; display: flex; flex-direction: column; }
+  .topbar {
+    height: 80px;
+    padding: 0 3rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(2, 6, 23, 0.8);
+    backdrop-filter: blur(12px);
   }
+  .topbar-info { display: flex; align-items: center; gap: 1.5rem; }
+  .status-pill { padding: 0.4rem 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--success); border-radius: 2rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.4rem; }
+  .led { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); }
+
+  .view { flex: 1; overflow-y: auto; padding: 3rem; display: none; animation: fadeIn 0.4s ease-out; }
+  .view.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* --- COMPONENTS --- */
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
   .stat-card {
-    background: var(--bg2);
+    background: var(--bg-card);
+    backdrop-filter: blur(8px);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
+    padding: 1.75rem;
+    border-radius: 1.5rem;
   }
-  .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
-  .stat-value { font-size: 26px; font-weight: 600; }
-  .stat-value.danger { color: var(--danger); }
-  .stat-value.success { color: var(--success); }
-  .stat-value.accent { color: var(--accent); }
+  .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .stat-val { font-size: 2.5rem; font-weight: 800; }
 
-  /* ── ALERT BANNER ── */
-  #alert-container {
-    position: fixed;
-    top: 60px;
-    right: 16px;
-    z-index: 999;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 360px;
-    width: 100%;
-  }
-  .alert-toast {
-    background: #2a0a0a;
-    border: 1px solid var(--danger);
-    border-radius: 10px;
-    padding: 14px 16px;
-    animation: slideIn .25s ease;
-    cursor: pointer;
-  }
-  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  .alert-toast-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .alert-icon {
-    width: 8px; height: 8px; background: var(--danger); border-radius: 50%;
-    animation: pulse 1s infinite;
-  }
-  .alert-toast-title { font-weight: 600; font-size: 14px; color: var(--danger); }
-  .alert-toast-dismiss { margin-left: auto; color: var(--text2); font-size: 18px; line-height: 1; }
-  .alert-toast-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
-  .alert-toast-img {
-    width: 100%;
-    max-height: 100px;
-    object-fit: cover;
-    border-radius: 6px;
-    margin-top: 8px;
-  }
-  .alert-conf { display: inline-block; background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
-
-  /* ── TABLE ── */
-  .data-table { width: 100%; border-collapse: collapse; }
-  .data-table th {
-    text-align: left;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    color: var(--text2);
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .data-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-    font-size: 13px;
-  }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: var(--bg3); }
-  .tag-match { color: var(--danger); font-weight: 600; font-size: 12px; }
-  .tag-unknown { color: var(--text2); font-size: 12px; }
-  .thumb {
-    width: 36px; height: 36px;
-    border-radius: 6px;
-    object-fit: cover;
+  .feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
+  .card {
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    cursor: pointer;
-  }
-
-  /* ── WANTED GRID ── */
-  .wanted-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-  }
-  .wanted-card {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    text-align: center;
+    border-radius: 1.5rem;
+    overflow: hidden;
     position: relative;
+    cursor: default;
   }
-  .wanted-card .w-avatar {
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    background: #2d1f1f;
-    border: 2px solid var(--danger);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 10px;
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--danger);
-  }
-  .wanted-card .w-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-  .wanted-card .w-meta { font-size: 11px; color: var(--text2); }
-  .wanted-card .btn-del {
-    position: absolute;
-    top: 8px; right: 8px;
-    background: none; border: none;
-    color: var(--text2); cursor: pointer;
-    font-size: 16px; line-height: 1;
-  }
-  .wanted-card .btn-del:hover { color: var(--danger); }
+  .card:hover { transform: scale(1.02); border-color: var(--accent); }
+  .card-img { width: 100%; height: 260px; object-fit: cover; background: #000; }
+  .card-tag { position: absolute; top: 1rem; left: 1rem; background: var(--danger); color: #fff; padding: 0.4rem 0.75rem; border-radius: 0.75rem; font-size: 0.65rem; font-weight: 800; box-shadow: 0 8px 16px rgba(244, 63, 94, 0.4); }
+  .card-content { padding: 1.5rem; }
+  .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .card-meta { font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; }
 
-  /* ── UPLOAD ZONE ── */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: 10px;
-    padding: 32px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .15s, background .15s;
-  }
-  .upload-zone:hover { border-color: var(--accent); background: rgba(79,142,247,.04); }
-  .upload-zone p { color: var(--text2); font-size: 13px; margin-top: 8px; }
+  /* Search/Intelligence Tools */
+  .tool-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 2rem; padding: 2.5rem; margin-bottom: 2rem; }
+  .search-results { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem; }
+  .result-item { display: flex; gap: 1.5rem; background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 1.5rem; border: 1px solid var(--border); }
+  .result-img { width: 100px; height: 100px; border-radius: 1rem; object-fit: cover; }
+  .result-details { flex: 1; }
+  
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 1.25rem; color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td { padding: 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .row-img { width: 44px; height: 44px; border-radius: 0.75rem; object-fit: cover; }
 
-  /* ── SEARCH RESULTS ── */
-  .location-card {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .loc-num {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: var(--accent);
-    color: #fff; font-weight: 700; font-size: 13px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* ── CONNECTION STATUS ── */
-  .conn-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text2);
-  }
-  .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text2); }
-  .conn-dot.connected { background: var(--success); }
-  .conn-dot.disconnected { background: var(--danger); }
-
-  /* ── MISC ── */
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .section-header h2 { font-size: 15px; font-weight: 600; }
-  .section-header .spacer { flex: 1; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .empty-state { text-align: center; color: var(--text2); padding: 40px 0; font-size: 13px; }
-
-  /* ── IMAGE PREVIEW MODAL ── */
-  #img-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.85);
-    z-index: 9999;
-    align-items: center;
-    justify-content: center;
-  }
-  #img-modal.open { display: flex; }
-  #img-modal img { max-width: 90vw; max-height: 80vh; border-radius: 10px; border: 1px solid var(--border); }
-
-  /* ── SCROLLBAR ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  @media (max-width: 600px) {
-    .grid-2 { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); }
-  }
+  /* --- TOASTS --- */
+  #toast-container { position: fixed; top: 2rem; right: 2rem; z-index: 1000; display: flex; flex-direction: column; gap: 1rem; }
+  .toast { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); border: 2px solid var(--danger); border-radius: 1.5rem; padding: 1.5rem; width: 380px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); animation: toastSlide 0.5s cubic-bezier(0.17, 0.89, 0.32, 1.49); }
+  @keyframes toastSlide { from { transform: translateX(120%); } to { transform: translateX(0); } }
 </style>
 </head>
 <body>
 
-<!-- ══ LOGIN ══ -->
-<div id="login-screen">
-  <div class="login-card">
-    <h1>CCTV System</h1>
-    <p>Sign in to access the surveillance dashboard</p>
-    <div class="form-group">
-      <label>Username</label>
-      <input type="text" id="login-user" placeholder="Enter username" autocomplete="username">
+  <!-- AUTH SECTION -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-logo"><div class="logo-pulse"></div> SENTRIX</div>
+      <h1>Intelligence Ops</h1>
+      <p>Authentication required for system access.</p>
+      <div class="field">
+        <label>Operator ID</label>
+        <input type="text" id="login-user" placeholder="e.g. admin" onkeydown="if(event.key==='Enter') Core.login()">
+      </div>
+      <div class="field">
+        <label>Access Key</label>
+        <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter') Core.login()">
+      </div>
+      <button class="btn" onclick="Core.login()">Authenticate</button>
+      <div id="login-err" style="display:none; color:var(--danger); font-size:0.85rem; margin-top:1.5rem; font-weight:600;">Invalid Credentials</div>
     </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password">
-    </div>
-    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign In</button>
-    <p class="error-msg" id="login-error">Invalid credentials</p>
-  </div>
-</div>
-
-<!-- ══ MAIN APP ══ -->
-<div id="app">
-  <!-- Topbar -->
-  <div class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-dot"></div>
-      CCTV System
-    </div>
-    <div class="conn-status" id="conn-status">
-      <div class="conn-dot" id="conn-dot"></div>
-      <span id="conn-text">Connecting...</span>
-    </div>
-    <div class="topbar-spacer"></div>
-    <span id="user-badge" class="badge"></span>
-    <button class="btn btn-ghost" onclick="doLogout()" style="padding:6px 12px;font-size:12px;">Sign out</button>
   </div>
 
-  <!-- Tabs -->
-  <div class="tabs" id="tabs-row">
-    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="sightings">Sightings</button>
-    <button class="tab-btn" data-tab="wanted" id="tab-wanted">Wanted List</button>
-    <button class="tab-btn" data-tab="search">Face Search</button>
-    <button class="tab-btn" data-tab="users" id="tab-users">Users</button>
+  <!-- MAIN APP -->
+  <div id="app">
+    <aside class="sidebar">
+      <div class="login-logo" style="margin-bottom:3rem; justify-content:flex-start;"><div class="logo-pulse"></div> SENTRIX</div>
+      <nav class="nav">
+        <div class="nav-item active" data-view="dashboard">Surveillance</div>
+        <div class="nav-item" data-view="intelligence">Intelligence</div>
+        <div class="nav-item" data-view="workers">Personnel</div>
+        <div class="nav-item" data-view="history">Registry</div>
+      </nav>
+      <div class="sb-footer">
+        <div class="user-badge">
+          <div class="avatar" id="user-initials">AD</div>
+          <div style="flex:1">
+            <div id="username-display" style="font-weight:700; font-size:0.95rem;">Admin</div>
+            <div id="role-display" style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">System Overlord</div>
+          </div>
+        </div>
+        <div class="logout-btn" onclick="Core.logout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          Terminate Session
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h2 id="view-title" style="font-weight:800; font-size:1.5rem;">Surveillance Feed</h2>
+        <div class="topbar-info">
+          <div id="admin-tools" style="display:none">
+             <button onclick="Core.resetSystem()" style="background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2); padding:0.5rem 1rem; border-radius:0.75rem; font-size:0.7rem; font-weight:800; cursor:pointer;">SYSTEM RESET</button>
+          </div>
+          <div class="status-pill"><div class="led"></div> Ops Active</div>
+        </div>
+      </header>
+
+      <!-- VIEW: MONITOR -->
+      <section class="view active" id="view-dashboard">
+        <div class="grid-stats">
+          <div class="stat-card">
+             <div class="stat-label">Sightings</div>
+             <div id="stat-sightings" class="stat-val" style="color:var(--accent)">0</div>
+          </div>
+          <div class="stat-card">
+             <div class="stat-label">Identified</div>
+             <div id="stat-matches" class="stat-val" style="color:var(--danger)">0</div>
+          </div>
+          <div class="stat-card">
+             <div class="stat-label">Targets</div>
+             <div id="stat-wanted" class="stat-val">0</div>
+          </div>
+          <div class="stat-card">
+             <div class="stat-label">Live Nodes</div>
+             <div id="stat-nodes" class="stat-val" style="color:var(--success)">0</div>
+          </div>
+        </div>
+        
+        <h3 style="margin-bottom:1.5rem; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted)">Live Intercepts</h3>
+        <div class="feed" id="live-feed"></div>
+      </section>
+
+      <!-- VIEW: INTELLIGENCE -->
+      <section class="view" id="view-intelligence">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:3rem;">
+          <div>
+            <div class="tool-box">
+              <h3 style="margin-bottom:1.5rem">Register Target</h3>
+              <div class="field">
+                <label>Subject Label</label>
+                <input type="text" id="w-name" placeholder="Name or Identifier">
+              </div>
+              <div class="field">
+                <label>Neural Template (Image)</label>
+                <input type="file" id="w-file">
+              </div>
+              <button class="btn" onclick="Core.addWanted()">Commit to Watchlist</button>
+            </div>
+            
+            <div class="tool-box" style="background:rgba(56, 189, 248, 0.05);">
+              <h3 style="margin-bottom:1.5rem">Neural Search</h3>
+              <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">Upload a face to find known matches and travel history.</p>
+              <div class="field">
+                <input type="file" id="s-file">
+              </div>
+              <button class="btn" style="background:#fff; color:#000;" onclick="Core.searchFace()">Run Identification</button>
+            </div>
+          </div>
+          
+          <div>
+            <h3 style="margin-bottom:1.5rem">Watchlist Registry</h3>
+            <div id="wanted-list" style="display:flex; flex-direction:column; gap:1rem;"></div>
+            
+            <div id="search-result-area" style="display:none; margin-top:2rem; border-top:2px solid var(--border); padding-top:2rem;">
+              <h3 style="margin-bottom:1.5rem">Search Results</h3>
+              <div id="search-results-list" class="search-results"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: WORKERS -->
+      <section class="view" id="view-workers">
+        <div style="display:grid; grid-template-columns: 400px 1fr; gap:3rem;">
+          <div>
+            <div class="tool-box">
+                <h3 style="margin-bottom:1.5rem">Provision Personnel</h3>
+                <div class="field">
+                    <label>Worker ID</label>
+                    <input type="text" id="u-user" placeholder="username">
+                </div>
+                <div class="field">
+                    <label>Access Credential</label>
+                    <input type="password" id="u-pass" placeholder="password">
+                </div>
+                <div class="field">
+                    <label>Deployment Role</label>
+                    <select id="u-role" style="width:100%; background:#000a1f; color:#fff; padding:1rem; border-radius:0.75rem; border:1px solid var(--border); font-family:inherit;">
+                        <option value="worker">Field Operative (Worker)</option>
+                        <option value="admin">Site Admin</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="Core.addUser()">Activate Operative</button>
+            </div>
+          </div>
+          <div>
+            <h3 style="margin-bottom:1.5rem">Active & Registered Nodes</h3>
+            <div class="stat-card" style="padding:0; overflow:hidden;">
+              <table>
+                <thead>
+                    <tr><th>Identity</th><th>Role</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="worker-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: HISTORY -->
+      <section class="view" id="view-history">
+        <div class="stat-card" style="padding:0; overflow:hidden;">
+          <table>
+            <thead>
+              <tr><th>Capture</th><th>Subject</th><th>Status</th><th>Node / Geo</th><th>Logged At</th></tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <!-- ── DASHBOARD TAB ── -->
-  <div class="tab-panel active" id="panel-dashboard">
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Total sightings</div>
-        <div class="stat-value accent" id="stat-total">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Wanted matches</div>
-        <div class="stat-value danger" id="stat-matches">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Wanted persons</div>
-        <div class="stat-value" id="stat-wanted">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Online users</div>
-        <div class="stat-value success" id="stat-online">0</div>
-      </div>
-    </div>
+  <div id="toast-container"></div>
 
-    <div class="card">
-      <div class="card-title">Recent activity</div>
-      <table class="data-table" id="dash-table">
-        <thead>
+  <script>
+    const Core = {
+      TOKEN: localStorage.getItem('s_token'),
+      USER: null,
+      SSE: null,
+
+      init() {
+        if (this.TOKEN) {
+          const payload = JSON.parse(atob(this.TOKEN.split('.')[1]));
+          this.USER = { username: payload.sub, role: payload.role };
+          this.start();
+        }
+        this.setupNav();
+        setInterval(() => this.fetchStats(), 8000);
+      },
+
+      async fetch(url, opts = {}) {
+        opts.headers = { ...opts.headers, 'Authorization': `Bearer ${this.TOKEN}` };
+        const r = await fetch(url, opts);
+        if (r.status === 401) this.logout();
+        return r.ok ? r.json() : null;
+      },
+
+      async login() {
+        const u = document.getElementById('login-user').value;
+        const p = document.getElementById('login-pass').value;
+        const err = document.getElementById('login-err');
+        err.style.display = 'none';
+
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+
+        if (r.ok) {
+          const data = await r.json();
+          this.TOKEN = data.token;
+          this.USER = data;
+          localStorage.setItem('s_token', data.token);
+          this.start();
+        } else {
+          err.style.display = 'block';
+        }
+      },
+
+      logout() {
+        localStorage.removeItem('s_token');
+        location.reload();
+      },
+
+      start() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'grid';
+        document.getElementById('username-display').textContent = this.USER.username;
+        document.getElementById('role-display').textContent = this.USER.role === 'admin' ? 'System Admin' : 'Field Worker';
+        document.getElementById('user-initials').textContent = this.USER.username.slice(0,2).toUpperCase();
+        
+        if(this.USER.role === 'admin') {
+           document.getElementById('admin-tools').style.display = 'block';
+        }
+
+        this.fetchStats();
+        this.initSSE();
+      },
+
+      setupNav() {
+        document.querySelectorAll('.nav-item').forEach(item => {
+          item.onclick = () => {
+            const view = item.dataset.view;
+            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            item.classList.add('active');
+            document.getElementById(`view-${view}`).classList.add('active');
+            document.getElementById('view-title').textContent = item.textContent === 'Surveillance' ? 'Live Feed' : item.textContent;
+            
+            if (view === 'history') this.fetchHistory();
+            if (view === 'intelligence') this.fetchIntelligence();
+            if (view === 'workers') this.fetchWorkers();
+          };
+        });
+      },
+
+      async fetchStats() {
+        const sightings = await this.fetch('/api/sightings?limit=40');
+        if (!sightings) return;
+        
+        const wanted = await this.fetch('/api/wanted');
+        const active = await this.fetch('/api/active-users');
+
+        document.getElementById('stat-sightings').textContent = sightings.length;
+        document.getElementById('stat-matches').textContent = sightings.filter(s => s.matched).length;
+        document.getElementById('stat-wanted').textContent = wanted?.length || 0;
+        document.getElementById('stat-nodes').textContent = active?.count || 0;
+        
+        const feed = document.getElementById('live-feed');
+        feed.innerHTML = sightings.slice(0, 15).map(s => `
+          <div class="card">
+            ${s.matched ? `<div class="card-tag">WANTED</div>` : ''}
+            <img class="card-img" src="${s.snapshot}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%231e293b%22/></svg>'">
+            <div class="card-content">
+              <div class="card-title">${s.person_name}</div>
+              <div class="card-meta">
+                <span>${s.location}</span>
+                <span style="opacity:0.5">${this.relTime(s.timestamp)}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      },
+
+      relTime(iso) {
+        const diff = Math.floor((new Date() - new Date(iso)) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+        return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      },
+
+      initSSE() {
+        if (this.SSE) this.SSE.close();
+        this.SSE = new EventSource(`/api/stream?token=${this.TOKEN}`);
+        this.SSE.addEventListener('alert', e => {
+          const data = JSON.parse(e.data);
+          if (data.type === 'wanted_match') this.showToast(data);
+          this.fetchStats();
+        });
+      },
+
+      showToast(data) {
+        const container = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.innerHTML = `
+          <div style="font-weight:900; color:var(--danger); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">Target Identified</div>
+          <div style="display:flex; gap:1.25rem; align-items:center;">
+            <img src="${data.snapshot}" style="width:80px; height:80px; border-radius:1rem; object-fit:cover; border:2px solid var(--danger);">
+            <div>
+              <div style="font-weight:800; font-size:1.2rem; margin-bottom:0.25rem;">${data.person_name}</div>
+              <div style="font-size:0.85rem; color:var(--text-muted);">${data.location} · ${data.camera_id}</div>
+              <div style="color:var(--danger); font-size:0.9rem; font-weight:800; margin-top:0.5rem;">CONFIDENCE: ${data.confidence}%</div>
+            </div>
+          </div>
+        `;
+        container.prepend(el);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 8000);
+      },
+
+      async searchFace() {
+        const file = document.getElementById('s-file').files[0];
+        if (!file) return;
+        const fd = new FormData(); fd.append('file', file);
+        
+        const area = document.getElementById('search-result-area');
+        const list = document.getElementById('search-results-list');
+        area.style.display = 'block';
+        list.innerHTML = '<div style="color:var(--accent); font-weight:700;">Running Identification Scan...</div>';
+
+        const res = await fetch('/api/search-face', {
+          method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd
+        });
+        const data = await res.json();
+        
+        if (!data.found || data.last_3_locations.length === 0) {
+            list.innerHTML = '<div style="color:var(--text-muted);">No historical matches found in the registry.</div>';
+            return;
+        }
+
+        list.innerHTML = `
+            <div style="margin-bottom:1.5rem; font-weight:800; color:var(--accent);">Matched: ${data.person}</div>
+            ${data.last_3_locations.map(loc => `
+                <div class="result-item">
+                    <img src="${loc.snapshot}" class="result-img">
+                    <div class="result-details">
+                        <div style="font-weight:700; color:var(--accent);">${loc.location}</div>
+                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.25rem;">Node: ${loc.camera_id}</div>
+                        <div style="font-size:0.85rem; color:var(--text-muted);">${new Date(loc.timestamp).toLocaleString()}</div>
+                        <div style="color:var(--success); font-size:0.75rem; font-weight:800; margin-top:0.5rem;">MATCH SCORE: ${loc.confidence}%</div>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+      },
+
+      async fetchHistory() {
+        const items = await this.fetch('/api/sightings?limit=100');
+        document.getElementById('history-rows').innerHTML = items?.map(s => `
           <tr>
-            <th>Photo</th>
-            <th>Person</th>
-            <th>Camera</th>
-            <th>Location</th>
-            <th>Confidence</th>
-            <th>Time</th>
+            <td><img src="${s.snapshot}" class="row-img"></td>
+            <td><strong>${s.person_name}</strong></td>
+            <td>${s.matched ? '<span style="color:var(--danger); font-weight:800;">CRITICAL</span>' : '<span style="color:var(--text-muted);">ROUTINE</span>'}</td>
+            <td>${s.camera_id} / ${s.location}</td>
+            <td style="font-size:0.8rem; color:var(--text-muted);">${new Date(s.timestamp).toLocaleString()}</td>
           </tr>
-        </thead>
-        <tbody id="dash-tbody">
-          <tr><td colspan="6" class="empty-state">No sightings yet</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+        `).join('') || '';
+      },
 
-  <!-- ── SIGHTINGS TAB ── -->
-  <div class="tab-panel" id="panel-sightings">
-    <div class="section-header">
-      <h2>All sightings</h2>
-      <div class="spacer"></div>
-      <button class="btn btn-ghost" onclick="loadSightings()">Refresh</button>
-    </div>
-    <div class="card" style="overflow-x:auto">
-      <table class="data-table">
-        <thead>
+      async fetchIntelligence() {
+        const list = await this.fetch('/api/wanted');
+        document.getElementById('wanted-list').innerHTML = list?.map(w => `
+          <div class="stat-card" style="padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-weight:800; font-size:1.1rem;">${w.name}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">ID: ${w.id.slice(0,8)} · Enlisted by ${w.added_by}</div>
+            </div>
+            <button onclick="Core.removeWanted('${w.id}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.75rem; font-weight:800;">REMOVE</button>
+          </div>
+        `).join('') || '';
+      },
+
+      async fetchWorkers() {
+        const users = await this.fetch('/api/users');
+        document.getElementById('worker-rows').innerHTML = users?.map(u => `
           <tr>
-            <th>Photo</th>
-            <th>Person</th>
-            <th>Status</th>
-            <th>Camera</th>
-            <th>Location</th>
-            <th>Confidence</th>
-            <th>Uploaded by</th>
-            <th>Time</th>
+            <td><strong>${u.username}</strong></td>
+            <td><span style="font-size:0.7rem; font-weight:900; text-transform:uppercase; background:rgba(255,255,255,0.05); padding:0.3rem 0.6rem; border-radius:0.5rem;">${u.role}</span></td>
+            <td>
+              ${u.username !== 'admin' ? `<button onclick="Core.deleteUser('${u.username}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:800; font-size:0.75rem;">DECOMMISSION</button>` : '--'}
+            </td>
           </tr>
-        </thead>
-        <tbody id="sightings-tbody">
-          <tr><td colspan="8" class="empty-state">No sightings yet</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+        `).join('') || '';
+      },
 
-  <!-- ── WANTED TAB ── -->
-  <div class="tab-panel" id="panel-wanted">
-    <div class="grid-2" id="wanted-admin-add" style="display:none;margin-bottom:20px;">
-      <div class="card">
-        <div class="card-title">Add to wanted list</div>
-        <div class="form-group">
-          <label>Full name</label>
-          <input type="text" id="wanted-name" placeholder="Person name">
-        </div>
-        <div class="form-group">
-          <label>Photo</label>
-          <input type="file" id="wanted-photo" accept="image/*">
-        </div>
-        <button class="btn btn-danger" onclick="addWanted()">Add to list</button>
-        <p id="wanted-msg" style="font-size:12px;margin-top:8px;color:var(--success);display:none;"></p>
-      </div>
-      <div class="card" style="display:flex;align-items:center;justify-content:center;">
-        <div style="text-align:center;color:var(--text2)">
-          <div style="font-size:36px;margin-bottom:10px;">⚠</div>
-          <div style="font-size:13px;">System will alert all online users<br>when a wanted person is detected</div>
-        </div>
-      </div>
-    </div>
+      async addWanted() {
+        const name = document.getElementById('w-name').value;
+        const file = document.getElementById('w-file').files[0];
+        if (!name || !file) return;
+        const fd = new FormData(); fd.append('name', name); fd.append('file', file);
+        await fetch('/api/wanted', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
+        document.getElementById('w-name').value = ''; document.getElementById('w-file').value = '';
+        this.fetchIntelligence();
+      },
 
-    <div class="card">
-      <div class="card-title">Wanted persons</div>
-      <div class="wanted-grid" id="wanted-grid">
-        <div class="empty-state">No wanted persons added yet</div>
-      </div>
-    </div>
-  </div>
+      async removeWanted(id) {
+        if(!confirm('Archive intelligence data for this subject?')) return;
+        await this.fetch(`/api/wanted/${id}`, { method: 'DELETE' });
+        this.fetchIntelligence();
+      },
 
-  <!-- ── SEARCH TAB ── -->
-  <div class="tab-panel" id="panel-search">
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">Search by face photo</div>
-        <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">Upload a photo to find the last 3 locations this person was spotted.</p>
-        <div class="upload-zone" onclick="document.getElementById('search-file').click()">
-          <div style="font-size:28px;">🔍</div>
-          <p>Click to upload photo</p>
-          <input type="file" id="search-file" accept="image/*" style="display:none" onchange="doSearch()">
-        </div>
-      </div>
-      <div id="search-results">
-        <div class="card" style="height:100%">
-          <div class="card-title">Results</div>
-          <div id="search-output" class="empty-state">Upload a photo to search</div>
-        </div>
-      </div>
-    </div>
-  </div>
+      async addUser() {
+        const u = document.getElementById('u-user').value;
+        const p = document.getElementById('u-pass').value;
+        const r = document.getElementById('u-role').value;
+        if (!u || !p) return;
+        await this.fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p, role: r })
+        });
+        document.getElementById('u-user').value = ''; document.getElementById('u-pass').value = '';
+        this.fetchWorkers();
+      },
 
-  <!-- ── USERS TAB ── -->
-  <div class="tab-panel" id="panel-users">
-    <div class="grid-2" style="margin-bottom:20px">
-      <div class="card" id="add-user-card">
-        <div class="card-title">Add user</div>
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="new-username" placeholder="Username">
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="new-password" placeholder="Password">
-        </div>
-        <div class="form-group">
-          <label>Role</label>
-          <select id="new-role">
-            <option value="worker">Worker</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" onclick="addUser()">Add user</button>
-        <p id="user-msg" style="font-size:12px;margin-top:8px;display:none;"></p>
-      </div>
-      <div class="card">
-        <div class="card-title">Worker agent command</div>
-        <p style="color:var(--text2);font-size:12px;margin-bottom:12px;">Run this on the machine with the camera:</p>
-        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#7ab8f5;line-height:1.8;word-break:break-all;">
-          python worker_agent.py \<br>
-          &nbsp;&nbsp;--server <span id="agent-server-url">http://your-server:8000</span> \<br>
-          &nbsp;&nbsp;--user worker1 \<br>
-          &nbsp;&nbsp;--password worker123 \<br>
-          &nbsp;&nbsp;--camera 0 \<br>
-          &nbsp;&nbsp;--camera-id entrance-cam \<br>
-          &nbsp;&nbsp;--location "Main Gate"
-        </div>
-        <p style="font-size:11px;color:var(--text2);margin-top:8px;">Place your best.pt model at <code>models/best.pt</code> on the worker machine.</p>
-      </div>
-    </div>
+      async deleteUser(user) {
+        if(!confirm(`Decommission operative ${user}? Access will be immediately revoked.`)) return;
+        await this.fetch(`/api/users/${user}`, { method: 'DELETE' });
+        this.fetchWorkers();
+      },
 
-    <div class="card">
-      <div class="card-title">All users</div>
-      <table class="data-table">
-        <thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody id="users-tbody">
-          <tr><td colspan="4" class="empty-state">Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+      async resetSystem() {
+         if(!confirm('CRITICAL ACTION: This will wipe ALL surveillance history and neural templates. Continue?')) return;
+         const res = await this.fetch('/api/system/reset', { method: 'POST' });
+         if(res?.ok) {
+            alert('System scrubbed. Restarting operations.');
+            location.reload();
+         }
+      }
+    };
 
-<!-- ══ ALERT CONTAINER ══ -->
-<div id="alert-container"></div>
-
-<!-- ══ IMAGE MODAL ══ -->
-<div id="img-modal" onclick="this.classList.remove('open')">
-  <img id="img-modal-src" src="" alt="">
-</div>
-
-<script>
-// ══════════════════════════════
-//  STATE
-// ══════════════════════════════
-let TOKEN = '', ROLE = '', USERNAME = '';
-let sse = null;
-let audioCtx = null;
-let alertCount = 0;
-let refreshTimer = null;
-
-const API = location.origin;
-
-// ══════════════════════════════
-//  AUTH
-// ══════════════════════════════
-async function doLogin() {
-  const user = document.getElementById('login-user').value.trim();
-  const pass = document.getElementById('login-pass').value;
-  const btn = document.getElementById('login-btn');
-  const err = document.getElementById('login-error');
-  err.style.display = 'none';
-  btn.disabled = true;
-  btn.textContent = 'Signing in...';
-
-  try {
-    const r = await fetch(`${API}/api/login`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({username: user, password: pass})
-    });
-    if (!r.ok) throw new Error('bad');
-    const data = await r.json();
-    TOKEN = data.token;
-    ROLE = data.role;
-    USERNAME = data.username;
-    showApp();
-  } catch {
-    err.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Sign In';
-  }
-}
-
-function doLogout() {
-  fetch(`${API}/api/logout`, {method:'POST', headers: authH()}).catch(()=>{});
-  if (sse) { sse.close(); sse = null; }
-  TOKEN = ''; ROLE = ''; USERNAME = '';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-pass').value = '';
-}
-
-document.getElementById('login-pass').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLogin();
-});
-
-// ══════════════════════════════
-//  SETUP APP
-// ══════════════════════════════
-function authH() {
-  return { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
-}
-
-function showApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-
-  // badge
-  const badge = document.getElementById('user-badge');
-  badge.textContent = `${USERNAME} · ${ROLE}`;
-  badge.className = `badge badge-${ROLE}`;
-
-  // show/hide admin tabs
-  const isAdmin = ROLE === 'admin';
-  document.getElementById('tab-wanted').style.display = isAdmin ? '' : '';
-  document.getElementById('tab-users').style.display = isAdmin ? '' : 'none';
-  document.getElementById('wanted-admin-add').style.display = isAdmin ? 'grid' : 'none';
-
-  // server url in agent command
-  document.getElementById('agent-server-url').textContent = location.origin;
-
-  // init
-  initSSE();
-  loadDashboard();
-  loadWanted();
-  if (isAdmin) loadUsers();
-
-  // tab clicks
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
-      if (btn.dataset.tab === 'sightings') loadSightings();
-      if (btn.dataset.tab === 'users' && ROLE === 'admin') loadUsers();
-      if (btn.dataset.tab === 'wanted') loadWanted();
-    });
-  });
-
-  // refresh stats every 15s
-  setInterval(() => { loadDashboard(); updateOnline(); }, 15000);
-}
-
-// ══════════════════════════════
-//  SSE — REAL-TIME ALERTS
-// ══════════════════════════════
-function initSSE() {
-  if (sse) sse.close();
-
-  const url = `${API}/api/stream`;
-  // SSE needs auth — we pass token as query param since EventSource can't set headers
-  const es = new EventSource(`${url}?token=${TOKEN}`);
-
-  es.addEventListener('connected', () => {
-    setConnStatus(true, 'Live');
-  });
-
-  es.addEventListener('alert', (e) => {
-    const data = JSON.parse(e.data);
-    if (data.type === 'wanted_match') {
-      showAlert(data);
-      playBeep();
-    }
-    
-    // Debounce refresh: Wait 1s after last alert to reload dashboard
-    clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => loadDashboard(true), 1000);
-  });
-
-  es.addEventListener('ping', () => {
-    setConnStatus(true, 'Live');
-  });
-
-  es.onerror = () => {
-    setConnStatus(false, 'Reconnecting...');
-  };
-
-  sse = es;
-}
-
-function setConnStatus(connected, text) {
-  const dot = document.getElementById('conn-dot');
-  const txt = document.getElementById('conn-text');
-  dot.className = 'conn-dot ' + (connected ? 'connected' : 'disconnected');
-  txt.textContent = text;
-}
-
-// ══════════════════════════════
-//  BEEP — Web Audio API
-// ══════════════════════════════
-function playBeep() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.6);
-  } catch(e) {}
-}
-
-// ══════════════════════════════
-//  ALERT TOAST
-// ══════════════════════════════
-function showAlert(data) {
-  alertCount++;
-  const container = document.getElementById('alert-container');
-  const id = 'toast-' + alertCount;
-  const ts = new Date(data.timestamp).toLocaleTimeString();
-
-  const toast = document.createElement('div');
-  toast.className = 'alert-toast';
-  toast.id = id;
-  toast.innerHTML = `
-    <div class="alert-toast-header">
-      <div class="alert-icon"></div>
-      <div class="alert-toast-title">WANTED PERSON DETECTED</div>
-      <button class="alert-toast-dismiss" onclick="document.getElementById('${id}').remove()">×</button>
-    </div>
-    <div class="alert-toast-body">
-      <strong style="color:var(--text)">${data.person_name}</strong><br>
-      Camera: ${data.camera_id} &nbsp;·&nbsp; ${data.location}<br>
-      ${ts} &nbsp; <span class="alert-conf">${data.confidence}%</span>
-    </div>
-    ${data.snapshot ? `<img class="alert-toast-img" src="${data.snapshot}" alt="">` : ''}
-  `;
-  container.prepend(toast);
-
-  // auto-dismiss after 30s
-  setTimeout(() => toast.remove(), 30000);
-}
-
-// ══════════════════════════════
-//  DATA LOADERS
-// ══════════════════════════════
-async function apiFetch(path, opts = {}) {
-  const r = await fetch(API + path, {
-    ...opts,
-    headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${TOKEN}` }
-  });
-  if (r.status === 401) { doLogout(); return null; }
-  return r.json();
-}
-
-async function loadDashboard(isAuto = false) {
-  // If we just loaded manually, don't double-load if triggered by SSE
-  if (isAuto && loadDashboard.lastRun && Date.now() - loadDashboard.lastRun < 1500) return;
-  loadDashboard.lastRun = Date.now();
-
-  const sightings = await apiFetch('/api/sightings?limit=20');
-  if (!sightings) return;
-
-  const matches = sightings.filter(s => s.matched);
-  document.getElementById('stat-total').textContent = sightings.length;
-  document.getElementById('stat-matches').textContent = matches.length;
-
-  const wanted = await apiFetch('/api/wanted');
-  if (wanted) document.getElementById('stat-wanted').textContent = wanted.length;
-
-  await updateOnline();
-
-  const tbody = document.getElementById('dash-tbody');
-  if (!sightings.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No sightings yet</td></tr>';
-    return;
-  }
-  tbody.innerHTML = sightings.slice(0, 10).map(s => {
-    let img = s.snapshot;
-    if (img && !img.startsWith('data:')) img = API + img;
-    return `
-    <tr>
-      <td>${img ? `<img class="thumb" src="${img}" onclick="openImg('${img}')">` : '—'}</td>
-      <td><strong>${s.person_name}</strong></td>
-      <td>${s.camera_id}</td>
-      <td>${s.location}</td>
-      <td>${s.matched ? `<span class="alert-conf">${s.confidence}%</span>` : '—'}</td>
-      <td style="color:var(--text2)">${fmtTime(s.timestamp)}</td>
-    </tr>`;
-  }).join('');
-}
-
-async function updateOnline() {
-  const data = await apiFetch('/api/active-users');
-  if (data) document.getElementById('stat-online').textContent = data.count;
-}
-
-async function loadSightings() {
-  const sightings = await apiFetch('/api/sightings?limit=100');
-  if (!sightings) return;
-  const tbody = document.getElementById('sightings-tbody');
-  if (!sightings.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No sightings yet</td></tr>';
-    return;
-  }
-  tbody.innerHTML = sightings.map(s => {
-    let img = s.snapshot;
-    if (img && !img.startsWith('data:')) img = API + img;
-    return `
-    <tr>
-      <td>${img ? `<img class="thumb" src="${img}" onclick="openImg('${img}')">` : '—'}</td>
-      <td><strong>${s.person_name}</strong></td>
-      <td>${s.matched ? '<span class="tag-match">● WANTED</span>' : '<span class="tag-unknown">Unknown</span>'}</td>
-      <td>${s.camera_id}</td>
-      <td>${s.location}</td>
-      <td>${s.matched ? `<span class="alert-conf">${s.confidence}%</span>` : '—'}</td>
-      <td style="color:var(--text2)">${s.uploaded_by}</td>
-      <td style="color:var(--text2)">${fmtTime(s.timestamp)}</td>
-    </tr>`;
-  }).join('');
-}
-
-async function loadWanted() {
-  const list = await apiFetch('/api/wanted');
-  if (!list) return;
-  const grid = document.getElementById('wanted-grid');
-  if (!list.length) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No wanted persons added yet</div>';
-    return;
-  }
-  grid.innerHTML = list.map(w => `
-    <div class="wanted-card">
-      ${ROLE === 'admin' ? `<button class="btn-del" onclick="removeWanted('${w.id}')">×</button>` : ''}
-      <div class="w-avatar">${w.name.charAt(0).toUpperCase()}</div>
-      <div class="w-name">${w.name}</div>
-      <div class="w-meta">Added ${fmtTime(w.added_at)}</div>
-    </div>`).join('');
-}
-
-async function addWanted() {
-  const name = document.getElementById('wanted-name').value.trim();
-  const file = document.getElementById('wanted-photo').files[0];
-  const msg = document.getElementById('wanted-msg');
-  if (!name || !file) { alert('Name and photo required'); return; }
-
-  const fd = new FormData();
-  fd.append('name', name);
-  fd.append('file', file);
-
-  const r = await fetch(`${API}/api/wanted`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${TOKEN}` },
-    body: fd
-  });
-  const data = await r.json();
-  if (r.ok) {
-    msg.style.display = 'block';
-    msg.style.color = 'var(--success)';
-    msg.textContent = `✓ ${name} added to wanted list`;
-    document.getElementById('wanted-name').value = '';
-    document.getElementById('wanted-photo').value = '';
-    loadWanted();
-  } else {
-    msg.style.display = 'block';
-    msg.style.color = 'var(--danger)';
-    msg.textContent = data.detail || 'Error adding person';
-  }
-  setTimeout(() => msg.style.display = 'none', 3000);
-}
-
-async function removeWanted(id) {
-  if (!confirm('Remove from wanted list?')) return;
-  await apiFetch(`/api/wanted/${id}`, { method: 'DELETE' });
-  loadWanted();
-}
-
-// ══════════════════════════════
-//  FACE SEARCH
-// ══════════════════════════════
-async function doSearch() {
-  const file = document.getElementById('search-file').files[0];
-  if (!file) return;
-  const out = document.getElementById('search-output');
-  out.innerHTML = '<div class="empty-state">Searching...</div>';
-
-  const fd = new FormData();
-  fd.append('file', file);
-
-  const r = await fetch(`${API}/api/search-face`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${TOKEN}` },
-    body: fd
-  });
-  const data = await r.json();
-
-  if (!data.found) {
-    out.innerHTML = '<div class="empty-state">No match found in database</div>';
-    return;
-  }
-
-  const locs = data.last_3_locations;
-  out.innerHTML = `
-    <div style="margin-bottom:12px;">
-      <strong style="color:var(--danger)">${data.person}</strong>
-      <span style="color:var(--text2);font-size:12px;margin-left:8px;">Last ${locs.length} sighting${locs.length !== 1 ? 's' : ''}</span>
-    </div>
-    ${locs.map((s, i) => {
-      let img = s.snapshot;
-      if (img && !img.startsWith('data:')) img = API + img;
-      return `
-      <div class="location-card">
-        <div class="loc-num">${i + 1}</div>
-        ${img ? `<img src="${img}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:pointer" onclick="openImg('${img}')">` : ''}
-        <div>
-          <div style="font-weight:600;font-size:13px">${s.camera_id} — ${s.location}</div>
-          <div style="color:var(--text2);font-size:12px">${fmtTime(s.timestamp)} &nbsp; <span class="alert-conf">${s.confidence}%</span></div>
-        </div>
-      </div>`;
-    }).join('')}
-  `;
-}
-
-// ══════════════════════════════
-//  USERS
-// ══════════════════════════════
-async function loadUsers() {
-  const [users, active] = await Promise.all([
-    apiFetch('/api/users'),
-    apiFetch('/api/active-users')
-  ]);
-  if (!users) return;
-  const online = new Set((active?.active) || []);
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = users.map(u => `
-    <tr>
-      <td><strong>${u.username}</strong></td>
-      <td><span class="badge badge-${u.role}">${u.role}</span></td>
-      <td>
-        <span class="status-dot" style="background:${online.has(u.username) ? 'var(--success)' : 'var(--border)'}"></span>
-        ${online.has(u.username) ? 'Online' : '<span style="color:var(--text2)">Offline</span>'}
-      </td>
-      <td>
-        ${u.username !== 'admin' ? `<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="deleteUser('${u.username}')">Remove</button>` : '—'}
-      </td>
-    </tr>`).join('');
-}
-
-async function addUser() {
-  const username = document.getElementById('new-username').value.trim();
-  const password = document.getElementById('new-password').value;
-  const role = document.getElementById('new-role').value;
-  const msg = document.getElementById('user-msg');
-  if (!username || !password) { alert('Username and password required'); return; }
-
-  const r = await fetch(`${API}/api/users`, {
-    method: 'POST',
-    headers: authH(),
-    body: JSON.stringify({ username, password, role })
-  });
-  const data = await r.json();
-  msg.style.display = 'block';
-  if (r.ok) {
-    msg.style.color = 'var(--success)';
-    msg.textContent = `✓ User ${username} created`;
-    document.getElementById('new-username').value = '';
-    document.getElementById('new-password').value = '';
-    loadUsers();
-  } else {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = data.detail || 'Error';
-  }
-  setTimeout(() => msg.style.display = 'none', 3000);
-}
-
-async function deleteUser(username) {
-  if (!confirm(`Remove user ${username}?`)) return;
-  await apiFetch(`/api/users/${username}`, { method: 'DELETE' });
-  loadUsers();
-}
-
-// ══════════════════════════════
-//  HELPERS
-// ══════════════════════════════
-function fmtTime(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
-}
-
-function openImg(src) {
-  document.getElementById('img-modal-src').src = src;
-  document.getElementById('img-modal').classList.add('open');
-}
-
-// SSE via query param support — patch server to read token from query if header not present
-// (The EventSource API can't set headers, so we pass token in URL query string.
-//  The server.py get_current_user() is patched below to handle both.)
-</script>
+    Core.init();
+  </script>
 </body>
 </html>

@@ -153,8 +153,12 @@ async def lifespan(app: FastAPI):
         cur.execute("SELECT username FROM users WHERE username = 'admin'")
         if not cur.fetchone():
             _add_user("admin", "admin123", "admin")
+            print("✓ Seeded default admin: admin/admin123")
+        
+        cur.execute("SELECT username FROM users WHERE username = 'worker1'")
+        if not cur.fetchone():
             _add_user("worker1", "worker123", "worker")
-            print("✓ Seeded default users: admin/admin123  worker1/worker123")
+            print("✓ Seeded default worker: worker1/worker123")
 
     # load face model
     if FACE_MODEL_AVAILABLE:
@@ -209,6 +213,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="CCTV System", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+
+# Mount static files for face snapshots
+if not SNAPSHOTS_DIR.exists():
+    SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/api/snapshots", StaticFiles(directory=str(SNAPSHOTS_DIR)), name="snapshots")
 
 security = HTTPBearer(auto_error=False)
 
@@ -400,21 +409,7 @@ def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embed
         snapshot_path = SNAPSHOTS_DIR / filename
         cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70]) # Lower quality = faster
         
-        # 2. Store in DB
-        emb_blob = embedding.astype(np.float32).tobytes()
-        with get_db() as conn:
-            conn.execute("""
-                INSERT INTO sightings (id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence, embedding)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                sighting["id"], sighting["camera_id"], sighting["location"], sighting["timestamp"],
-                sighting["uploaded_by"], sighting["snapshot_path"], sighting["matched"],
-                sighting["person_id"], sighting["person_name"], sighting["confidence"],
-                emb_blob
-            ))
-            conn.commit()
-
-        # 3. Store in Qdrant
+        # 2. Store in Qdrant
         if QDRANT_AVAILABLE and QDRANT_CLIENT:
             QDRANT_CLIENT.upsert(
                 collection_name="sightings",
@@ -477,7 +472,21 @@ async def upload_frame(
         sighting["person_id"] = result["person"]["id"]
         sighting["confidence"] = result["confidence"]
         
-    # Schedule heavy tasks for background
+    # 1. Save to DB synchronously for dashboard consistency
+    emb_blob = embedding.astype(np.float32).tobytes()
+    with get_db() as conn:
+        conn.execute("""
+            INSERT INTO sightings (id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence, embedding)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            sighting["id"], sighting["camera_id"], sighting["location"], sighting["timestamp"],
+            sighting["uploaded_by"], sighting["snapshot_path"], sighting["matched"],
+            sighting["person_id"], sighting["person_name"], sighting["confidence"],
+            emb_blob
+        ))
+        conn.commit()
+
+    # 2. Schedule heavy I/O tasks for background
     background_tasks.add_task(_save_sighting_task, sighting_id, img, sighting, embedding, camera_id, location, ts)
 
     if result:
@@ -530,7 +539,11 @@ async def search_face(file: UploadFile = File(...), user=Depends(get_current_use
                 # Get full details from SQLite by hit.id
                 with get_db() as conn:
                     cur = conn.cursor()
-                    cur.execute("SELECT * FROM sightings WHERE id = ?", (hit.id,))
+                    # Select only needed columns to avoid binary data leakage
+                    cur.execute("""
+                        SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
+                        FROM sightings WHERE id = ?
+                    """, (hit.id,))
                     r = cur.fetchone()
                     if r:
                         item = dict(r)
@@ -617,10 +630,13 @@ async def remove_wanted(person_id: str, user=Depends(require_admin)):
 async def get_sightings(limit: int = 50, user=Depends(get_current_user)):
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM sightings ORDER BY timestamp DESC LIMIT ?", (limit,))
+        # Explicitly list columns to avoid returning binary embeddings to the frontend
+        cur.execute("""
+            SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence 
+            FROM sightings ORDER BY timestamp DESC LIMIT ?
+        """, (limit,))
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows:
-            # Use URL instead of expensive Base64 for history
             r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
         return rows
         
@@ -671,6 +687,43 @@ async def delete_user(username: str, user=Depends(require_admin)):
 @app.get("/api/active-users")
 async def active_users(user=Depends(get_current_user)):
     return {"active": list(SSE_CONNECTIONS.keys()), "count": len(SSE_CONNECTIONS)}
+
+# ── System Maintenance (Admin Only) ──
+@app.post("/api/system/reset")
+async def system_reset(user=Depends(require_admin)):
+    """Wipe all history, wanted targets, and surveillance data for a fresh start."""
+    try:
+        # 1. Clear SQLite
+        with get_db() as conn:
+            conn.execute("DELETE FROM sightings")
+            conn.execute("DELETE FROM wanted")
+            # Clear all workers but keep admin
+            conn.execute("DELETE FROM users WHERE username != 'admin'")
+            # Re-seed default worker if needed
+            conn.commit()
+        
+        _add_user("worker1", "worker123", "worker")
+
+        # 2. Clear Qdrant
+        if QDRANT_AVAILABLE and QDRANT_CLIENT:
+            try:
+                QDRANT_CLIENT.delete_collection("sightings")
+                QDRANT_CLIENT.delete_collection("wanted")
+                # Re-create
+                QDRANT_CLIENT.create_collection("sightings", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
+                QDRANT_CLIENT.create_collection("wanted", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
+            except Exception as e:
+                print(f"Qdrant reset error: {e}")
+
+        # 3. Clear Snapshots
+        import shutil
+        if SNAPSHOTS_DIR.exists():
+            shutil.rmtree(SNAPSHOTS_DIR)
+            SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+        return {"ok": True, "message": "System reset successfully. All data cleared."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
 
 # ══════════════════════════════════════════════
 #  SERVE FRONTEND (dashboard.html)
