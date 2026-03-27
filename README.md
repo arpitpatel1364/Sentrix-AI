@@ -76,8 +76,8 @@ python3 worker_agent.py --server http://your-server-ip:8000 --user worker1 --pas
 
 | Identity | Username | Password |
 | :--- | :--- | :--- |
-| **Site Admin** | `admin` | `admin123` | `changeable from code `
-| **Field Operative** | `worker1` | `worker123` |`changeable from code `
+| **Site Admin** | `admin` | `admin123` | changeable from code 
+| **Field Operative** | `worker1` | `worker123` |changeable from code 
 
 ---
 
