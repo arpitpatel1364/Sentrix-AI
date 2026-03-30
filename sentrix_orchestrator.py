@@ -24,7 +24,7 @@ def load_nodes():
         conf_path = BASE_DIR / "nodes.conf"
     
     if not conf_path.exists():
-        print(f"❌ ERROR: nodes.conf not found (checked admin/ and root)!")
+        print(f"XX ERROR: nodes.conf not found (checked admin/ and root)!")
         return []
 
     with open(conf_path, "r") as f:
@@ -50,7 +50,7 @@ def launch_workers(nodes):
     # Check if worker_agent.py exists inside worker/
     agent_path = BASE_DIR / "worker" / "worker_agent.py"
     if not agent_path.exists():
-        print(f"❌ ERROR: {agent_path} not found!")
+        print(f" XX ERROR: {agent_path} not found!")
         return []
 
     # Detect virtual environment (Try venv_worker first, then venv)
@@ -68,7 +68,7 @@ def launch_workers(nodes):
             python_exe = str(executable)
             break
     
-    print(f"🚀 Launching {len(nodes)} camera nodes...")
+    print(f" Launching {len(nodes)} camera nodes...")
 
     for node in nodes:
         cmd = [
@@ -81,7 +81,7 @@ def launch_workers(nodes):
             "--location", node["location"]
         ]
         
-        print(f"  🛰️  Starting Node: {node['id']} ({node['location']})")
+        print(f"  >> Starting Node: {node['id']} ({node['location']})")
         p = subprocess.Popen(cmd)
         processes.append(p)
     
@@ -90,20 +90,20 @@ def launch_workers(nodes):
 def main():
     nodes = load_nodes()
     if not nodes:
-        print("ℹ  No nodes found in admin/nodes.conf. Use admin/manage_workers.py to add some!")
+        print("  No nodes found in admin/nodes.conf. Use admin/manage_workers.py to add some!")
         return
 
     processes = launch_workers(nodes)
     
     def signal_handler(sig, frame):
-        print("\n🛑 Shutting down all nodes...")
+        print("\n Shutting down all nodes...")
         for p in processes:
             p.terminate()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
     
-    print("\n✅ All nodes are running. Press Ctrl+C to stop the entire mesh.\n")
+    print("\n All nodes are running. Press Ctrl+C to stop the entire mesh.\n")
     
     # Monitor processes
     while True:
@@ -112,7 +112,7 @@ def main():
             # Check if any process died
             for p in processes:
                 if p.poll() is not None:
-                    print(f"⚠  Process {p.pid} has exited.")
+                    print(f" Process {p.pid} has exited.")
         except KeyboardInterrupt:
             break
 
