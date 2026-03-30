@@ -83,14 +83,25 @@ def load_yolo(model_path: str):
         return None
     try:
         if model_path.endswith(".onnx"):
-            # Load as ONNX for speed
+            # Load as ONNX with CUDA fallback
             print(f"Loading {model_path} for ONNX Runtime inference...")
-            return cv2.dnn.readNetFromONNX(model_path)
+            net = cv2.dnn.readNetFromONNX(model_path)
+            try:
+                # Attempt to use CUDA if available in OpenCV/ONNX
+                net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+                net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+                print(">>>>> Worker GPU Activated: Using CUDA for detection<<<<<.")
+            except:
+                print("  Worker using CPU for detection.")
+            return net
         else:
             from ultralytics import YOLO
-            return YOLO(model_path)
+            model = YOLO(model_path)
+            # YOLOv8 automatically detects and uses CUDA if available
+            print(f"🚀 Worker YOLO Loaded. Device: {model.device}")
+            return model
     except Exception as e:
-        print(f"⚠  Could not load YOLO model: {e}")
+        print(f" Could not load YOLO model: {e}")
         return None
 
 def detect_faces_yolo(model, frame: np.ndarray) -> list[np.ndarray]:
