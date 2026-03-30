@@ -277,6 +277,23 @@
   .slot-btn { cursor: pointer; border-style: solid; border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
   .slot-btn:hover { background: rgba(56, 189, 248, 0.1); border-width: 2px; }
 
+  /* --- SELECTIVE REMOVAL UI --- */
+  .preview-wrapper { position: relative; display: inline-block; }
+  .remove-staged-btn {
+      position: absolute; top: -5px; right: -5px; 
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--danger); color: white; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; cursor: pointer; border: 2px solid var(--bg-dark); z-index: 10;
+      transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  }
+  .remove-staged-btn:hover { transform: scale(1.1); background: #ff4d60; }
+  .slot-delete-btn {
+      position: absolute; bottom: 5px; right: 5px; background: rgba(244,63,94,0.7);
+      color: #fff; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 900; cursor: pointer; transition: 0.2s; backdrop-filter: blur(4px);
+  }
+  .slot-delete-btn:hover { background: var(--danger); transform: translateY(-2px); }
+
   /* --- ACTIVE ALERTS MONITOR --- */
   #active-alerts-monitor {
     padding: 0 3rem;
@@ -494,7 +511,7 @@
                 <div id="s-preview-grid" class="preview-grid"></div>
               </div>
               
-              <button class="btn" style="margin-top:1.5rem; width:100%; background:var(--warning); color:var(--bg-main);" onclick="Core.searchFace()">Initiate Forensic Scan</button>
+              <button class="btn" style="margin-top:1.5rem; width:100%;" onclick="Core.searchFace()">Initiate Forensic Scan</button>
             </div>
         </div>
 
@@ -512,7 +529,10 @@
             </script>
             
             <div id="search-result-area" style="display:none; margin-top:3rem; border-top:1px solid var(--border); padding-top:2rem;">
-              <h3 style="margin-bottom:1.5rem">Temporal Search Results</h3>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0">Temporal Search Results</h3>
+                <button class="btn" style="width:auto; padding:0.5rem 1rem; font-size:0.7rem; background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2);" onclick="Core.clearSearchResults()">Purge Search View</button>
+              </div>
               <div id="search-results-list" class="intel-grid"></div>
             </div>
           </div>
@@ -855,18 +875,34 @@
       },
 
       showToast(data) {
-        // We keep standard toast for quick feedback, but persistent is in the Monitor
         const container = document.getElementById('toast-container');
         const el = document.createElement('div');
         el.className = 'toast';
-        el.style.border = '2px solid var(--danger)';
+        
+        const isMatch = data.type === 'wanted_match';
+        
+        el.style.borderColor = isMatch ? 'var(--danger)' : 'var(--accent)';
+        
+        let header = 'System Update';
+        if (isMatch) header = 'Target Identified';
+        if (data.person_name?.includes('Success')) header = 'Node Provisioned';
+        if (data.person_name?.includes('Revoked')) header = 'Access Terminated';
+
+        const imgHtml = data.snapshot 
+            ? `<img src="${data.snapshot}" style="width:60px; height:60px; border-radius:1rem; object-fit:cover; border:2px solid ${isMatch ? 'var(--danger)' : 'var(--accent)'};">`
+            : `<div style="width:60px; height:60px; border-radius:1rem; background:rgba(56, 189, 248, 0.1); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+               </div>`;
+
+        const subtext = (data.camera_id ? `${data.camera_id} · ` : '') + (data.location || 'Operation Protocol Logged');
+
         el.innerHTML = `
-          <div style="font-weight:900; color:var(--danger); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">Target Identified</div>
+          <div style="font-weight:900; color:${isMatch ? 'var(--danger)' : 'var(--accent)'}; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">${header}</div>
           <div style="display:flex; gap:1.25rem; align-items:center;">
-            <img src="${data.snapshot}" style="width:60px; height:60px; border-radius:1rem; object-fit:cover; border:2px solid var(--danger);">
-            <div>
-              <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${data.person_name}</div>
-              <div style="font-size:0.8rem; color:var(--text-muted);">${data.camera_id} · ${data.location}</div>
+             ${imgHtml}
+            <div style="flex:1">
+              <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${data.person_name || 'System Notification'}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${subtext}</div>
             </div>
           </div>
         `;
@@ -1053,7 +1089,6 @@
       },
 
       OPEN_PERSON_ID: null,
-      OPEN_PERSON_ID: null,
       async openDossier(person) {
           this.OPEN_PERSON_ID = person.id;
           const modal = document.getElementById('dossier-modal');
@@ -1079,12 +1114,27 @@
           let html = '';
           for(let i=0; i<15; i++) {
               if (photos[i]) {
-                  html += `<div class="gallery-slot"><img src="/api/intel-photos/${photos[i].id}"></div>`;
+                  html += `
+                    <div class="gallery-slot" style="position:relative;">
+                        <img src="/api/intel-photos/${photos[i].id}">
+                        <div class="slot-delete-btn" title="Purge Sample" onclick="Core.deletePhoto('${photos[i].id}')">X</div>
+                    </div>`;
               } else {
                   html += `<div class="gallery-slot slot-empty slot-btn" onclick="document.getElementById('dossier-add-file').click()">Slot ${i+1}<br>+ Inject</div>`;
               }
           }
           gallery.innerHTML = html;
+      },
+
+      async deletePhoto(photoId) {
+          if(!confirm('CRITICAL: Purge this specific biometric template from the subject mesh?')) return;
+          const res = await this.fetch(`/api/wanted/${this.OPEN_PERSON_ID}/photos/${photoId}`, { method: 'DELETE' });
+          if(res) {
+              const photos = await this.fetch(`/api/wanted/${this.OPEN_PERSON_ID}/photos`);
+              this.renderGallery(photos || []);
+              this.showToast({ type: 'info', person_name: 'Neural Purge', location: 'Biometric template removed.' });
+              this.fetchIntelligence(); // Re-sync percentages
+          }
       },
 
       closeDossier() {
@@ -1118,14 +1168,25 @@
 
       S_FILES: [],
       handleSearchDrop(e) { e.preventDefault(); document.getElementById('s-drop-zone').classList.remove('active'); this.handleSearchFiles(e.dataTransfer.files); },
-      handleSearchFiles(files) { this.S_FILES = Array.from(files).slice(0, 15); this.renderSearchPreviews(); },
+      async handleSearchFiles(files) { this.S_FILES = Array.from(files).slice(0, 15); this.renderSearchPreviews(); },
+      removeSearchStaged(idx) { this.S_FILES.splice(idx, 1); this.renderSearchPreviews(); },
       renderSearchPreviews() {
           const grid = document.getElementById('s-preview-grid');
           if (!this.S_FILES.length) { grid.innerHTML = ''; return; }
           document.getElementById('s-drop-text').innerHTML = `<span style="color:var(--warning); font-weight:900;">${this.S_FILES.length}/15</span> Samples Loaded`;
-          grid.innerHTML = this.S_FILES.map(f => `<img src="${URL.createObjectURL(f)}" class="preview-item">`).join('');
+          grid.innerHTML = this.S_FILES.map((f, idx) => `
+            <div class="preview-wrapper">
+                <div class="remove-staged-btn" onclick="Core.removeSearchStaged(${idx})">&times;</div>
+                <img src="${URL.createObjectURL(f)}" class="preview-item">
+            </div>
+          `).join('');
       },
 
+      clearSearchResults() {
+          this.S_FILES = [];
+          this.renderSearchPreviews();
+          document.getElementById('search-result-area').style.display = 'none';
+      },
       async searchFace() {
           if (!this.S_FILES.length) return;
           const fd = new FormData();
@@ -1173,6 +1234,10 @@
           this.STAGED_FILES = Array.from(files).slice(0, 15);
           this.renderPreviews();
       },
+      removeStaged(idx) {
+          this.STAGED_FILES.splice(idx, 1);
+          this.renderPreviews();
+      },
       renderPreviews() {
           const grid = document.getElementById('w-preview-grid');
           const txt = document.getElementById('w-drop-text');
@@ -1182,9 +1247,13 @@
               return;
           }
           txt.innerHTML = `<span style="color:var(--accent); font-weight:900;">${this.STAGED_FILES.length}/15</span> Neural Samples Staged`;
-          grid.innerHTML = this.STAGED_FILES.map(f => {
+          grid.innerHTML = this.STAGED_FILES.map((f, idx) => {
               const url = URL.createObjectURL(f);
-              return `<img src="${url}" class="preview-item">`;
+              return `
+                <div class="preview-wrapper">
+                  <div class="remove-staged-btn" onclick="Core.removeStaged(${idx})">&times;</div>
+                  <img src="${url}" class="preview-item">
+                </div>`;
           }).join('');
       },
 
@@ -1255,8 +1324,8 @@
          if(!confirm('CRITICAL ACTION: This will wipe ALL surveillance history and neural templates. Continue?')) return;
          const res = await this.fetch('/api/system/reset', { method: 'POST' });
           if(res?.ok) {
-             alert('System scrubbed. Restarting operations.');
-             location.reload();
+             this.showToast({ type: 'info', person_name: 'System Scrubbed', location: 'All intelligence data has been purged.' });
+             setTimeout(() => location.reload(), 2000);
           }
        },
 

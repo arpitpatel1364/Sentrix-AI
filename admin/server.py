@@ -456,17 +456,9 @@ async def sse_stream(request: Request, user=Depends(require_admin)):
 
 # ── Upload frame (worker) ──
 def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embedding: np.ndarray, camera_id: str, location: str, ts: str):
-    """Background task to handle heavy I/O operations."""
+    """Background task to handle heavy vector I/O operations."""
     try:
-        # 1. Save snapshot to disk (in a camera-specific folder)
-        cam_dir = SNAPSHOTS_DIR / camera_id
-        cam_dir.mkdir(parents=True, exist_ok=True)
-        
-        filename = sighting["snapshot_path"] # This now includes camera_id/ prefix
-        snapshot_path = SNAPSHOTS_DIR / filename
-        cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70]) 
-        
-        # 2. Store in Qdrant
+        # 1. Store in Qdrant
         if QDRANT_AVAILABLE and QDRANT_CLIENT:
             QDRANT_CLIENT.upsert(
                 collection_name="sightings",
@@ -513,7 +505,13 @@ async def upload_frame(
     filename = f"{camera_id}/{sighting_id}.jpg"
     
     # helper to get b64 for SSE (keeps dashboard snappy)
-    snapshot_b64 = cv2_to_b64(img)
+    # snapshot_b64 = cv2_to_b64(img) # No longer needed for SSE (using URL)
+
+    # 🚀 Instant Persistence (Saves synchronously to prevent race conditions during alert broadcast)
+    cam_dir = SNAPSHOTS_DIR / camera_id
+    cam_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = SNAPSHOTS_DIR / filename
+    cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70])
 
     sighting = {
         "id": sighting_id,
@@ -562,7 +560,7 @@ async def upload_frame(
             "camera_id": camera_id,
             "location": location,
             "timestamp": ts,
-            "snapshot": snapshot_b64,
+            "snapshot": f"/api/snapshots/{filename}",
         })
         return {"status": "match", "person": result["person"]["name"], "person_id": result["person"]["id"], "confidence": result["confidence"]}
     else:
@@ -573,7 +571,7 @@ async def upload_frame(
             "timestamp": ts,
             "camera_id": camera_id,
             "location": location,
-            "snapshot": snapshot_b64
+            "snapshot": f"/api/snapshots/{filename}"
         })
         return {"status": "stored", "matched": False}
 
@@ -771,6 +769,34 @@ async def remove_wanted(person_id: str, user=Depends(require_admin)):
         
     return {"ok": True}
 
+@app.delete("/api/wanted/{person_id}/photos/{photo_id}")
+async def delete_intel_photo(person_id: str, photo_id: str, user=Depends(require_admin)):
+    with get_db() as conn:
+        # 1. Verify photo exists and belongs to person
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM person_photos WHERE id = ? AND person_id = ?", (photo_id, person_id))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Neural sample not found in subject registry.")
+        
+        # 2. Delete File
+        path = INTEL_DIR / f"{photo_id}.jpg"
+        if path.exists():
+            try: path.unlink()
+            except: pass
+        
+        # 3. Delete from SQLite
+        conn.execute("DELETE FROM person_photos WHERE id = ?", (photo_id,))
+        conn.commit()
+    
+    # 4. Delete from Qdrant
+    if QDRANT_AVAILABLE and QDRANT_CLIENT:
+        try:
+            QDRANT_CLIENT.delete(collection_name="watchlist", points_selector=[photo_id])
+        except Exception as e:
+            print(f"Qdrant single purge error: {e}")
+            
+    return {"ok": True}
+
 # ── Sightings ──
 @app.get("/api/sightings")
 async def get_sightings(limit: int = 50, user=Depends(require_admin)):
@@ -922,14 +948,19 @@ async def system_reset(user=Depends(require_admin)):
         if QDRANT_AVAILABLE and QDRANT_CLIENT:
             try:
                 QDRANT_CLIENT.delete_collection("sightings")
-                QDRANT_CLIENT.delete_collection("wanted")
+                QDRANT_CLIENT.delete_collection("watchlist")
                 # Re-create
                 QDRANT_CLIENT.create_collection("sightings", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
-                QDRANT_CLIENT.create_collection("wanted", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
+                QDRANT_CLIENT.create_collection("watchlist", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
             except Exception as e:
                 print(f"Qdrant reset error: {e}")
 
-        # 3. Clear Snapshots (including all sub-folders)
+        # 3. Clear SQLite person_photos
+        with get_db() as conn:
+            conn.execute("DELETE FROM person_photos")
+            conn.commit()
+
+        # 4. Clear Snapshots (including all sub-folders)
         import shutil
         if SNAPSHOTS_DIR.exists():
             for item in SNAPSHOTS_DIR.iterdir():
