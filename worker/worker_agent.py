@@ -18,6 +18,10 @@ def parse_args():
     base_dir = Path(__file__).resolve().parent
     default_model = base_dir / "models" / "best.onnx"
     
+    # Fallback: if running from root, models might be in worker/models
+    if not default_model.exists():
+        default_model = base_dir / "worker" / "models" / "best.onnx"
+    
     p = argparse.ArgumentParser(description="CCTV Worker Agent")
     p.add_argument("--server", default="http://localhost:8000")
     p.add_argument("--user", required=True)

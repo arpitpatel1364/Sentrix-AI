@@ -35,8 +35,6 @@
 
 ## 📦 Installation & Setup
 
-### 1. Server Setup (Manager)
-```bash
 # Clone the repository
 git clone https://github.com/your-repo/sentrix-ai.git
 cd sentrix-ai
@@ -45,15 +43,15 @@ cd sentrix-ai
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# Install dependencies (from root)
 pip install -r requirements.txt
 
-### 🚀 Quick Start (One Command)
+### 🚀 High-Speed Launch
 If you have Docker installed:
 ```bash
 docker-compose up --build
 ```
-This launches the **Hub (Admin)** and one local **Worker (Camera node)** instantly.
+This launches the **Hub (Admin Hub)** and one local **Worker node** instantly.
 
 ---
 

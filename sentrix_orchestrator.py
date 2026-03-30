@@ -18,9 +18,13 @@ BASE_DIR = Path(__file__).resolve().parent
 # CONFIGURATION: Load from nodes.conf inside admin/
 def load_nodes():
     nodes = []
+    # Check both admin/nodes.conf and root nodes.conf
     conf_path = BASE_DIR / "admin" / "nodes.conf"
     if not conf_path.exists():
-        print(f"❌ ERROR: {conf_path} not found!")
+        conf_path = BASE_DIR / "nodes.conf"
+    
+    if not conf_path.exists():
+        print(f"❌ ERROR: nodes.conf not found (checked admin/ and root)!")
         return []
 
     with open(conf_path, "r") as f:
