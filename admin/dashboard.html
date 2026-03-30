@@ -264,10 +264,11 @@
     <aside class="sidebar">
       <div class="login-logo" style="margin-bottom:3rem; justify-content:flex-start;"><div class="logo-pulse"></div> SENTRIX</div>
       <nav class="nav">
-        <div class="nav-item active" data-view="dashboard">Surveillance</div>
-        <div class="nav-item" data-view="intelligence">Intelligence</div>
-        <div class="nav-item" data-view="workers">Personnel</div>
-        <div class="nav-item" data-view="history">Registry</div>
+        <div class="nav-item active" data-view="dashboard" id="nav-dashboard">Surveillance</div>
+        <div class="nav-item" data-view="intelligence" id="nav-intel">Intelligence</div>
+        <div class="nav-item" data-view="workers" id="nav-personnel">Personnel</div>
+        <div class="nav-item" data-view="history" id="nav-registry">Registry</div>
+        <div class="nav-item" data-view="worker-panel" id="nav-worker" style="display:none">Scanner Status</div>
       </nav>
       <div class="sb-footer">
         <div class="user-badge">
@@ -439,6 +440,24 @@
           </table>
         </div>
       </section>
+      <section class="view" id="view-worker-panel">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:2rem;">
+          <div class="stat-card" style="border-color:var(--accent); background:rgba(56, 189, 248, 0.05);">
+             <div class="stat-label">SCANNER STATUS</div>
+             <div id="w-status" class="stat-val" style="color:var(--accent); font-size:1.5rem;">ACTIVE & SYNCED</div>
+             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">Streaming to Intelligence Hub</div>
+          </div>
+          <div class="stat-card">
+             <div class="stat-label">TOTAL CAPTURES</div>
+             <div id="w-total" class="stat-val">0</div>
+          </div>
+        </div>
+        
+        <h3 style="margin-top:3rem; margin-bottom:1.5rem;">Recent Scanner Data (Your Node)</h3>
+        <div id="worker-history-grid" class="feed">
+           <div style="color:var(--text-muted);">Awaiting first capture...</div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -458,7 +477,6 @@
           this.start();
         }
         this.setupNav();
-        setInterval(() => this.fetchStats(), 8000);
       },
 
       async fetch(url, opts = {}) {
@@ -505,9 +523,22 @@
         
         if(this.USER.role === 'admin') {
            document.getElementById('admin-tools').style.display = 'block';
+        } else {
+           // Worker Specific Setup
+           document.getElementById('nav-dashboard').style.display = 'none';
+           document.getElementById('nav-intel').style.display = 'none';
+           document.getElementById('nav-personnel').style.display = 'none';
+           document.getElementById('nav-registry').style.display = 'none';
+           document.getElementById('nav-worker').style.display = 'flex';
+           document.getElementById('nav-worker').click(); // Switch to worker view
+           this.fetchWorkerStats();
+           setInterval(() => this.fetchWorkerStats(), 5000);
         }
 
-        this.fetchStats();
+        if (this.USER.role === 'admin') {
+           this.fetchStats();
+           setInterval(() => this.fetchStats(), 8000);
+        }
         this.initSSE();
       },
 
@@ -529,38 +560,37 @@
       },
 
       async fetchStats() {
-        const sightings = await this.fetch('/api/sightings?limit=1');
-        if (!sightings) return;
+        const sightings_data = await this.fetch('/api/sightings?limit=1');
+        if (!sightings_data) return;
         
-        const allSightings = await this.fetch('/api/sightings?limit=1000');
+        const all_data = await this.fetch('/api/sightings?limit=10000');
         const wanted = await this.fetch('/api/wanted');
         const active = await this.fetch('/api/active-users');
 
-        document.getElementById('stat-sightings').textContent = allSightings?.length || 0;
-        document.getElementById('live-count').textContent = allSightings?.length || 0;
-        document.getElementById('stat-matches').textContent = allSightings?.filter(s => s.matched).length || 0;
+        document.getElementById('stat-sightings').textContent = all_data?.total_count || 0;
+        document.getElementById('live-count').textContent = all_data?.total_count || 0;
+        const sightings_list = all_data?.sightings || [];
+        document.getElementById('stat-matches').textContent = sightings_list.filter(s => s.matched).length || 0;
         document.getElementById('stat-wanted').textContent = wanted?.length || 0;
         document.getElementById('stat-nodes').textContent = active?.count || 0;
 
         // Update Node Monitor with per-camera counts
         const nodeContainer = document.getElementById('active-nodes-list');
-        if (active?.active && nodeContainer) {
+        if (active?.nodes && nodeContainer) {
             // Calculate counts per node
             const counts = {};
-            allSightings.forEach(s => {
+            sightings_list.forEach(s => {
                 counts[s.camera_id] = (counts[s.camera_id] || 0) + 1;
             });
 
-            nodeContainer.innerHTML = active.active.length ? active.active.map(user => {
-                // Try to find if this user matches a camera_id in sightings
-                // (Assuming camera_id often matches or includes the username/node name)
-                const nodeCount = counts[user] || 0;
+            nodeContainer.innerHTML = active.nodes.length ? active.nodes.map(nodeId => {
+                const nodeCount = counts[nodeId] || 0;
                 return `
                     <div style="padding:1rem; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:1rem; display:flex; flex-direction:column; gap:0.5rem;">
                         <div style="display:flex; align-items:center; justify-content:space-between;">
                             <div style="display:flex; align-items:center; gap:0.5rem;">
                                 <div class="led"></div>
-                                <div style="font-weight:700; font-size:0.85rem;">${user}</div>
+                                <div style="font-weight:700; font-size:0.85rem;">${nodeId}</div>
                             </div>
                             <div style="font-size:0.6rem; font-weight:800; color:var(--accent);">${nodeCount} SHOTS</div>
                         </div>
@@ -681,8 +711,9 @@
       },
 
       async fetchHistory() {
-        const items = await this.fetch('/api/sightings?limit=100');
-        document.getElementById('history-rows').innerHTML = items?.map(s => `
+        const data = await this.fetch('/api/sightings?limit=100');
+        const items = data?.sightings || [];
+        document.getElementById('history-rows').innerHTML = items.map(s => `
           <tr>
             <td>
               ${this.SHOW_VISUALS ? `
@@ -764,11 +795,36 @@
       async resetSystem() {
          if(!confirm('CRITICAL ACTION: This will wipe ALL surveillance history and neural templates. Continue?')) return;
          const res = await this.fetch('/api/system/reset', { method: 'POST' });
-         if(res?.ok) {
-            alert('System scrubbed. Restarting operations.');
-            location.reload();
-         }
-      }
+          if(res?.ok) {
+             alert('System scrubbed. Restarting operations.');
+             location.reload();
+          }
+       },
+
+       async fetchWorkerStats() {
+          const data = await this.fetch('/api/worker/stats');
+          if(!data) return;
+          
+          document.getElementById('w-total').textContent = data.total_detections;
+          document.getElementById('w-status').textContent = data.is_active ? 'ACTIVE & SYNCED' : 'NODE OFFLINE';
+          document.getElementById('w-status').style.color = data.is_active ? 'var(--accent)' : 'var(--danger)';
+          
+          const grid = document.getElementById('worker-history-grid');
+          if(data.recent_history.length) {
+              grid.innerHTML = data.recent_history.map(item => `
+                  <div class="card">
+                      <img src="${item.snapshot}" class="card-img">
+                      <div class="card-content">
+                          <div class="card-title">Detection Logged</div>
+                          <div class="card-meta">
+                              <span>${item.camera_id}</span>
+                              <span>${this.relTime(item.timestamp)}</span>
+                          </div>
+                      </div>
+                  </div>
+              `).join('');
+          }
+       }
     };
 
     Core.init();

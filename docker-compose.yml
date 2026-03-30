@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Centralized Hub and Dashboard
+  server:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile.server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./admin/data:/app/data
+      - ./admin/models:/app/models
+    restart: always
+
+  # Local worker node (optional, can also run on separate machines)
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - server
+    devices:
+      - "/dev/video0:/dev/video0" # Allow access to the host webcam
+    environment:
+      - SERVER_URL=http://server:8000
+    command: python worker_agent.py --server http://server:8000 --user worker1 --password worker123 --camera 0
+    restart: always

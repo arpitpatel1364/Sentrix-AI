@@ -18,7 +18,7 @@ CAMERA WORKER CONNECTION:
   They log in with their credentials, then the agent streams face crops to this server.
 """
 
-import os, time, uuid, json, asyncio, hashlib, io, sqlite3
+import os, time, uuid, json, asyncio, io, sqlite3
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
@@ -26,7 +26,6 @@ from contextlib import asynccontextmanager
 
 import numpy as np
 import cv2
-from PIL import Image
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,8 +59,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-production-please-123")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 SIMILARITY_THRESHOLD = 0.75   # cosine similarity — lower = stricter
-MODELS_DIR = Path("models")
-DATA_DIR = Path("data")
+BASE_DIR = Path(__file__).resolve().parent
+MODELS_DIR = BASE_DIR / "models"
+DATA_DIR = BASE_DIR / "data"
 SNAPSHOTS_DIR = DATA_DIR / "snapshots"
 DB_PATH = DATA_DIR / "cctv.db"
 
@@ -74,62 +74,45 @@ SNAPSHOTS_DIR.mkdir(exist_ok=True)
 # ══════════════════════════════════════════════
 # active SSE connections: { username: [asyncio.Queue, ...] }
 SSE_CONNECTIONS: dict[str, List[asyncio.Queue]] = {}
-
-# face analysis model (loaded once)
+ACTIVE_WORKERS: dict[str, float] = {} # { camera_id: last_seen_timestamp }
 FACE_APP = None
 QDRANT_CLIENT = None
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    # Users table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
-        )
-    """)
-    # Sightings table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS sightings (
-            id TEXT PRIMARY KEY,
-            camera_id TEXT,
-            location TEXT,
-            timestamp TEXT,
-            uploaded_by TEXT,
-            snapshot_path TEXT,
-            matched BOOLEAN,
-            person_id TEXT,
-            person_name TEXT,
-            confidence REAL
-        )
-    """)
-    # Wanted table (metadata in SQLite, embeddings in both SQLite + Qdrant)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS wanted (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            embedding BLOB,
-            added_by TEXT,
-            added_at TEXT
-        )
-    """)
-    # Migration: Add embedding column to sights and wanted if missing
-    cur.execute("PRAGMA table_info(wanted)")
-    cols = [c[1] for c in cur.fetchall()]
-    if "embedding" not in cols:
-        cur.execute("ALTER TABLE wanted ADD COLUMN embedding BLOB")
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                username TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sightings (
+                id TEXT PRIMARY KEY,
+                camera_id TEXT,
+                location TEXT,
+                timestamp TEXT,
+                uploaded_by TEXT,
+                snapshot_path TEXT,
+                matched BOOLEAN,
+                person_id TEXT,
+                person_name TEXT,
+                confidence REAL,
+                embedding BLOB
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS wanted (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                embedding BLOB,
+                added_by TEXT,
+                added_at TEXT
+            )
+        """)
         conn.commit()
-
-    cur.execute("PRAGMA table_info(sightings)")
-    cols = [c[1] for c in cur.fetchall()]
-    if "embedding" not in cols:
-        cur.execute("ALTER TABLE sightings ADD COLUMN embedding BLOB")
-        conn.commit()
-    
-    conn.commit()
-    conn.close()
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -214,10 +197,9 @@ app = FastAPI(title="CCTV System", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 
-# Mount static files for face snapshots
+# Mount static files for face snapshots (using the route below instead for manual control)
 if not SNAPSHOTS_DIR.exists():
     SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/api/snapshots", StaticFiles(directory=str(SNAPSHOTS_DIR)), name="snapshots")
 
 security = HTTPBearer(auto_error=False)
 
@@ -284,40 +266,28 @@ def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b))
 
 def match_wanted(embedding: np.ndarray) -> Optional[dict]:
-    # 1. Try Qdrant first (fast)
+    # 1. Qdrant (Fast Vector Search)
     if QDRANT_AVAILABLE and QDRANT_CLIENT:
         try:
-            hits = QDRANT_CLIENT.search(
-                collection_name="wanted",
-                query_vector=embedding.tolist(),
-                limit=1
-            )
+            hits = QDRANT_CLIENT.search("wanted", query_vector=embedding.tolist(), limit=1)
             if hits and hits[0].score >= SIMILARITY_THRESHOLD:
-                hit = hits[0]
-                return {
-                    "person": {"id": hit.id, "name": hit.payload["name"]},
-                    "confidence": round(hit.score * 100, 1)
-                }
+                return {"person": {"id": hits[0].id, "name": hits[0].payload["name"]}, "confidence": round(hits[0].score * 100, 1)}
         except Exception as e:
             print(f"Qdrant search error: {e}")
             
-    # 2. Fallback to SQLite (reliable)
+    # 2. SQLite Fallback
     with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, embedding FROM wanted")
-        rows = cur.fetchall()
+        rows = conn.execute("SELECT id, name, embedding FROM wanted").fetchall()
         
     best_score, best_person = 0.0, None
     for r in rows:
         if r["embedding"]:
-            stored_emb = np.frombuffer(r["embedding"], dtype=np.float32)
-            score = cosine_sim(embedding, stored_emb)
+            score = cosine_sim(embedding, np.frombuffer(r["embedding"], dtype=np.float32))
             if score > best_score:
                 best_score, best_person = score, {"id": r["id"], "name": r["name"]}
                 
     if best_score >= SIMILARITY_THRESHOLD and best_person:
         return {"person": best_person, "confidence": round(best_score * 100, 1)}
-        
     return None
 
 def bytes_to_cv2(data: bytes) -> np.ndarray:
@@ -341,13 +311,10 @@ def get_snapshot_b64(filename: str) -> str:
 #  ALERT BROADCAST
 # ══════════════════════════════════════════════
 async def broadcast_alert(payload: dict):
-    dead = []
-    for username, queues in SSE_CONNECTIONS.items():
+    for queues in SSE_CONNECTIONS.values():
         for q in queues:
-            try:
-                await q.put(payload)
-            except Exception:
-                pass
+            try: await q.put(payload)
+            except: pass
 
 
 # ══════════════════════════════════════════════
@@ -378,7 +345,7 @@ async def logout(user=Depends(get_current_user)):
 
 # ── SSE stream ──
 @app.get("/api/stream")
-async def sse_stream(request: Request, user=Depends(get_current_user)):
+async def sse_stream(request: Request, user=Depends(require_admin)):
     queue = asyncio.Queue()
     if user["username"] not in SSE_CONNECTIONS:
         SSE_CONNECTIONS[user["username"]] = []
@@ -444,6 +411,10 @@ async def upload_frame(
     location: str = Form("unknown"),
     user=Depends(get_current_user)
 ):
+    # Record heartbeat with composite key (username:camera_id) to avoid collisions
+    node_key = f"{user['username']}:{camera_id}"
+    ACTIVE_WORKERS[node_key] = time.time()
+    
     data = await file.read()
     img = bytes_to_cv2(data)
     if img is None:
@@ -512,17 +483,20 @@ async def upload_frame(
         })
         return {"status": "match", "person": result["person"]["name"], "confidence": result["confidence"]}
     else:
-        # broadcast a simple update ping so the dashboard knows to refresh the history
+        # broadcast a full update (with image) so they see it in the log
         await broadcast_alert({
             "type": "new_sighting",
             "matched": False,
-            "timestamp": ts
+            "timestamp": ts,
+            "camera_id": camera_id,
+            "location": location,
+            "snapshot": snapshot_b64
         })
         return {"status": "stored", "matched": False}
 
 # ── Search by face (query) ──
 @app.post("/api/search-face")
-async def search_face(file: UploadFile = File(...), user=Depends(get_current_user)):
+async def search_face(file: UploadFile = File(...), user=Depends(require_admin)):
     data = await file.read()
     img = bytes_to_cv2(data)
     embedding = get_embedding(img)
@@ -585,7 +559,7 @@ async def search_face(file: UploadFile = File(...), user=Depends(get_current_use
 
 # ── Wanted list ──
 @app.get("/api/wanted")
-async def get_wanted(user=Depends(get_current_user)):
+async def get_wanted(user=Depends(require_admin)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id, name, added_by, added_at FROM wanted ORDER BY added_at DESC")
@@ -636,10 +610,15 @@ async def remove_wanted(person_id: str, user=Depends(require_admin)):
 
 # ── Sightings ──
 @app.get("/api/sightings")
-async def get_sightings(limit: int = 50, user=Depends(get_current_user)):
+async def get_sightings(limit: int = 50, user=Depends(require_admin)):
     with get_db() as conn:
         cur = conn.cursor()
-        # Explicitly list columns to avoid returning binary embeddings to the frontend
+        
+        # 1. Get official global count
+        cur.execute("SELECT COUNT(*) FROM sightings")
+        total_count = cur.fetchone()[0]
+
+        # 2. Get records (without binary embeddings)
         cur.execute("""
             SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence 
             FROM sightings ORDER BY timestamp DESC LIMIT ?
@@ -647,7 +626,7 @@ async def get_sightings(limit: int = 50, user=Depends(get_current_user)):
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows:
             r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
-        return rows
+        return {"sightings": rows, "total_count": total_count}
         
 @app.get("/api/snapshots/{path:path}")
 async def get_snapshot(path: str):
@@ -693,11 +672,49 @@ async def delete_user(username: str, user=Depends(require_admin)):
         
 # ── Active users ──
 @app.get("/api/active-users")
-async def active_users(user=Depends(get_current_user)):
-    total_nodes = sum(len(q) for q in SSE_CONNECTIONS.values())
-    return {"active": list(SSE_CONNECTIONS.keys()), "count": total_nodes}
+async def active_users(user=Depends(require_admin)):
+    now = time.time()
+    # 1. Sessions (People looking at dashboard)
+    sessions = list(SSE_CONNECTIONS.keys())
+    
+    # 2. Nodes (Cameras sending frames)
+    # Filter only those that checked in within the last 60 seconds
+    live_nodes = []
+    for cam_id, last_seen in list(ACTIVE_WORKERS.items()):
+        if now - last_seen < 60:
+            live_nodes.append(cam_id)
+        else:
+            ACTIVE_WORKERS.pop(cam_id, None)
 
-# ── System Maintenance (Admin Only) ──
+    return {
+        "sessions": sessions,
+        "nodes": live_nodes,
+        "count": len(live_nodes)
+    }
+
+# ── Worker Stats (Self-Monitor) ──
+@app.get("/api/worker/stats")
+async def worker_stats(user=Depends(get_current_user)):
+    """Allows a worker to see their own node's activity for dashboard feedback."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        # Get count and last 5 images for THIS user
+        cur.execute("""
+            SELECT id, camera_id, location, timestamp, snapshot_path 
+            FROM sightings WHERE uploaded_by = ? ORDER BY timestamp DESC LIMIT 5
+        """, (user["username"],))
+        history = [dict(r) for r in cur.fetchall()]
+        for h in history:
+            h["snapshot"] = f"/api/snapshots/{h['snapshot_path']}"
+            
+        cur.execute("SELECT COUNT(*) FROM sightings WHERE uploaded_by = ?", (user["username"],))
+        total_count = cur.fetchone()[0]
+        
+        return {
+            "total_detections": total_count,
+            "recent_history": history,
+            "is_active": any(k.startswith(f"{user['username']}:") for k in ACTIVE_WORKERS.keys())
+        }
 @app.post("/api/system/reset")
 async def system_reset(user=Depends(require_admin)):
     """Wipe all history, wanted targets, and surveillance data for a fresh start."""
@@ -743,10 +760,10 @@ async def system_reset(user=Depends(require_admin)):
 # ══════════════════════════════════════════════
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
-    html_path = Path("dashboard.html")
+    html_path = BASE_DIR / "dashboard.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text())
-    return HTMLResponse("<h2>dashboard.html not found. Make sure it is in the same folder as server.py</h2>")
+    return HTMLResponse(f"<h2>dashboard.html not found at {html_path}</h2>")
 
 
 if __name__ == "__main__":

@@ -48,16 +48,73 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Start the Intelligence Server
-python3 server.py
-```
-*The server will be accessible at http://localhost:8000.*
-
-### 2. Worker Setup (Field Node)
-Run this on any machine with a local webcam or IP camera access.
+### 🚀 Quick Start (One Command)
+If you have Docker installed:
 ```bash
-# Start the monitoring agent
-python3 worker_agent.py --server http://your-server-ip:8000 --user worker1 --password worker123 --camera 0
+docker-compose up --build
+```
+This launches the **Hub (Admin)** and one local **Worker (Camera node)** instantly.
+
+---
+
+### 🛰️ Worker Node Setup (Multi-Machine)
+To set up a camera on a separate PC, share **only the `worker/` folder** with that machine and follow:
+[worker/worker_setup.md](file:///home/cactus/Desktop/Sentrix-AI/worker/worker_setup.md)
+ script:
+```bash
+# Automated setup (installs deps and creates venv)
+chmod +x setup_worker.sh
+./setup_worker.sh
+```
+
+### 3. Adding a Worker to the Mesh
+Use the management tool to register the worker on the server and add it to the local orchestrator configuration:
+```bash
+# Add a new camera node
+python3 manage_workers.py add \
+  --id "entrance-1" \
+  --location "Main Gate" \
+  --camera 0 \
+  --user "worker2" \
+  --password "worker456"
+```
+
+### 4. Running the Mesh
+You can run a single worker agent or use the orchestrator to manage multiple nodes:
+```bash
+# Run all configured nodes in nodes.conf
+python3 sentrix_orchestrator.py
+```
+
+---
+
+## 🐳 Docker Deployment (Recommended)
+
+Sentrix-AI is containerized for professional deployment. This handles all dependencies and environment setup automatically.
+
+### 1. Launch the Infrastructure
+From the root directory, start the server and a local camera node:
+```bash
+docker-compose up -d --build
+```
+*   **Server**: Available at `http://localhost:8000`
+*   **Persistent Data**: Stored in `./data` and `./models`
+
+### 2. Deploy Remote Workers
+To run a worker on a different machine using Docker:
+```bash
+# Pull/Copy the code and run
+docker build -t sentrix-worker -f Dockerfile.worker .
+
+# Run with camera access
+docker run -d --name worker-gate \
+  --device=/dev/video0:/dev/video0 \
+  sentrix-worker \
+  python worker_agent.py \
+  --server http://<your-server-ip>:8000 \
+  --user worker1 \
+  --password worker123 \
+  --camera 0
 ```
 
 ---
