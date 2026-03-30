@@ -9,7 +9,7 @@ import requests
 # CCTV Worker Agent (Multi-Camera Threaded)
 # ==========================================
 # Run this on the machine that has the camera connected.
-# It captures frames, detects faces locally (using Your YOLOv8 model),
+# It captures frames, detects faces locally (YOLOv8 model),
 # and sends cropped face images to the server.
 # ==========================================
 
@@ -71,20 +71,20 @@ def open_camera(source: str):
 
     if not cap.isOpened():
         print(f"ERROR: Cannot open camera: {source}")
-        print("💡 TIP: Try plugging one camera into a different USB port (on the other side of your PC Or Check camera Index).")
+        print(" TIP: Try plugging one camera into a different USB port (on the other side of your PC Or Check camera Index).")
         return None
         
-    print(f"✓ Camera opened: {source} (MJPG Mode Active)")
+    print(f"Camera opened: {source} (MJPG Mode Active)")
     return cap
 
 def load_yolo(model_path: str):
     if not os.path.exists(model_path):
-        print(f"⚠  Model not found: {model_path}. Running with OpenCV fallback.")
+        print(f" Model not found: {model_path}. Running with OpenCV fallback.")
         return None
     try:
         if model_path.endswith(".onnx"):
             # Load as ONNX for speed
-            print(f"ℹ  Loading {model_path} for ONNX Runtime inference...")
+            print(f"Loading {model_path} for ONNX Runtime inference...")
             return cv2.dnn.readNetFromONNX(model_path)
         else:
             from ultralytics import YOLO
@@ -194,10 +194,10 @@ def main():
             status = result.get("status", "?")
             if status == "match":
                 matches_found += 1
-                print(f"\n🔴 MATCH: {result.get('person')} | conf: {result.get('confidence')}% | cam: {cam_id}")
+                print(f"\n MATCH: {result.get('person')} | conf: {result.get('confidence')}% | cam: {cam_id}")
             else:
                 frames_sent += 1
-            sys.stdout.write(f"\r● Processing | Sent: {frames_sent} | Matches: {matches_found} | Camera: {cam_id}   ")
+            sys.stdout.write(f"\r >> Processing | Sent: {frames_sent} | Matches: {matches_found} | Camera: {cam_id}   ")
             sys.stdout.flush()
 
         try:
@@ -224,7 +224,7 @@ def main():
                     faces = detect_faces_opencv(frame)
 
                 if not faces:
-                    sys.stdout.write(f"\r● Monitoring | Sent: {frames_sent} | Matches: {matches_found} | Camera: {cam_id}   ")
+                    sys.stdout.write(f"\r >> Monitoring | Sent: {frames_sent} | Matches: {matches_found} | Camera: {cam_id}   ")
                     sys.stdout.flush()
                     time.sleep(args.interval)
                     continue
@@ -251,7 +251,7 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n\n● Stopped all camera threads.")
+        print("\n\n >Stopped all camera threads.")
 
 if __name__ == "__main__":
     main()
