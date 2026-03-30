@@ -41,7 +41,7 @@ def login(server: str, username: str, password: str) -> str:
     if data.get("role") not in ("admin", "worker"):
         print("ERROR: Only admin or worker can run agent.")
         sys.exit(1)
-    print(f"✓ Logged in as {username} ({data['role']})")
+    print(f"Logged in as {username} ({data['role']})")
     return data["token"]
 
 def open_camera(source: str):
@@ -71,7 +71,7 @@ def open_camera(source: str):
 
     if not cap.isOpened():
         print(f"ERROR: Cannot open camera: {source}")
-        print("💡 TIP: Try plugging one camera into a different USB port (on the other side of your PC).")
+        print("💡 TIP: Try plugging one camera into a different USB port (on the other side of your PC Or Check camera Index).")
         return None
         
     print(f"✓ Camera opened: {source} (MJPG Mode Active)")
