@@ -1,9 +1,24 @@
-import argparse, time, sys, os, threading
+import argparse, time, sys, os, threading, ctypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import cv2
 import numpy as np
 import requests
+
+# --- CUDA SELF-HEALING ENVIROMENT ---
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+LIBS_PATH = str(PROJECT_ROOT / "libs")
+
+# If the libs folder isn't in LD_LIBRARY_PATH, restart the process with it
+if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
+    os.environ["LD_LIBRARY_PATH"] = LIBS_PATH + ":" + os.environ.get("LD_LIBRARY_PATH", "")
+    try:
+        print("🔄 Activating GPU Bridge and Restarting...")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+    except Exception as e:
+        print(f"⚠️  Self-restart failed, continuing on CPU: {e}")
+# ------------------------------------
 
 # ==========================================
 # CCTV Worker Agent (Multi-Camera Threaded)

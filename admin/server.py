@@ -18,8 +18,23 @@ CAMERA WORKER CONNECTION:
   They log in with their credentials, then the agent streams face crops to this server.
 """
 
-import os, time, uuid, json, asyncio, io, sqlite3
+import os, time, uuid, json, asyncio, io, sqlite3, sys, ctypes
 from pathlib import Path
+
+# --- CUDA SELF-HEALING ENVIROMENT ---
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+LIBS_PATH = str(PROJECT_ROOT / "libs")
+
+# If the libs folder isn't in LD_LIBRARY_PATH, restart the process with it
+if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
+    os.environ["LD_LIBRARY_PATH"] = LIBS_PATH + ":" + os.environ.get("LD_LIBRARY_PATH", "")
+    try:
+        print("🔄 Activating GPU Bridge and Restarting...")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+    except Exception as e:
+        print(f"  Self-restart failed, continuing on CPU: {e}")
+# ------------------------------------
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 from contextlib import asynccontextmanager
@@ -27,7 +42,7 @@ from contextlib import asynccontextmanager
 import numpy as np
 import cv2
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, status, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -63,11 +78,13 @@ BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "models"
 DATA_DIR = BASE_DIR / "data"
 SNAPSHOTS_DIR = DATA_DIR / "snapshots"
+INTEL_DIR = DATA_DIR / "intel_photos"
 DB_PATH = DATA_DIR / "cctv.db"
 
 MODELS_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
 SNAPSHOTS_DIR.mkdir(exist_ok=True)
+INTEL_DIR.mkdir(exist_ok=True)
 
 # ══════════════════════════════════════════════
 #  IN-MEMORY STORES (replace with DB in prod)
@@ -103,15 +120,31 @@ def init_db():
                 embedding BLOB
             )
         """)
+        # Wanted List (People)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS wanted (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                embedding BLOB,
                 added_by TEXT,
                 added_at TEXT
             )
         """)
+        
+        # New: Multiple Photos per person
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS person_photos (
+                id TEXT PRIMARY KEY,
+                person_id TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                snapshot_path TEXT,
+                added_at TEXT,
+                FOREIGN KEY(person_id) REFERENCES wanted(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Optimization: Index for person-based history lookup
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_person_id ON sightings(person_id)")
+        
         conn.commit()
 
 def get_db():
@@ -180,11 +213,56 @@ async def lifespan(app: FastAPI):
             cols = QDRANT_CLIENT.get_collections().collections
             col_names = [c.name for c in cols]
             
+            # Universal Sightings Collection (History)
             if "sightings" not in col_names:
                 QDRANT_CLIENT.create_collection("sightings", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
-            if "wanted" not in col_names:
-                QDRANT_CLIENT.create_collection("wanted", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
             
+            # Watchlist Collection (Target People)
+            if "watchlist" not in col_names:
+                # Migrate from old "wanted" collection name if present
+                if "wanted" in col_names:
+                    print("ℹ  Migrating Qdrant collection 'wanted' -> 'watchlist'...")
+                    # For simplicity, we just create new and the migration task will re-sync
+                QDRANT_CLIENT.create_collection("watchlist", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
+            
+            # ── Migration: Sync SQLite data to Qdrant Watchlist ──
+            with get_db() as conn:
+                cur = conn.cursor()
+                # 1. Migrate single embeddings from 'wanted' to 'person_photos' if needed
+                cur.execute("SELECT id, embedding FROM wanted WHERE embedding IS NOT NULL")
+                legacy_wanted = cur.fetchall()
+                for row in legacy_wanted:
+                    pid, emb = row["id"], row["embedding"]
+                    # Check if already migrated
+                    cur.execute("SELECT id FROM person_photos WHERE person_id = ?", (pid,))
+                    if not cur.fetchone():
+                        photo_id = str(uuid.uuid4())
+                        cur.execute("INSERT INTO person_photos (id, person_id, embedding, added_at) VALUES (?, ?, ?, ?)",
+                                  (photo_id, pid, emb, datetime.utcnow().isoformat()))
+                
+                # Clear legacy embeddings from wanted table to mark migration done
+                if legacy_wanted:
+                    cur.execute("UPDATE wanted SET embedding = NULL")
+                conn.commit()
+
+                # 2. Sync all photos from SQLite to Qdrant 'watchlist'
+                cur.execute("""
+                    SELECT p.id as photo_id, p.person_id, p.embedding, w.name as person_name 
+                    FROM person_photos p JOIN wanted w ON p.person_id = w.id
+                """)
+                all_photos = cur.fetchall()
+                points = []
+                for row in all_photos:
+                    emb = np.frombuffer(row["embedding"], dtype=np.float32)
+                    points.append(PointStruct(
+                        id=row["photo_id"],
+                        vector=emb.tolist(),
+                        payload={"person_id": row["person_id"], "person_name": row["person_name"]}
+                    ))
+                if points:
+                    QDRANT_CLIENT.upsert(collection_name="watchlist", points=points)
+                    print(f"✓ Watchlist synced to Qdrant ({len(points)} embeddings)")
+
             print(f"✓ Qdrant persistent storage started at {target_path}")
         except Exception as e:
             print(f"⚠  Qdrant error: {e}")
@@ -266,25 +344,29 @@ def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b))
 
 def match_wanted(embedding: np.ndarray) -> Optional[dict]:
-    # 1. Qdrant (Fast Vector Search)
+    # 1. Qdrant (Fast Vector Search) - Use modern 'watchlist' collection
     if QDRANT_AVAILABLE and QDRANT_CLIENT:
         try:
-            hits = QDRANT_CLIENT.search("wanted", query_vector=embedding.tolist(), limit=1)
+            hits = QDRANT_CLIENT.search("watchlist", query_vector=embedding.tolist(), limit=1)
             if hits and hits[0].score >= SIMILARITY_THRESHOLD:
-                return {"person": {"id": hits[0].id, "name": hits[0].payload["name"]}, "confidence": round(hits[0].score * 100, 1)}
+                return {"person": {"id": hits[0].payload["person_id"], "name": hits[0].payload["person_name"]}, "confidence": round(hits[0].score * 100, 1)}
         except Exception as e:
             print(f"Qdrant search error: {e}")
             
-    # 2. SQLite Fallback
+    # 2. SQLite Fallback - Use modern 'person_photos' table
     with get_db() as conn:
-        rows = conn.execute("SELECT id, name, embedding FROM wanted").fetchall()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT p.id, p.person_id, p.embedding, w.name 
+            FROM person_photos p JOIN wanted w ON p.person_id = w.id
+        """)
+        rows = cur.fetchall()
         
     best_score, best_person = 0.0, None
     for r in rows:
-        if r["embedding"]:
-            score = cosine_sim(embedding, np.frombuffer(r["embedding"], dtype=np.float32))
-            if score > best_score:
-                best_score, best_person = score, {"id": r["id"], "name": r["name"]}
+        score = cosine_sim(embedding, np.frombuffer(r["embedding"], dtype=np.float32))
+        if score > best_score:
+            best_score, best_person = score, {"id": r["person_id"], "name": r["name"]}
                 
     if best_score >= SIMILARITY_THRESHOLD and best_person:
         return {"person": best_person, "confidence": round(best_score * 100, 1)}
@@ -470,10 +552,11 @@ async def upload_frame(
     background_tasks.add_task(_save_sighting_task, sighting_id, img, sighting, embedding, camera_id, location, ts)
 
     if result:
-        # broadcast a full alert (with image) to all users
+        # broadcast a full alert (with image) to all users (with person_id for tracking)
         await broadcast_alert({
             "type": "wanted_match",
             "id": sighting_id,
+            "person_id": result["person"]["id"],
             "person_name": result["person"]["name"],
             "confidence": result["confidence"],
             "camera_id": camera_id,
@@ -481,7 +564,7 @@ async def upload_frame(
             "timestamp": ts,
             "snapshot": snapshot_b64,
         })
-        return {"status": "match", "person": result["person"]["name"], "confidence": result["confidence"]}
+        return {"status": "match", "person": result["person"]["name"], "person_id": result["person"]["id"], "confidence": result["confidence"]}
     else:
         # broadcast a full update (with image) so they see it in the log
         await broadcast_alert({
@@ -496,115 +579,195 @@ async def upload_frame(
 
 # ── Search by face (query) ──
 @app.post("/api/search-face")
-async def search_face(file: UploadFile = File(...), user=Depends(require_admin)):
-    data = await file.read()
-    img = bytes_to_cv2(data)
-    embedding = get_embedding(img)
-    if embedding is None:
-        return {"results": [], "message": "No face detected"}
-
-    found = match_wanted(embedding)
-    person_display = "Unknown Person"
-    if found:
-        person_display = found["person"]["name"]
-
-    last3 = []
+async def search_face(files: List[UploadFile] = File(...), user=Depends(require_admin)):
+    all_results = {}
+    identified_person = "Unknown Person"
     
-    # 1. Faster/Universal Search via Qdrant
-    if QDRANT_AVAILABLE and QDRANT_CLIENT:
-        try:
-            hits = QDRANT_CLIENT.search(
-                collection_name="sightings",
-                query_vector=embedding.tolist(),
-                limit=3
-            )
-            for hit in hits:
-                # Get full details from SQLite by hit.id
-                with get_db() as conn:
-                    cur = conn.cursor()
-                    # Select only needed columns to avoid binary data leakage
-                    cur.execute("""
-                        SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
-                        FROM sightings WHERE id = ?
-                    """, (hit.id,))
-                    r = cur.fetchone()
-                    if r:
-                        item = dict(r)
-                        item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
-                        # If Qdrant hit has a high score, use it for confidence
-                        item["confidence"] = round(hit.score * 100, 1)
-                        last3.append(item)
-        except Exception as e:
-            print(f"Qdrant history search error: {e}")
+    for file in files:
+        data = await file.read()
+        img = bytes_to_cv2(data)
+        embedding = get_embedding(img)
+        if embedding is None:
+            continue
 
-    # 2. Fallback to SQL if Qdrant empty or unavailable (only if matched a person)
-    if not last3 and found:
-        pid = found["person"]["id"]
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
-                FROM sightings WHERE person_id = ? ORDER BY timestamp DESC LIMIT 3
-            """, (pid,))
-            rows = cur.fetchall()
-            for r in rows:
-                item = dict(r)
-                item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
-                last3.append(item)
+        # 1. Search Watchlist (to identify person)
+        if identified_person == "Unknown Person":
+            found = match_wanted(embedding)
+            if found:
+                identified_person = found["person"]["name"]
 
-    if not last3:
-        return {"found": False, "last_3_locations": []}
+        # 2. GLOBAL HISTORY SEARCH (Whole Database Comparison via Qdrant)
+        if QDRANT_AVAILABLE and QDRANT_CLIENT:
+            try:
+                hits = QDRANT_CLIENT.search(
+                    collection_name="sightings",
+                    query_vector=embedding.tolist(),
+                    limit=15
+                )
+                for hit in hits:
+                    conf = round(hit.score * 100, 1)
+                    # Deduplicate: Keep highest confidence hit for each ID
+                    if hit.id not in all_results or conf > all_results[hit.id]["confidence"]:
+                        with get_db() as conn:
+                            cur = conn.cursor()
+                            cur.execute("""
+                                SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
+                                FROM sightings WHERE id = ?
+                            """, (hit.id,))
+                            r = cur.fetchone()
+                            if r:
+                                item = dict(r)
+                                item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
+                                item["confidence"] = conf
+                                all_results[hit.id] = item
+            except Exception as e:
+                print(f"Global history search error: {e}")
 
-    return {"found": True, "person": person_display, "last_3_locations": last3}
+    # Convert results map to sorted list
+    final_results = sorted(all_results.values(), key=lambda x: x["confidence"], reverse=True)
+    
+    return {
+        "found": len(final_results) > 0,
+        "person": identified_person,
+        "total_count": len(final_results),
+        "matches": final_results[:20] # Return top 20 forensics
+    }
 
 # ── Wanted list ──
 @app.get("/api/wanted")
 async def get_wanted(user=Depends(require_admin)):
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, name, added_by, added_at FROM wanted ORDER BY added_at DESC")
+        # Join with photo counts and get the ID of the first photo as 'primary_photo'
+        cur.execute("""
+            SELECT w.id, w.name, w.added_by, w.added_at, 
+                   COUNT(p.id) as photo_count,
+                   (SELECT id FROM person_photos WHERE person_id = w.id LIMIT 1) as primary_photo
+            FROM wanted w LEFT JOIN person_photos p ON w.id = p.person_id
+            GROUP BY w.id ORDER BY w.added_at DESC
+        """)
         return [dict(r) for r in cur.fetchall()]
+
+@app.get("/api/wanted/{person_id}/photos")
+async def get_person_photos(person_id: str, user=Depends(require_admin)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, added_at FROM person_photos WHERE person_id = ? ORDER BY added_at ASC", (person_id,))
+        return [dict(r) for r in cur.fetchall()]
+
+@app.get("/api/intel-photos/{photo_id}")
+async def get_intel_photo(photo_id: str):
+    path = INTEL_DIR / f"{photo_id}.jpg"
+    if not path.exists():
+        raise HTTPException(status_code=404)
+    return FileResponse(path)
 
 @app.post("/api/wanted")
 async def add_wanted(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     name: str = Form(...),
     user=Depends(require_admin)
 ):
-    data = await file.read()
-    img = bytes_to_cv2(data)
-    embedding = get_embedding(img)
-    if embedding is None:
-        raise HTTPException(status_code=400, detail="No face detected in photo")
-
-    pid = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
     name_str = name.strip()
+    pids_processed = []
 
-    # Store in SQLite (including embedding as BLOB)
-    emb_blob = embedding.astype(np.float32).tobytes()
-    with get_db() as conn:
-        conn.execute("INSERT INTO wanted (id, name, embedding, added_by, added_at) VALUES (?, ?, ?, ?, ?)",
-                     (pid, name_str, emb_blob, user["username"], now))
-        conn.commit()
+    for file in files:
+        data = await file.read()
+        img = bytes_to_cv2(data)
+        embedding = get_embedding(img)
+        if embedding is None:
+            continue # Skip files with no detectable face
 
-    # Store in Qdrant (fast lookup)
-    if QDRANT_AVAILABLE and QDRANT_CLIENT:
-        QDRANT_CLIENT.upsert(
-            collection_name="wanted",
-            points=[PointStruct(id=pid, vector=embedding.tolist(), payload={"name": name_str})]
-        )
+        with get_db() as conn:
+            cur = conn.cursor()
+            # 1. Check if person already exists by name
+            cur.execute("SELECT id FROM wanted WHERE name = ?", (name_str,))
+            row = cur.fetchone()
+            
+            if row:
+                pid = row["id"]
+                # Check 15 photo limit
+                cur.execute("SELECT COUNT(*) FROM person_photos WHERE person_id = ?", (pid,))
+                if cur.fetchone()[0] >= 15:
+                    continue # Skip if max photos reached
+            else:
+                # Create new person
+                pid = str(uuid.uuid4())
+                now = datetime.utcnow().isoformat()
+                cur.execute("INSERT INTO wanted (id, name, added_by, added_at) VALUES (?, ?, ?, ?)",
+                        (pid, name_str, user["username"], now))
 
-    return {"ok": True, "id": pid, "name": name_str}
+            # 2. Save specifically to person_photos
+            photo_id = str(uuid.uuid4())
+            now = datetime.utcnow().isoformat()
+            
+            # Save photo file to disk for UI display
+            photo_path = INTEL_DIR / f"{photo_id}.jpg"
+            cv2.imwrite(str(photo_path), img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            
+            emb_blob = embedding.astype(np.float32).tobytes()
+            cur.execute("INSERT INTO person_photos (id, person_id, embedding, snapshot_path, added_at) VALUES (?, ?, ?, ?, ?)",
+                    (photo_id, pid, emb_blob, f"{photo_id}.jpg", now))
+            conn.commit()
+
+            # 3. Synchronous Update to Qdrant Watchlist
+            if QDRANT_AVAILABLE and QDRANT_CLIENT:
+                try:
+                    QDRANT_CLIENT.upsert(
+                        collection_name="watchlist",
+                        points=[PointStruct(
+                            id=photo_id,
+                            vector=embedding.tolist(),
+                            payload={"person_id": pid, "person_name": name_str}
+                        )]
+                    )
+                except Exception as e:
+                    print(f"Qdrant sync error: {e}")
+            
+            pids_processed.append(photo_id)
+
+    if not pids_processed:
+        raise HTTPException(status_code=400, detail="No faces detected in any of the uploaded files.")
+
+    return {"status": "success", "count": len(pids_processed), "name": name_str}
 
 @app.delete("/api/wanted/{person_id}")
 async def remove_wanted(person_id: str, user=Depends(require_admin)):
     with get_db() as conn:
+        cur = conn.cursor()
+        
+        # 1. Get all photo IDs to delete physical files
+        cur.execute("SELECT id FROM person_photos WHERE person_id = ?", (person_id,))
+        photo_rows = cur.fetchall()
+        for row in photo_rows:
+            photo_id = row["id"]
+            path = INTEL_DIR / f"{photo_id}.jpg"
+            if path.exists():
+                try: path.unlink()
+                except: pass
+        
+        # 2. Delete from SQLite (person_photos will cascade if FK is set, but we do it manually to be safe)
+        conn.execute("DELETE FROM person_photos WHERE person_id = ?", (person_id,))
         conn.execute("DELETE FROM wanted WHERE id = ?", (person_id,))
         conn.commit()
     
+    # 3. Delete from Qdrant Watchlist
     if QDRANT_AVAILABLE and QDRANT_CLIENT:
-        QDRANT_CLIENT.delete(collection_name="wanted", points_selector=[person_id])
+        try:
+            # Delete all samples belonging to this person
+            QDRANT_CLIENT.delete(
+                collection_name="watchlist",
+                points_selector=Filter(
+                    must=[
+                        FieldCondition(
+                            key="person_id",
+                            match=MatchValue(value=person_id)
+                        )
+                    ]
+                )
+            )
+        except Exception as e:
+            print(f"Qdrant purge error: {e}")
         
     return {"ok": True}
 
@@ -691,6 +854,31 @@ async def active_users(user=Depends(require_admin)):
         "nodes": live_nodes,
         "count": len(live_nodes)
     }
+
+# ── Global Stats ──
+@app.get("/api/stats")
+async def get_stats(user=Depends(require_admin)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM sightings")
+        total_sightings = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM sightings WHERE matched = 1")
+        total_matches = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM wanted")
+        total_wanted = cur.fetchone()[0]
+        
+        # ACTIVE_WORKERS handles node count
+        now = time.time()
+        live_nodes = [k for k, v in ACTIVE_WORKERS.items() if now - v < 60]
+        
+        return {
+            "total_sightings": total_sightings,
+            "total_matches": total_matches,
+            "total_wanted": total_wanted,
+            "total_nodes": len(live_nodes)
+        }
 
 # ── Worker Stats (Self-Monitor) ──
 @app.get("/api/worker/stats")

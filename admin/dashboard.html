@@ -155,10 +155,7 @@
 
   /* Search/Intelligence Tools */
   .tool-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 2rem; padding: 2.5rem; margin-bottom: 2rem; }
-  .search-results { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem; }
-  .result-item { display: flex; gap: 1.5rem; background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 1.5rem; border: 1px solid var(--border); }
-  .result-img { width: 100px; height: 100px; border-radius: 1rem; object-fit: cover; }
-  .result-details { flex: 1; }
+  /* Search/Intelligence Tools (Old styles removed, using intel-grid) */
   
   /* Tables */
   table { width: 100%; border-collapse: collapse; }
@@ -224,6 +221,7 @@
     border-bottom: 1px solid var(--border);
   }
   .img-placeholder svg { opacity: 0.3; }
+
   .row-placeholder {
     width: 44px;
     height: 44px;
@@ -236,6 +234,97 @@
     font-size: 0.6rem;
     border: 1px solid var(--border);
   }
+
+  /* --- INTEL GRID --- */
+  .intel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+  .subject-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    padding: 1.25rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .subject-card:hover { border-color: var(--accent); transform: translateY(-5px); background: rgba(56, 189, 248, 0.05); }
+  .subject-thumb { width:100%; height:180px; object-fit:cover; border-radius:1rem; margin-bottom:1rem; background:#000a1f; border: 1px solid var(--border); }
+  .subject-thumb:after { content: 'Biometric Data Missing'; display: flex; align-items: center; justify-content: center; height: 100%; font-size: 0.7rem; color: var(--text-muted); }
+  .sync-container { margin-top: 1rem; }
+  .sync-label { font-size: 0.6rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
+  .sync-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
+  .sync-fill { height: 100%; background: var(--accent); border-radius: 10px; box-shadow: 0 0 10px var(--accent); transition: width 1s ease-out; }
+
+  /* --- MODAL SYSTEM --- */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(2, 6, 23, 0.7); backdrop-filter: blur(24px);
+    z-index: 1000; display: none; align-items: center; justify-content: center;
+    animation: fadeIn 0.3s ease-out;
+  }
+  .modal-content {
+    background: var(--bg-side); border: 1px solid var(--border);
+    width: 900px; max-height: 90vh; border-radius: 2.5rem;
+    padding: 3rem; position: relative; overflow-y: auto;
+    box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+  }
+  .close-modal { position: absolute; top: 2rem; right: 2rem; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
+  .close-modal:hover { color: var(--text-primary); }
+
+  .dossier-gallery { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-top: 2rem; }
+  .gallery-slot { width:100%; aspect-ratio: 1; border-radius: 1rem; background: rgba(255,255,255,0.02); border: 1px dashed var(--border); overflow: hidden; position: relative; }
+  .gallery-slot img { width:100%; height:100%; object-fit: cover; }
+  .slot-empty { display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: var(--text-muted); font-weight: 700; text-align: center; padding: 0.5rem; }
+  .slot-btn { cursor: pointer; border-style: solid; border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
+  .slot-btn:hover { background: rgba(56, 189, 248, 0.1); border-width: 2px; }
+
+  /* --- ACTIVE ALERTS MONITOR --- */
+  #active-alerts-monitor {
+    padding: 0 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .alert-banner {
+    background: rgba(244, 63, 94, 0.1);
+    border: 2px solid var(--danger);
+    border-radius: 1.5rem;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: alertPulse 2s infinite ease-in-out, fadeIn 0.4s ease-out;
+    backdrop-filter: blur(12px);
+  }
+  .alert-banner.lost {
+    background: rgba(148, 163, 184, 0.05);
+    border-color: var(--text-muted);
+    animation: none;
+    opacity: 0.8;
+  }
+  @keyframes alertPulse { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(244, 63, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } }
+  .alert-info h4 { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
+  .alert-tag { padding: 0.3rem 0.75rem; border-radius: 0.75rem; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+  .tag-live { background: var(--danger); color: #fff; }
+  .tag-lost { background: var(--text-muted); color: #000; }
+
+  /* --- NEURAL DROP ZONE --- */
+  .drop-zone {
+    width: 100%; min-height: 120px;
+    border: 2px dashed var(--border);
+    border-radius: 1.5rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.75rem; color: var(--text-muted);
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.01);
+    transition: all 0.3s ease;
+  }
+  .drop-zone.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); color: var(--accent); }
+  .drop-zone p { font-size: 0.8rem; font-weight: 600; }
+  .drop-zone svg { opacity: 0.5; }
+
+  .preview-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 1rem; }
+  .preview-item { width: 100%; aspect-ratio: 1; border-radius: 0.75rem; object-fit: cover; border: 1px solid var(--border); animation: fadeIn 0.3s ease-out; }
 </style>
 </head>
 <body>
@@ -266,8 +355,8 @@
       <nav class="nav">
         <div class="nav-item active" data-view="dashboard" id="nav-dashboard">Surveillance</div>
         <div class="nav-item" data-view="intelligence" id="nav-intel">Intelligence</div>
-        <div class="nav-item" data-view="workers" id="nav-personnel">Personnel</div>
-        <div class="nav-item" data-view="history" id="nav-registry">Registry</div>
+        <div class="nav-item" data-view="workers" id="nav-operators">Node Operators</div>
+        <div class="nav-item" data-view="history" id="nav-history">Deep History</div>
         <div class="nav-item" data-view="worker-panel" id="nav-worker" style="display:none">Scanner Status</div>
       </nav>
       <div class="sb-footer">
@@ -295,6 +384,10 @@
           <div class="status-pill"><div class="led"></div> Ops Active</div>
         </div>
       </header>
+
+      <div id="active-alerts-monitor">
+          <!-- Persistent alerts will be injected here -->
+      </div>
 
       <!-- VIEW: MONITOR -->
       <section class="view active" id="view-dashboard">
@@ -354,42 +447,116 @@
 
       <!-- VIEW: INTELLIGENCE -->
       <section class="view" id="view-intelligence">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:3rem;">
-          <div>
-            <div class="tool-box">
-              <h3 style="margin-bottom:1.5rem">Register Target</h3>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:2rem;">
+            <!-- PILLAR 1: NEURAL REGISTRY -->
+            <div class="tool-box" style="height:fit-content; border-top: 4px solid var(--accent);">
+              <h3 style="margin-bottom:0.5rem; color:var(--accent);">Neural Registry</h3>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.5rem;">Enroll high-fidelity "Neuromesh" profiles into the watchlist.</p>
+              
               <div class="field">
-                <label>Subject Label</label>
+                <label>Subject Identity</label>
                 <input type="text" id="w-name" placeholder="Name or Identifier">
               </div>
+              
               <div class="field">
-                <label>Neural Template (Image)</label>
-                <input type="file" id="w-file">
+                <label>Neural Mesh Capture (15 Samples)</label>
+                <div id="w-drop-zone" class="drop-zone" 
+                     onclick="document.getElementById('w-file').click()"
+                     ondragover="event.preventDefault(); this.classList.add('active')"
+                     ondragleave="this.classList.remove('active')"
+                     ondrop="Core.handleDrop(event)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <p id="w-drop-text" style="font-size:0.75rem;">Drop samples for mesh generation</p>
+                    <input type="file" id="w-file" multiple="multiple" accept="image/*" style="display:none" onchange="Core.handleFiles(this.files)">
+                </div>
+                <div id="w-preview-grid" class="preview-grid"></div>
               </div>
-              <button class="btn" onclick="Core.addWanted()">Commit to Watchlist</button>
+              
+              <button class="btn" style="margin-top:1.5rem; width:100%;" onclick="Core.addWanted()">Commit to Watchlist</button>
             </div>
-            
-            <div class="tool-box" style="background:rgba(56, 189, 248, 0.05);">
-              <h3 style="margin-bottom:1.5rem">Neural Search</h3>
-              <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">Upload a face to find known matches and travel history.</p>
+
+            <!-- PILLAR 2: DEEP FORENSIC SCAN -->
+            <div class="tool-box" style="height:fit-content; border-top: 4px solid var(--warning);">
+              <h3 style="margin-bottom:0.5rem; color:var(--warning);">Historical Forensic Scan</h3>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.5rem;">Track individuals across all timeframes using multi-vector analysis.</p>
+              
               <div class="field">
-                <input type="file" id="s-file">
+                <label>Search Samples (15 Samples Max)</label>
+                <div id="s-drop-zone" class="drop-zone" 
+                     onclick="document.getElementById('s-file-hidden').click()"
+                     ondragover="event.preventDefault(); this.classList.add('active')"
+                     ondragleave="this.classList.remove('active')"
+                     ondrop="Core.handleSearchDrop(event)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <p id="s-drop-text" style="font-size:0.75rem;">Drop samples for forensic tracking</p>
+                    <input type="file" id="s-file-hidden" multiple="multiple" accept="image/*" style="display:none" onchange="Core.handleSearchFiles(this.files)">
+                </div>
+                <div id="s-preview-grid" class="preview-grid"></div>
               </div>
-              <button class="btn" style="background:#fff; color:#000;" onclick="Core.searchFace()">Run Identification</button>
+              
+              <button class="btn" style="margin-top:1.5rem; width:100%; background:var(--warning); color:var(--bg-main);" onclick="Core.searchFace()">Initiate Forensic Scan</button>
             </div>
-          </div>
-          
+        </div>
+
+        <div style="margin-top:3rem;">
           <div>
-            <h3 style="margin-bottom:1.5rem">Watchlist Registry</h3>
-            <div id="wanted-list" style="display:flex; flex-direction:column; gap:1rem;"></div>
+            <h3 style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
+                Active Registry
+                <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">UPDATING IN REAL-TIME</span>
+            </h3>
+            <div id="wanted-list" class="intel-grid"></div>
             
-            <div id="search-result-area" style="display:none; margin-top:2rem; border-top:2px solid var(--border); padding-top:2rem;">
-              <h3 style="margin-bottom:1.5rem">Search Results</h3>
-              <div id="search-results-list" class="search-results"></div>
+            <script>
+                // Component-level injection for removal
+                const addRemovalUI = (id) => `<button class="btn" style="background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2); width:auto; padding:0.5rem 1rem; font-size:0.7rem; font-weight:800; margin-top:1rem;" onclick="Core.removeWanted('${id}')">Terminate Record</button>`;
+            </script>
+            
+            <div id="search-result-area" style="display:none; margin-top:3rem; border-top:1px solid var(--border); padding-top:2rem;">
+              <h3 style="margin-bottom:1.5rem">Temporal Search Results</h3>
+              <div id="search-results-list" class="intel-grid"></div>
             </div>
           </div>
         </div>
       </section>
+
+      <!-- DOSSIER MODAL -->
+      <div id="dossier-modal" class="modal-overlay" 
+           onclick="if(event.target === this) Core.closeDossier()"
+           ondragover="event.preventDefault(); this.style.background='rgba(56,189,248,0.1)'"
+           ondragleave="this.style.background='rgba(2,6,23,0.7)'"
+           ondrop="Core.handleDossierDrop(event)">
+          <div class="modal-content">
+              <div class="close-modal" onclick="Core.closeDossier()">&times;</div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid var(--border); padding-bottom: 2rem;">
+                  <div>
+                    <div style="font-size:0.7rem; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:2px; margin-bottom:0.5rem;">Biometric Intelligence Dossier</div>
+                    <h1 id="dossier-name" style="font-size:2.5rem; font-weight:800;">Subject Name</h1>
+                    <div id="dossier-id" style="font-size:0.8rem; color:var(--text-muted); font-family:monospace; margin-top:0.5rem;">ID: --------</div>
+                  </div>
+                  <div style="text-align:right">
+                      <div class="sync-label" style="width:200px;">Neural Sync Status <span id="dossier-sync-txt">0%</span></div>
+                      <div class="sync-bar" style="width:200px; height:10px;"><div id="dossier-sync-bar" class="sync-fill" style="width:0%"></div></div>
+                  </div>
+              </div>
+
+                  <div style="margin-top:2.5rem;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="font-size:0.9rem;">Neural Templates (Watcher Mesh)</h3>
+                        <div style="display:flex; gap:1rem; align-items:center;">
+                            <button class="btn" style="background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2); width:auto; padding:0.6rem 1.25rem; font-size:0.75rem;" onclick="Core.removeWanted(Core.OPEN_PERSON_ID)">Terminate Profile</button>
+                            <input type="file" id="dossier-add-file" multiple="multiple" style="display:none" onchange="Core.uploadToDossier()" accept="image/*">
+                            <button class="btn" style="padding:0.6rem 1.25rem; font-size:0.75rem; width:auto;" onclick="document.getElementById('dossier-add-file').click()">+ Inject New Data</button>
+                        </div>
+                      </div>
+                      <div id="dossier-gallery" class="dossier-gallery"></div>
+                  </div>
+
+              <div style="margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.75rem; font-weight:600;">
+                  <div>Enlisted by: <span id="dossier-enlisted-by" style="color:var(--text-primary)">--</span></div>
+                  <div>Record Created: <span id="dossier-created-at" style="color:var(--text-primary)">--</span></div>
+              </div>
+          </div>
+      </div>
 
       <!-- VIEW: WORKERS -->
       <section class="view" id="view-workers">
@@ -469,6 +636,7 @@
       SHOW_VISUALS: true, // Always show in Registry
       USER: null,
       SSE: null,
+      ACTIVE_ALERTS: {}, // { person_id: { name, location, node, lastSeen, snapshot } }
 
       init() {
         if (this.TOKEN) {
@@ -537,9 +705,14 @@
 
         if (this.USER.role === 'admin') {
            this.fetchStats();
+           this.fetchWorkers();
+           this.fetchIntelligence();
            setInterval(() => this.fetchStats(), 8000);
         }
         this.initSSE();
+
+        // 🛰️ Tactical Alert Heartbear (Checks for vision loss every 2s)
+        setInterval(() => this.updateAlertHeartbeat(), 2000);
       },
 
       setupNav() {
@@ -560,44 +733,45 @@
       },
 
       async fetchStats() {
-        const sightings_data = await this.fetch('/api/sightings?limit=1');
-        if (!sightings_data) return;
+        const stats = await this.fetch('/api/stats');
+        const activeNodes = await this.fetch('/api/active-users');
+
+        if (!stats || !activeNodes) return;
         
-        const all_data = await this.fetch('/api/sightings?limit=10000');
-        const wanted = await this.fetch('/api/wanted');
-        const active = await this.fetch('/api/active-users');
+        document.getElementById('stat-sightings').textContent = stats.total_sightings || 0;
+        document.getElementById('live-count').textContent = stats.total_sightings || 0;
+        document.getElementById('stat-matches').textContent = stats.total_matches || 0;
+        document.getElementById('stat-wanted').textContent = stats.total_wanted || 0;
+        document.getElementById('stat-nodes').textContent = activeNodes?.count || 0;
 
-        document.getElementById('stat-sightings').textContent = all_data?.total_count || 0;
-        document.getElementById('live-count').textContent = all_data?.total_count || 0;
-        const sightings_list = all_data?.sightings || [];
-        document.getElementById('stat-matches').textContent = sightings_list.filter(s => s.matched).length || 0;
-        document.getElementById('stat-wanted').textContent = wanted?.length || 0;
-        document.getElementById('stat-nodes').textContent = active?.count || 0;
-
-        // Update Node Monitor with per-camera counts
+        // Upgrade: Proper Tactical Node Monitoring
         const nodeContainer = document.getElementById('active-nodes-list');
-        if (active?.nodes && nodeContainer) {
-            // Calculate counts per node
-            const counts = {};
-            sightings_list.forEach(s => {
-                counts[s.camera_id] = (counts[s.camera_id] || 0) + 1;
-            });
-
-            nodeContainer.innerHTML = active.nodes.length ? active.nodes.map(nodeId => {
-                const nodeCount = counts[nodeId] || 0;
-                return `
-                    <div style="padding:1rem; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:1rem; display:flex; flex-direction:column; gap:0.5rem;">
-                        <div style="display:flex; align-items:center; justify-content:space-between;">
-                            <div style="display:flex; align-items:center; gap:0.5rem;">
-                                <div class="led"></div>
-                                <div style="font-weight:700; font-size:0.85rem;">${nodeId}</div>
-                            </div>
-                            <div style="font-size:0.6rem; font-weight:800; color:var(--accent);">${nodeCount} SHOTS</div>
+        if (activeNodes?.nodes && nodeContainer) {
+            nodeContainer.innerHTML = activeNodes.nodes.length ? activeNodes.nodes.map(nodeId => `
+                <div style="padding:1.25rem; background:rgba(56, 189, 248, 0.05); border:1px solid rgba(56, 189, 248, 0.2); border-radius:1.5rem; display:flex; flex-direction:column; gap:0.75rem; position:relative; overflow:hidden;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; z-index:1;">
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            <div class="logo-pulse" style="width:8px; height:8px; background:var(--success); box-shadow: 0 0 10px var(--success);"></div>
+                            <div style="font-weight:800; font-size:0.9rem; letter-spacing:-0.5px;">${nodeId}</div>
                         </div>
-                        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Surveillance Active</div>
+                        <div style="font-size:0.6rem; font-weight:900; color:var(--accent); text-transform:uppercase; background:rgba(56,189,248,0.1); padding:0.2rem 0.5rem; border-radius:1rem;">Sensor OK</div>
                     </div>
-                `;
-            }).join('') : '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; margin-top:2rem;">No active nodes</div>';
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; z-index:1;">
+                        <div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:0.2rem;">Sector Assignment</div>
+                            <div style="font-size:0.75rem; font-weight:700;">Global Perimeter</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.6rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:0.2rem;">Last Sync</div>
+                            <div style="font-size:0.75rem; font-weight:700; color:var(--success);">Just Now</div>
+                        </div>
+                    </div>
+                    <!-- Subtle background decoration -->
+                    <div style="position:absolute; bottom:-10px; right:-10px; opacity:0.05;">
+                        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
+                    </div>
+                </div>
+            `).join('') : '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; margin-top:2rem;">Searching for active nodes...</div>';
         }
       },
 
@@ -637,7 +811,32 @@
               if (log.children.length > 20) log.lastElementChild.remove();
           }
 
-          if (data.type === 'wanted_match') this.showToast(data);
+          if (data.type === 'wanted_match') {
+              this.showToast(data);
+              // 🔴 Lock-on to most wanted subject
+              this.ACTIVE_ALERTS[data.person_id] = {
+                  id: data.person_id,
+                  name: data.person_name,
+                  location: data.location,
+                  node: data.camera_id,
+                  lastSeen: Date.now(),
+                  snapshot: data.snapshot,
+                  inVision: true
+              };
+              this.renderActiveAlerts();
+          }
+          
+          // Update live sighting for existing alert
+          if (data.type === 'new_sighting' && data.person_id) {
+              if (this.ACTIVE_ALERTS[data.person_id]) {
+                  this.ACTIVE_ALERTS[data.person_id].lastSeen = Date.now();
+                  this.ACTIVE_ALERTS[data.person_id].location = data.location;
+                  this.ACTIVE_ALERTS[data.person_id].node = data.camera_id;
+                  this.ACTIVE_ALERTS[data.person_id].snapshot = data.snapshot;
+                  this.ACTIVE_ALERTS[data.person_id].inVision = true;
+                  this.renderActiveAlerts();
+              }
+          }
           
           // Increment counter immediately for UI feedback
           const countEl = document.getElementById('live-count');
@@ -656,57 +855,142 @@
       },
 
       showToast(data) {
+        // We keep standard toast for quick feedback, but persistent is in the Monitor
         const container = document.getElementById('toast-container');
         const el = document.createElement('div');
         el.className = 'toast';
+        el.style.border = '2px solid var(--danger)';
         el.innerHTML = `
           <div style="font-weight:900; color:var(--danger); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">Target Identified</div>
           <div style="display:flex; gap:1.25rem; align-items:center;">
-            <img src="${data.snapshot}" style="width:80px; height:80px; border-radius:1rem; object-fit:cover; border:2px solid var(--danger);">
+            <img src="${data.snapshot}" style="width:60px; height:60px; border-radius:1rem; object-fit:cover; border:2px solid var(--danger);">
             <div>
-              <div style="font-weight:800; font-size:1.2rem; margin-bottom:0.25rem;">${data.person_name}</div>
-              <div style="font-size:0.85rem; color:var(--text-muted);">${data.location} · ${data.camera_id}</div>
-              <div style="color:var(--danger); font-size:0.9rem; font-weight:800; margin-top:0.5rem;">CONFIDENCE: ${data.confidence}%</div>
+              <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${data.person_name}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${data.camera_id} · ${data.location}</div>
             </div>
           </div>
         `;
         container.prepend(el);
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 8000);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 5000);
+      },
+
+      updateAlertHeartbeat() {
+          let threshold = 8000; // 8 seconds vision loss
+          let changed = false;
+          for (let id in this.ACTIVE_ALERTS) {
+              const alert = this.ACTIVE_ALERTS[id];
+              const isLost = (Date.now() - alert.lastSeen) > threshold;
+              if (alert.inVision && isLost) {
+                  alert.inVision = false;
+                  changed = true;
+              }
+          }
+          if (changed) this.renderActiveAlerts();
+      },
+
+      renderActiveAlerts() {
+          const monitor = document.getElementById('active-alerts-monitor');
+          const alerts = Object.values(this.ACTIVE_ALERTS);
+          if (!alerts.length) {
+              monitor.innerHTML = '';
+              return;
+          }
+          monitor.innerHTML = alerts.map(a => `
+              <div class="alert-banner ${a.inVision ? '' : 'lost'}">
+                  <div style="display:flex; align-items:center; gap:2rem;">
+                     <img src="${a.snapshot}" style="width:60px; height:60px; border-radius:1rem; object-fit:cover; border:2px solid ${a.inVision ? 'var(--danger)' : 'var(--text-muted)'};">
+                     <div class="alert-info">
+                        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.25rem;">
+                            <h4>${a.name}</h4>
+                            <span class="alert-tag ${a.inVision ? 'tag-live' : 'tag-lost'}">
+                                ${a.inVision ? '🔴 IN VISION' : '⚪ LOST VISION'}
+                            </span>
+                        </div>
+                        <div style="font-size:0.9rem; color:var(--text-muted); font-weight:600;">
+                            Sighting at <strong>${a.location}</strong> via node <strong>${a.node}</strong>
+                        </div>
+                     </div>
+                  </div>
+                  <button class="btn" style="width:auto; padding:0.75rem 1.5rem; background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2);" 
+                          onclick="Core.deactivateAlert('${a.id}')">DEACTIVATE ALERT</button>
+              </div>
+          `).join('');
+      },
+
+      deactivateAlert(id) {
+          delete this.ACTIVE_ALERTS[id];
+          this.renderActiveAlerts();
+      },
+
+      STAGED_SEARCH_FILES: [],
+      handleSearchDrop(e) {
+          e.preventDefault();
+          document.getElementById('s-drop-zone').classList.remove('active');
+          if (e.dataTransfer.files) this.handleSearchFiles(e.dataTransfer.files);
+      },
+      handleSearchFiles(files) {
+          this.STAGED_SEARCH_FILES = Array.from(files).slice(0, 15);
+          this.renderSearchPreviews();
+      },
+      renderSearchPreviews() {
+          const grid = document.getElementById('s-preview-grid');
+          const txt = document.getElementById('s-drop-text');
+          if (!this.STAGED_SEARCH_FILES.length) {
+              grid.innerHTML = '';
+              txt.textContent = 'Drop samples for forensic tracking';
+              return;
+          }
+          txt.innerHTML = `<span style="color:var(--warning); font-weight:900;">${this.STAGED_SEARCH_FILES.length}/15</span> Search Samples Staged`;
+          grid.innerHTML = this.STAGED_SEARCH_FILES.map(f => {
+              const url = URL.createObjectURL(f);
+              return `<img src="${url}" class="preview-item">`;
+          }).join('');
       },
 
       async searchFace() {
-        const file = document.getElementById('s-file').files[0];
-        if (!file) return;
-        const fd = new FormData(); fd.append('file', file);
+        if (!this.STAGED_SEARCH_FILES.length) {
+            this.showToast({ type: 'info', person_name: 'Input Required', location: 'Drop photos to initiate scan.' });
+            return;
+        }
+        const fd = new FormData();
+        for(let f of this.STAGED_SEARCH_FILES) fd.append('files', f);
         
         const area = document.getElementById('search-result-area');
         const list = document.getElementById('search-results-list');
         area.style.display = 'block';
-        list.innerHTML = '<div style="color:var(--accent); font-weight:700;">Running Identification Scan...</div>';
+        list.className = 'intel-grid'; // Use the high-end grid
+        list.innerHTML = '<div style="color:var(--warning); font-weight:700;">Initiating Deep Forensic Scan...</div>';
 
         const res = await fetch('/api/search-face', {
           method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd
         });
         const data = await res.json();
         
-        if (!data.found || data.last_3_locations.length === 0) {
-            list.innerHTML = '<div style="color:var(--text-muted);">No historical matches found in the registry.</div>';
+        if (!data.found) {
+            list.innerHTML = '<div style="color:var(--text-muted);">No historical matches found across all vectors.</div>';
             return;
         }
 
         list.innerHTML = `
-            <div style="margin-bottom:1.5rem; font-weight:800; color:var(--accent);">Matched: ${data.person}</div>
-            ${data.last_3_locations.map(loc => `
-                <div class="result-item">
-                    <img src="${loc.snapshot}" class="result-img">
-                    <div class="result-details">
-                        <div style="font-weight:700; color:var(--accent);">${loc.location}</div>
-                        <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.25rem;">Node: ${loc.camera_id}</div>
-                        <div style="font-size:0.85rem; color:var(--text-muted);">${new Date(loc.timestamp).toLocaleString()}</div>
-                        <div style="color:var(--success); font-size:0.75rem; font-weight:800; margin-top:0.5rem;">MATCH SCORE: ${loc.confidence}%</div>
+            <div style="grid-column: 1 / -1; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-weight:800; color:var(--warning); font-size:1.2rem;">Identified: ${data.person}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">${data.total_count} FORENSIC PEAK MATCHES</div>
+            </div>
+            ${data.matches.map(loc => {
+                const confColor = loc.confidence > 90 ? 'var(--success)' : (loc.confidence > 70 ? 'var(--warning)' : 'var(--danger)');
+                return `
+                <div class="subject-card" style="border-top: 4px solid ${confColor}; cursor:default;">
+                    <img src="${loc.snapshot}" class="subject-thumb" style="height:140px;">
+                    <div style="font-weight:800; font-size:0.9rem; color:var(--accent);">${loc.location || 'Unknown'}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Node: ${loc.camera_id}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.1rem;">${new Date(loc.timestamp).toLocaleString()}</div>
+                    
+                    <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Reliability</span>
+                        <span style="font-size:0.8rem; font-weight:900; color:${confColor}">${loc.confidence}%</span>
                     </div>
                 </div>
-            `).join('')}
+            `}).join('')}
         `;
       },
 
@@ -723,47 +1007,206 @@
               `}
             </td>
             <td><strong>${s.person_name}</strong></td>
-            <td>${s.matched ? '<span style="color:var(--danger); font-weight:800;">CRITICAL</span>' : '<span style="color:var(--text-muted);">ROUTINE</span>'}</td>
-            <td>${s.camera_id} / ${s.location}</td>
+            <td style="color:${s.matched ? 'var(--danger)' : 'var(--text-muted)'}; font-weight:800;">${s.matched ? 'WATCHLIST HIT' : 'ROUTINE'}</td>
+            <td>${s.camera_id} · ${s.location}</td>
             <td style="font-size:0.8rem; color:var(--text-muted);">${new Date(s.timestamp).toLocaleString()}</td>
           </tr>
         `).join('') || '';
       },
 
-      async fetchIntelligence() {
-        const list = await this.fetch('/api/wanted');
-        document.getElementById('wanted-list').innerHTML = list?.map(w => `
-          <div class="stat-card" style="padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <div style="font-weight:800; font-size:1.1rem;">${w.name}</div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem;">ID: ${w.id.slice(0,8)} · Enlisted by ${w.added_by}</div>
-            </div>
-            <button onclick="Core.removeWanted('${w.id}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.75rem; font-weight:800;">REMOVE</button>
-          </div>
-        `).join('') || '';
-      },
-
       async fetchWorkers() {
         const users = await this.fetch('/api/users');
-        document.getElementById('worker-rows').innerHTML = users?.map(u => `
+        if (!users) return;
+        document.getElementById('worker-rows').innerHTML = users.map(u => `
           <tr>
             <td><strong>${u.username}</strong></td>
-            <td><span style="font-size:0.7rem; font-weight:900; text-transform:uppercase; background:rgba(255,255,255,0.05); padding:0.3rem 0.6rem; border-radius:0.5rem;">${u.role}</span></td>
+            <td><span style="font-size:0.7rem; font-weight:900; text-transform:uppercase; background:rgba(255,255,255,0.05); padding:0.3rem 0.6rem; border-radius:0.5rem; color:var(--accent);">${u.role}</span></td>
             <td>
-              ${u.username !== 'admin' ? `<button onclick="Core.deleteUser('${u.username}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:800; font-size:0.75rem;">DECOMMISSION</button>` : '--'}
+              ${u.username !== 'admin' ? `
+                <button onclick="Core.deleteUser('${u.username}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:800; font-size:0.7rem; letter-spacing:1px;">DECOMMISSION</button>
+              ` : '<span style="color:var(--success); font-size:0.7rem; font-weight:800;">PROTECTED</span>'}
             </td>
           </tr>
-        `).join('') || '';
+        `).join('');
+      },
+
+      async fetchIntelligence() {
+        const data = await this.fetch('/api/wanted');
+        if (!data) return;
+        document.getElementById('wanted-list').innerHTML = data.map(p => {
+          const syncPercent = Math.min(100, Math.round((p.photo_count / 15) * 100));
+          return `
+            <div class="subject-card">
+              <div onclick="Core.openDossier(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                <img src="/api/intel-photos/${p.primary_photo}" class="subject-thumb">
+                <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${p.name}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace; margin-bottom:1rem;">ID: ${p.id.slice(0,8)}...</div>
+                <div class="sync-container">
+                    <div class="sync-label"><span>NEURAL SYNC</span> <span>${syncPercent}%</span></div>
+                    <div class="sync-bar"><div class="sync-fill" style="width: ${syncPercent}%"></div></div>
+                </div>
+              </div>
+              <button class="btn" style="background:rgba(244,63,94,0.05); color:var(--danger); border:1px solid rgba(244,63,94,0.1); width:100%; padding:0.5rem; font-size:0.65rem; font-weight:800; margin-top:1rem;" onclick="Core.removeWanted('${p.id}')">TERMINATE ARCHIVE</button>
+            </div>
+          `;
+        }).join('');
+      },
+
+      OPEN_PERSON_ID: null,
+      OPEN_PERSON_ID: null,
+      async openDossier(person) {
+          this.OPEN_PERSON_ID = person.id;
+          const modal = document.getElementById('dossier-modal');
+          document.getElementById('dossier-name').textContent = person.name;
+          document.getElementById('dossier-id').textContent = `ID: ${person.id}`;
+          document.getElementById('dossier-enlisted-by').textContent = person.added_by || 'System';
+          document.getElementById('dossier-created-at').textContent = new Date(person.added_at).toLocaleString();
+          
+          const syncPct = Math.round((person.photo_count / 15) * 100);
+          document.getElementById('dossier-sync-txt').textContent = `${syncPct}%`;
+          document.getElementById('dossier-sync-bar').style.width = `${syncPct}%`;
+
+          const gallery = document.getElementById('dossier-gallery');
+          gallery.innerHTML = '<div style="color:var(--accent)">Retrieving Neural Data...</div>';
+          modal.style.display = 'flex';
+          
+          const photos = await this.fetch(`/api/wanted/${person.id}/photos`);
+          this.renderGallery(photos || []);
+      },
+
+      renderGallery(photos) {
+          const gallery = document.getElementById('dossier-gallery');
+          let html = '';
+          for(let i=0; i<15; i++) {
+              if (photos[i]) {
+                  html += `<div class="gallery-slot"><img src="/api/intel-photos/${photos[i].id}"></div>`;
+              } else {
+                  html += `<div class="gallery-slot slot-empty slot-btn" onclick="document.getElementById('dossier-add-file').click()">Slot ${i+1}<br>+ Inject</div>`;
+              }
+          }
+          gallery.innerHTML = html;
+      },
+
+      closeDossier() {
+          document.getElementById('dossier-modal').style.display = 'none';
+          this.fetchIntelligence();
+          this.OPEN_PERSON_ID = null;
+      },
+
+      async uploadToDossier(droppedFiles = null) {
+          const files = droppedFiles || document.getElementById('dossier-add-file').files;
+          if (!files || !files.length || !this.OPEN_PERSON_ID) return;
+          const fd = new FormData();
+          fd.append('name', document.getElementById('dossier-name').textContent);
+          for(let f of files) fd.append('files', f);
+
+          this.showToast({ type: 'info', person_name: 'Neural Injection', location: `Adding ${files.length} samples to mesh...` });
+          const res = await fetch('/api/wanted', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
+          
+          if (res.ok) {
+            const photos = await this.fetch(`/api/wanted/${this.OPEN_PERSON_ID}/photos`);
+            this.renderGallery(photos || []);
+            const updatedWanted = await this.fetch('/api/wanted');
+            const p = updatedWanted.find(x => x.id === this.OPEN_PERSON_ID);
+            if (p) {
+                const syncPct = Math.round((p.photo_count / 15) * 100);
+                document.getElementById('dossier-sync-txt').textContent = `${syncPct}%`;
+                document.getElementById('dossier-sync-bar').style.width = `${syncPct}%`;
+            }
+          }
+      },
+
+      S_FILES: [],
+      handleSearchDrop(e) { e.preventDefault(); document.getElementById('s-drop-zone').classList.remove('active'); this.handleSearchFiles(e.dataTransfer.files); },
+      handleSearchFiles(files) { this.S_FILES = Array.from(files).slice(0, 15); this.renderSearchPreviews(); },
+      renderSearchPreviews() {
+          const grid = document.getElementById('s-preview-grid');
+          if (!this.S_FILES.length) { grid.innerHTML = ''; return; }
+          document.getElementById('s-drop-text').innerHTML = `<span style="color:var(--warning); font-weight:900;">${this.S_FILES.length}/15</span> Samples Loaded`;
+          grid.innerHTML = this.S_FILES.map(f => `<img src="${URL.createObjectURL(f)}" class="preview-item">`).join('');
+      },
+
+      async searchFace() {
+          if (!this.S_FILES.length) return;
+          const fd = new FormData();
+          for(let f of this.S_FILES) fd.append('files', f);
+          
+          this.showToast({ type: 'info', person_name: 'Forensic Scan', location: 'Analyzing historical vectors...' });
+          const res = await fetch('/api/search-face', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
+          const data = await res.json();
+          
+          const area = document.getElementById('search-result-area');
+          const list = document.getElementById('search-results-list');
+          
+          area.style.display = 'block';
+          list.innerHTML = `
+              <div style="grid-column: 1/-1; padding: 1.5rem; background: rgba(56,189,248,0.05); border: 1px solid var(--accent); border-radius: 1.5rem; margin-bottom: 2rem;">
+                  <div style="font-size: 0.7rem; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Forensic Identity Match</div>
+                  <div style="font-size: 1.5rem; font-weight: 800;">${data.person}</div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Most relevant forensic sightings: (Top 4 Visuals)</div>
+              </div>
+              ${data.matches.slice(0, 4).map(loc => {
+                  const confColor = loc.confidence > 90 ? 'var(--success)' : (loc.confidence > 70 ? 'var(--warning)' : 'var(--danger)');
+                  return `
+                  <div class="subject-card" style="border-top: 4px solid ${confColor}; cursor:default;">
+                      <img src="${loc.snapshot}" class="subject-thumb" style="height:140px;">
+                      <div style="font-weight:800; font-size:0.9rem; color:var(--accent);">${loc.location || 'Sector Unknown'}</div>
+                      <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Node: ${loc.camera_id}</div>
+                      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.1rem;">${this.relTime(loc.timestamp)}</div>
+                      <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                          <span style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Confidence</span>
+                          <span style="font-size:0.8rem; font-weight:900; color:${confColor}">${loc.confidence}%</span>
+                      </div>
+                  </div>
+              `}).join('')}
+          `;
+          area.scrollIntoView({ behavior: 'smooth' });
+      },
+
+      STAGED_FILES: [],
+      handleDrop(e) {
+          e.preventDefault();
+          document.getElementById('w-drop-zone').classList.remove('active');
+          if (e.dataTransfer.files) this.handleFiles(e.dataTransfer.files);
+      },
+      handleFiles(files) {
+          this.STAGED_FILES = Array.from(files).slice(0, 15);
+          this.renderPreviews();
+      },
+      renderPreviews() {
+          const grid = document.getElementById('w-preview-grid');
+          const txt = document.getElementById('w-drop-text');
+          if (!this.STAGED_FILES.length) {
+              grid.innerHTML = '';
+              txt.textContent = 'Drag Folder or Select Files';
+              return;
+          }
+          txt.innerHTML = `<span style="color:var(--accent); font-weight:900;">${this.STAGED_FILES.length}/15</span> Neural Samples Staged`;
+          grid.innerHTML = this.STAGED_FILES.map(f => {
+              const url = URL.createObjectURL(f);
+              return `<img src="${url}" class="preview-item">`;
+          }).join('');
       },
 
       async addWanted() {
         const name = document.getElementById('w-name').value;
-        const file = document.getElementById('w-file').files[0];
-        if (!name || !file) return;
-        const fd = new FormData(); fd.append('name', name); fd.append('file', file);
-        await fetch('/api/wanted', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
-        document.getElementById('w-name').value = ''; document.getElementById('w-file').value = '';
-        this.fetchIntelligence();
+        if (!name || !this.STAGED_FILES.length) {
+            this.showToast({ type: 'info', person_name: 'Input Required', location: 'Enter name and drop photos.' });
+            return;
+        }
+        const fd = new FormData(); fd.append('name', name); 
+        for(let f of this.STAGED_FILES) fd.append('files', f);
+        
+        this.showToast({ type: 'info', person_name: 'Neural Processing', location: 'Injecting Mesh Data...' });
+        const res = await fetch('/api/wanted', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
+        
+        if (res.ok) {
+            document.getElementById('w-name').value = ''; 
+            this.STAGED_FILES = [];
+            this.renderPreviews();
+            this.fetchIntelligence();
+            this.showToast({ type: 'info', person_name: 'Sync Complete', location: 'Registry updated successfully.' });
+        }
       },
 
       async removeWanted(id) {
@@ -776,20 +1219,36 @@
         const u = document.getElementById('u-user').value;
         const p = document.getElementById('u-pass').value;
         const r = document.getElementById('u-role').value;
-        if (!u || !p) return;
-        await this.fetch('/api/users', {
+        if (!u || !p) {
+            this.showToast({ type: 'info', person_name: 'Input Required', location: 'Enter both username and password.' });
+            return;
+        }
+
+        this.showToast({ type: 'info', person_name: 'Provisioning Hub', location: `Activating operative ${u}...` });
+        const res = await this.fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: u, password: p, role: r })
         });
-        document.getElementById('u-user').value = ''; document.getElementById('u-pass').value = '';
-        this.fetchWorkers();
+        
+        if (res) {
+          document.getElementById('u-user').value = ''; 
+          document.getElementById('u-pass').value = '';
+          this.showToast({ type: 'info', person_name: 'Activation Success', location: `Operative ${u} is now on the grid.` });
+          this.fetchWorkers();
+        } else {
+          this.showToast({ type: 'info', person_name: 'Enrollment Error', location: 'Identity collision or server rejection.' });
+        }
       },
 
       async deleteUser(user) {
-        if(!confirm(`Decommission operative ${user}? Access will be immediately revoked.`)) return;
-        await this.fetch(`/api/users/${user}`, { method: 'DELETE' });
-        this.fetchWorkers();
+        if(!confirm(`CRITICAL: Decommission operative ${user}? Access will be immediately revoked.`)) return;
+        this.showToast({ type: 'info', person_name: 'Commencing Decommission', location: `Purging access for ${user}...` });
+        const res = await this.fetch(`/api/users/${user}`, { method: 'DELETE' });
+        if(res) {
+            this.showToast({ type: 'info', person_name: 'Access Revoked', location: `Operative ${user} removed from grid.` });
+            this.fetchWorkers();
+        }
       },
 
       async resetSystem() {
