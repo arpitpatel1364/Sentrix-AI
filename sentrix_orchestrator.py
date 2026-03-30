@@ -18,8 +18,10 @@ BASE_DIR = Path(__file__).resolve().parent
 # CONFIGURATION: Load from nodes.conf inside admin/
 def load_nodes():
     nodes = []
-    # Check both admin/nodes.conf and root nodes.conf
-    conf_path = BASE_DIR / "admin" / "nodes.conf"
+    # Check newer backend/ nodes.conf, then legacy locations
+    conf_path = BASE_DIR / "backend" / "nodes.conf"
+    if not conf_path.exists():
+        conf_path = BASE_DIR / "admin" / "nodes.conf" # Legacy fallback
     if not conf_path.exists():
         conf_path = BASE_DIR / "nodes.conf"
     

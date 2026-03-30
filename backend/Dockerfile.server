@@ -21,4 +21,4 @@ RUN mkdir -p data/snapshots models
 
 # 4. Expose and Run
 EXPOSE 8000
-CMD ["python", "server.py"]
+CMD ["python", "app/main.py"]
