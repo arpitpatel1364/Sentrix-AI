@@ -50,6 +50,7 @@ app.include_router(sse_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
+    # Use absolute path relative to this file
     static_file = Path(__file__).resolve().parent / "static" / "dashboard.html"
     if static_file.exists():
         return HTMLResponse(static_file.read_text())

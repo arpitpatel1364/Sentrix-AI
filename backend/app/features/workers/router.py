@@ -14,6 +14,7 @@ from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import update_worker_heartbeat, ACTIVE_WORKERS, get_live_nodes
 from ...core.sse_manager import SSE_CONNECTIONS, broadcast_alert
 from qdrant_client.models import PointStruct
+import sqlite3
 
 router = APIRouter(prefix="/api")
 
@@ -43,7 +44,8 @@ async def upload_frame(
     file: UploadFile = File(...),
     camera_id: str = Form("cam-1"),
     location: str = Form("unknown"),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
 ):
     node_key = f"{user['username']}:{camera_id}"
     update_worker_heartbeat(node_key)
@@ -87,17 +89,16 @@ async def upload_frame(
         sighting["confidence"] = result["confidence"]
         
     emb_blob = embedding.astype(np.float32).tobytes()
-    with next(get_db()) as conn:
-        conn.execute("""
-            INSERT INTO sightings (id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence, embedding)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            sighting["id"], sighting["camera_id"], sighting["location"], sighting["timestamp"],
-            sighting["uploaded_by"], sighting["snapshot_path"], sighting["matched"],
-            sighting["person_id"], sighting["person_name"], sighting["confidence"],
-            emb_blob
-        ))
-        conn.commit()
+    db.execute("""
+        INSERT INTO sightings (id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence, embedding)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        sighting["id"], sighting["camera_id"], sighting["location"], sighting["timestamp"],
+        sighting["uploaded_by"], sighting["snapshot_path"], sighting["matched"],
+        sighting["person_id"], sighting["person_name"], sighting["confidence"],
+        emb_blob
+    ))
+    db.commit()
 
     background_tasks.add_task(_save_sighting_task, sighting_id, img, sighting, embedding, camera_id, location, ts)
 
@@ -136,22 +137,21 @@ async def active_users(user=Depends(require_admin)):
     }
 
 @router.get("/worker/stats")
-async def worker_stats(user=Depends(get_current_user)):
-    with next(get_db()) as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, camera_id, location, timestamp, snapshot_path 
-            FROM sightings WHERE uploaded_by = ? ORDER BY timestamp DESC LIMIT 5
-        """, (user["username"],))
-        history = [dict(r) for r in cur.fetchall()]
-        for h in history:
-            h["snapshot"] = f"/api/snapshots/{h['snapshot_path']}"
-            
-        cur.execute("SELECT COUNT(*) FROM sightings WHERE uploaded_by = ?", (user["username"],))
-        total_count = cur.fetchone()[0]
+async def worker_stats(user=Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("""
+        SELECT id, camera_id, location, timestamp, snapshot_path 
+        FROM sightings WHERE uploaded_by = ? ORDER BY timestamp DESC LIMIT 5
+    """, (user["username"],))
+    history = [dict(r) for r in cur.fetchall()]
+    for h in history:
+        h["snapshot"] = f"/api/snapshots/{h['snapshot_path']}"
         
-        return {
-            "total_detections": total_count,
-            "recent_history": history,
-            "is_active": any(k.startswith(f"{user['username']}:") for k in ACTIVE_WORKERS.keys())
-        }
+    cur.execute("SELECT COUNT(*) FROM sightings WHERE uploaded_by = ?", (user["username"],))
+    total_count = cur.fetchone()[0]
+    
+    return {
+        "total_detections": total_count,
+        "recent_history": history,
+        "is_active": any(k.startswith(f"{user['username']}:") for k in ACTIVE_WORKERS.keys())
+    }

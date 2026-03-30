@@ -13,20 +13,19 @@ import sqlite3
 router = APIRouter(prefix="/api")
 
 @router.get("/sightings")
-async def get_sightings(limit: int = 50, user=Depends(require_admin)):
-    with next(get_db()) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM sightings")
-        total_count = cur.fetchone()[0]
+async def get_sightings(limit: int = 50, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+    cur = db.cursor()
+    cur.execute("SELECT COUNT(*) FROM sightings")
+    total_count = cur.fetchone()[0]
 
-        cur.execute("""
-            SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence 
-            FROM sightings ORDER BY timestamp DESC LIMIT ?
-        """, (limit,))
-        rows = [dict(r) for r in cur.fetchall()]
-        for r in rows:
-            r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
-        return {"sightings": rows, "total_count": total_count}
+    cur.execute("""
+        SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence 
+        FROM sightings ORDER BY timestamp DESC LIMIT ?
+    """, (limit,))
+    rows = [dict(r) for r in cur.fetchall()]
+    for r in rows:
+        r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
+    return {"sightings": rows, "total_count": total_count}
 
 @router.get("/snapshots/{path:path}")
 async def get_snapshot(path: str):
@@ -36,7 +35,7 @@ async def get_snapshot(path: str):
     return StreamingResponse(open(full_path, "rb"), media_type="image/jpeg")
 
 @router.post("/search-face")
-async def search_face(files: List[UploadFile] = File(...), user=Depends(require_admin)):
+async def search_face(files: List[UploadFile] = File(...), user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     all_results = {}
     identified_person = "Unknown Person"
     
@@ -62,18 +61,17 @@ async def search_face(files: List[UploadFile] = File(...), user=Depends(require_
                 for hit in hits:
                     conf = round(hit.score * 100, 1)
                     if hit.id not in all_results or conf > all_results[hit.id]["confidence"]:
-                        with next(get_db()) as conn:
-                            cur = conn.cursor()
-                            cur.execute("""
-                                SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
-                                FROM sightings WHERE id = ?
-                            """, (hit.id,))
-                            r = cur.fetchone()
-                            if r:
-                                item = dict(r)
-                                item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
-                                item["confidence"] = conf
-                                all_results[hit.id] = item
+                        cur = db.cursor()
+                        cur.execute("""
+                            SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
+                            FROM sightings WHERE id = ?
+                        """, (hit.id,))
+                        r = cur.fetchone()
+                        if r:
+                            item = dict(r)
+                            item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
+                            item["confidence"] = conf
+                            all_results[hit.id] = item
             except Exception as e:
                 print(f"Global history search error: {e}")
 

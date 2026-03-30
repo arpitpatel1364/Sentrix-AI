@@ -56,10 +56,22 @@ def init_db():
         conn.commit()
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
+    finally:
+        conn.close()
+
+from contextlib import contextmanager
+@contextmanager
+def get_db_conn():
+    """Manual context manager for database operations outside of FastAPI Depends."""
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+        conn.commit()
     finally:
         conn.close()
 
