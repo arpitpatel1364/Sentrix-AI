@@ -4,8 +4,9 @@ import shutil
 from ...core.security import require_admin
 from ...core.database import get_db, _add_user
 from ...core.face_engine import (
-    QDRANT_CLIENT, QDRANT_AVAILABLE
+    QDRANT_AVAILABLE
 )
+from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import ACTIVE_WORKERS
 from qdrant_client.models import VectorParams, Distance
@@ -25,6 +26,9 @@ async def get_stats(user=Depends(require_admin), db: sqlite3.Connection = Depend
     cur.execute("SELECT COUNT(*) FROM wanted")
     total_wanted = cur.fetchone()[0]
     
+    cur.execute("SELECT COUNT(*) FROM object_detections")
+    total_objects = cur.fetchone()[0]
+    
     now = time.time()
     live_nodes = [k for k, v in ACTIVE_WORKERS.items() if now - v < 60]
     
@@ -32,6 +36,7 @@ async def get_stats(user=Depends(require_admin), db: sqlite3.Connection = Depend
         "total_sightings": total_sightings,
         "total_matches": total_matches,
         "total_wanted": total_wanted,
+        "total_objects": total_objects,
         "total_nodes": len(live_nodes)
     }
 
@@ -46,12 +51,12 @@ async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Dep
         
         _add_user("worker1", "worker123", "worker")
 
-        if QDRANT_AVAILABLE and QDRANT_CLIENT:
+        if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
             try:
-                QDRANT_CLIENT.delete_collection("sightings")
-                QDRANT_CLIENT.delete_collection("watchlist")
-                QDRANT_CLIENT.create_collection("sightings", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
-                QDRANT_CLIENT.create_collection("watchlist", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
+                face_engine.QDRANT_CLIENT.delete_collection("sightings")
+                face_engine.QDRANT_CLIENT.delete_collection("watchlist")
+                face_engine.QDRANT_CLIENT.create_collection("sightings", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
+                face_engine.QDRANT_CLIENT.create_collection("watchlist", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
             except Exception as e:
                 print(f"Qdrant reset error: {e}")
 

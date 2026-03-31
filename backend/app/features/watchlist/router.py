@@ -9,8 +9,9 @@ from datetime import datetime
 from ...core.security import require_admin
 from ...core.database import get_db
 from ...core.face_engine import (
-    get_embedding, bytes_to_cv2, QDRANT_CLIENT, QDRANT_AVAILABLE
+    get_embedding, bytes_to_cv2, QDRANT_AVAILABLE
 )
+from ...core import face_engine
 from ...core.config import INTEL_DIR
 from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
 
@@ -84,9 +85,9 @@ async def add_wanted(
                 (photo_id, pid, emb_blob, f"{photo_id}.jpg", now))
         db.commit()
 
-        if QDRANT_AVAILABLE and QDRANT_CLIENT:
+        if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
             try:
-                QDRANT_CLIENT.upsert(
+                face_engine.QDRANT_CLIENT.upsert(
                     collection_name="watchlist",
                     points=[PointStruct(
                         id=photo_id,
@@ -120,9 +121,9 @@ async def remove_wanted(person_id: str, user=Depends(require_admin), db: sqlite3
     db.execute("DELETE FROM wanted WHERE id = ?", (person_id,))
     db.commit()
     
-    if QDRANT_AVAILABLE and QDRANT_CLIENT:
+    if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
         try:
-            QDRANT_CLIENT.delete(
+            face_engine.QDRANT_CLIENT.delete(
                 collection_name="watchlist",
                 points_selector=Filter(
                     must=[FieldCondition(key="person_id", match=MatchValue(value=person_id))]
@@ -148,9 +149,9 @@ async def delete_intel_photo(person_id: str, photo_id: str, user=Depends(require
     db.execute("DELETE FROM person_photos WHERE id = ?", (photo_id,))
     db.commit()
     
-    if QDRANT_AVAILABLE and QDRANT_CLIENT:
+    if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
         try:
-            QDRANT_CLIENT.delete(collection_name="watchlist", points_selector=[photo_id])
+            face_engine.QDRANT_CLIENT.delete(collection_name="watchlist", points_selector=[photo_id])
         except Exception as e:
             print(f"Qdrant single purge error: {e}")
             

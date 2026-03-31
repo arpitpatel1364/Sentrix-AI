@@ -5,8 +5,9 @@ import numpy as np
 from ...core.security import require_admin
 from ...core.database import get_db
 from ...core.face_engine import (
-    get_embedding, bytes_to_cv2, QDRANT_CLIENT, QDRANT_AVAILABLE, match_wanted
+    get_embedding, bytes_to_cv2, QDRANT_AVAILABLE, match_wanted
 )
+from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 import sqlite3
 
@@ -51,9 +52,9 @@ async def search_face(files: List[UploadFile] = File(...), user=Depends(require_
             if found:
                 identified_person = found["person"]["name"]
 
-        if QDRANT_AVAILABLE and QDRANT_CLIENT:
+        if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
             try:
-                hits = QDRANT_CLIENT.search(
+                hits = face_engine.QDRANT_CLIENT.search(
                     collection_name="sightings",
                     query_vector=embedding.tolist(),
                     limit=15

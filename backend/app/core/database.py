@@ -50,6 +50,19 @@ def init_db():
             )
         """)
         
+        # New: Object Detection Table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS object_detections (
+                id TEXT PRIMARY KEY,
+                camera_id TEXT,
+                location TEXT,
+                timestamp TEXT,
+                object_label TEXT,
+                confidence REAL,
+                snapshot_path TEXT
+            )
+        """)
+        
         # Optimization: Index for person-based history lookup
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_person_id ON sightings(person_id)")
         

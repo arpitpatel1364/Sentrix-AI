@@ -215,3 +215,4 @@ models/
 *.webp
 *.png
 info.txt
+yolov4.onnx

@@ -14,6 +14,8 @@
     --accent: #38bdf8;
     --danger: #f43f5e;
     --success: #10b981;
+    --warning: #f59e0b;
+    --info: #8b5cf6;
     --text-primary: #f8fafc;
     --text-muted: #94a3b8;
     --font: 'Outfit', sans-serif;
@@ -372,6 +374,8 @@
       <nav class="nav">
         <div class="nav-item active" data-view="dashboard" id="nav-dashboard">Surveillance</div>
         <div class="nav-item" data-view="intelligence" id="nav-intel">Intelligence</div>
+        <div class="nav-item" data-view="objects" id="nav-objects">Object Intel</div>
+        <div class="nav-item" data-view="analysis" id="nav-analysis">Snapshot Analysis</div>
         <div class="nav-item" data-view="workers" id="nav-operators">Node Operators</div>
         <div class="nav-item" data-view="history" id="nav-history">Deep History</div>
         <div class="nav-item" data-view="worker-panel" id="nav-worker" style="display:none">Scanner Status</div>
@@ -417,7 +421,7 @@
 
         <div class="grid-stats">
           <div class="stat-card">
-             <div class="stat-label">Total Logs</div>
+             <div class="stat-label">Neural Captures</div>
              <div id="stat-sightings" class="stat-val" style="color:var(--text-primary)">0</div>
           </div>
           <div class="stat-card">
@@ -427,6 +431,10 @@
           <div class="stat-card">
              <div class="stat-label">Watchlist Active</div>
              <div id="stat-wanted" class="stat-val" style="color:var(--accent)">0</div>
+          </div>
+          <div class="stat-card">
+             <div class="stat-label">Detected Objects</div>
+             <div id="stat-objects" class="stat-val" style="color:var(--warning)">0</div>
           </div>
           <div class="stat-card">
              <div class="stat-label">System Nodes</div>
@@ -627,6 +635,56 @@
           </table>
         </div>
       </section>
+
+      <!-- VIEW: OBJECTS -->
+      <section class="view" id="view-objects">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+            <h3 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted)">Object Intelligence Log</h3>
+            <button class="btn" style="width:auto; padding:0.5rem 1rem; font-size:0.7rem; background:rgba(56,189,248,0.1); color:var(--accent); border:1px solid rgba(56,189,248,0.2);" onclick="Core.fetchObjects()">Refresh Feed</button>
+        </div>
+        <div id="objects-grid" class="feed">
+            <div style="color:var(--text-muted);">Scanning for object data...</div>
+        </div>
+      </section>
+
+      <!-- VIEW: SNAPSHOT ANALYSIS -->
+      <section class="view" id="view-analysis">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; align-items:start;">
+          <!-- Left: Upload & Run -->
+          <div class="tool-box" style="border-top: 4px solid var(--info);">
+            <h3 style="margin-bottom:0.5rem; color:var(--info);">Neural Vision Analysis</h3>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.5rem;">Upload a snapshot to run simultaneous face recognition and object detection.</p>
+
+            <div id="a-drop-zone" class="drop-zone"
+                 onclick="document.getElementById('a-file').click()"
+                 ondragover="event.preventDefault(); this.classList.add('active')"
+                 ondragleave="this.classList.remove('active')"
+                 ondrop="Core.handleAnalysisDrop(event)">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p id="a-drop-text">Drop or click to load a CCTV snapshot</p>
+              <input type="file" id="a-file" accept="image/*" style="display:none" onchange="Core.handleAnalysisFile(this.files[0])">
+            </div>
+
+            <button id="analyze-btn" class="btn" style="margin-top:1.5rem;" onclick="Core.analyzeSnapshot()" disabled>
+              Initiate Deep Analysis
+            </button>
+          </div>
+
+          <!-- Right: Results -->
+          <div>
+            <div id="analysis-preview-area" style="display:none;">
+              <div style="font-size:0.7rem; font-weight:800; color:var(--info); text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">Analysis Output</div>
+              <img id="analysis-preview-img" style="width:100%; border-radius:1.5rem; border:1px solid var(--border); margin-bottom:1.5rem;" src="">
+              <div id="analysis-results-meta" style="background:var(--bg-card); border:1px solid var(--border); border-radius:1.5rem; padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+              </div>
+            </div>
+            <div id="analysis-no-result" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; opacity:0.3; padding:3rem 0;">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div style="font-size:0.8rem; font-weight:600;">Upload an image to begin analysis</div>
+            </div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-worker-panel">
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:2rem;">
           <div class="stat-card" style="border-color:var(--accent); background:rgba(56, 189, 248, 0.05);">
@@ -712,13 +770,13 @@
         if(this.USER.role === 'admin') {
            document.getElementById('admin-tools').style.display = 'block';
         } else {
-           // Worker Specific Setup
-           document.getElementById('nav-dashboard').style.display = 'none';
-           document.getElementById('nav-intel').style.display = 'none';
-           document.getElementById('nav-personnel').style.display = 'none';
-           document.getElementById('nav-registry').style.display = 'none';
+           // Worker Specific Setup — hide all admin-only nav items
+           ['nav-dashboard','nav-intel','nav-objects','nav-analysis','nav-operators','nav-history'].forEach(id => {
+               const el = document.getElementById(id);
+               if (el) el.style.display = 'none';
+           });
            document.getElementById('nav-worker').style.display = 'flex';
-           document.getElementById('nav-worker').click(); // Switch to worker view
+           document.getElementById('nav-worker').click();
            this.fetchWorkerStats();
            setInterval(() => this.fetchWorkerStats(), 5000);
         }
@@ -731,7 +789,7 @@
         }
         this.initSSE();
 
-        // 🛰️ Tactical Alert Heartbear (Checks for vision loss every 2s)
+        // Tactical Alert Heartbeat (Checks for vision loss every 2s)
         setInterval(() => this.updateAlertHeartbeat(), 2000);
       },
 
@@ -742,11 +800,14 @@
             document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             item.classList.add('active');
-            document.getElementById(`view-${view}`).classList.add('active');
-            document.getElementById('view-title').textContent = item.textContent === 'Surveillance' ? 'Live Feed' : item.textContent;
+            const viewEl = document.getElementById(`view-${view}`);
+            if (viewEl) viewEl.classList.add('active');
+            const label = item.textContent.trim();
+            document.getElementById('view-title').textContent = view === 'dashboard' ? 'Live Feed' : label;
             
             if (view === 'history') this.fetchHistory();
             if (view === 'intelligence') this.fetchIntelligence();
+            if (view === 'objects') this.fetchObjects();
             if (view === 'workers') this.fetchWorkers();
           };
         });
@@ -759,20 +820,21 @@
         if (!stats || !activeNodes) return;
         
         document.getElementById('stat-sightings').textContent = stats.total_sightings || 0;
-        document.getElementById('live-count').textContent = stats.total_sightings || 0;
+        document.getElementById('live-count').textContent = (stats.total_sightings || 0) + (stats.total_objects || 0);
         document.getElementById('stat-matches').textContent = stats.total_matches || 0;
         document.getElementById('stat-wanted').textContent = stats.total_wanted || 0;
+        document.getElementById('stat-objects').textContent = stats.total_objects || 0;
         document.getElementById('stat-nodes').textContent = activeNodes?.count || 0;
 
         // Upgrade: Proper Tactical Node Monitoring
         const nodeContainer = document.getElementById('active-nodes-list');
         if (activeNodes?.nodes && nodeContainer) {
-            nodeContainer.innerHTML = activeNodes.nodes.length ? activeNodes.nodes.map(nodeId => `
+            nodeContainer.innerHTML = activeNodes.nodes.length ? activeNodes.nodes.map(node => `
                 <div style="padding:1.25rem; background:rgba(56, 189, 248, 0.05); border:1px solid rgba(56, 189, 248, 0.2); border-radius:1.5rem; display:flex; flex-direction:column; gap:0.75rem; position:relative; overflow:hidden;">
                     <div style="display:flex; align-items:center; justify-content:space-between; z-index:1;">
                         <div style="display:flex; align-items:center; gap:0.75rem;">
                             <div class="logo-pulse" style="width:8px; height:8px; background:var(--success); box-shadow: 0 0 10px var(--success);"></div>
-                            <div style="font-weight:800; font-size:0.9rem; letter-spacing:-0.5px;">${nodeId}</div>
+                            <div style="font-weight:800; font-size:0.9rem; letter-spacing:-0.5px;">${node.id}</div>
                         </div>
                         <div style="font-size:0.6rem; font-weight:900; color:var(--accent); text-transform:uppercase; background:rgba(56,189,248,0.1); padding:0.2rem 0.5rem; border-radius:1rem;">Sensor OK</div>
                     </div>
@@ -783,7 +845,7 @@
                         </div>
                         <div style="text-align:right;">
                             <div style="font-size:0.6rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:0.2rem;">Last Sync</div>
-                            <div style="font-size:0.75rem; font-weight:700; color:var(--success);">Just Now</div>
+                            <div style="font-size:0.75rem; font-weight:700; color:var(--success);">${this.relTime(new Date(node.last_seen * 1000).toISOString())}</div>
                         </div>
                     </div>
                     <!-- Subtle background decoration -->
@@ -807,7 +869,11 @@
         this.SSE = new EventSource(`/api/stream?token=${this.TOKEN}`);
         this.SSE.addEventListener('alert', e => {
           const data = JSON.parse(e.data);
-          
+          this.handleIncomingAlert(data);
+        });
+      },
+
+      handleIncomingAlert(data) {
           // Update Live Log
           const log = document.getElementById('live-log');
           const placeholder = document.getElementById('log-placeholder');
@@ -817,13 +883,21 @@
               item.style.cssText = 'padding:1rem; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:1rem; display:flex; gap:1rem; align-items:center; animation: fadeIn 0.3s ease-out;';
               
               const isMatch = data.type === 'wanted_match';
-              const imgSize = isMatch ? '50px' : '40px';
-              const imgHtml = data.snapshot ? `<img src="${data.snapshot}" style="width:${imgSize}; height:${imgSize}; border-radius:0.75rem; object-fit:cover; border:${isMatch ? '2px solid var(--danger)' : '1px solid var(--border)'};">` : '';
+              const isObject = data.type === 'new_object';
               
+              const imgSize = isMatch ? '50px' : '40px';
+              const borderStyle = isMatch ? '2px solid var(--danger)' : (isObject ? '1px solid var(--warning)' : '1px solid var(--border)');
+              const imgHtml = data.snapshot ? `<img src="${data.snapshot}" style="width:${imgSize}; height:${imgSize}; border-radius:0.75rem; object-fit:cover; border:${borderStyle};">` : '';
+              
+              let title = 'New Sighting Detected';
+              let titleColor = 'var(--text-primary)';
+              if (isMatch) { title = 'CRITICAL MATCH: ' + data.person_name; titleColor = 'var(--danger)'; }
+              if (isObject) { title = 'OBJECT DETECTED: ' + data.object_label.toUpperCase(); titleColor = 'var(--warning)'; }
+
               item.innerHTML = `
                   ${imgHtml}
                   <div style="flex:1">
-                      <div style="font-size:0.85rem; font-weight:700; color:${isMatch ? 'var(--danger)' : 'var(--text-primary)'}">${isMatch ? 'CRITICAL MATCH: ' + data.person_name : 'New Sighting Detected'}</div>
+                      <div style="font-size:0.85rem; font-weight:700; color:${titleColor}">${title}</div>
                       <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">Node: ${data.camera_id || 'Remote Node'} · ${new Date().toLocaleTimeString()}</div>
                   </div>
               `;
@@ -831,9 +905,18 @@
               if (log.children.length > 20) log.lastElementChild.remove();
           }
 
+          if (data.type === 'new_object') {
+              const objEl = document.getElementById('stat-objects');
+              if (objEl) objEl.textContent = parseInt(objEl.textContent) + 1;
+              
+              // If on objects view, refresh
+              const activeView = document.querySelector('.view.active');
+              if (activeView && activeView.id === 'view-objects') this.fetchObjects();
+          }
+
           if (data.type === 'wanted_match') {
               this.showToast(data);
-              // 🔴 Lock-on to most wanted subject
+              // Lock-on to most wanted subject
               this.ACTIVE_ALERTS[data.person_id] = {
                   id: data.person_id,
                   name: data.person_name,
@@ -871,7 +954,6 @@
 
           // Then fetch real stats to sync
           setTimeout(() => this.fetchStats(), 1000);
-        });
       },
 
       showToast(data) {
@@ -939,7 +1021,7 @@
                         <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.25rem;">
                             <h4>${a.name}</h4>
                             <span class="alert-tag ${a.inVision ? 'tag-live' : 'tag-lost'}">
-                                ${a.inVision ? '🔴 IN VISION' : '⚪ LOST VISION'}
+                                ${a.inVision ? 'IN VISION' : 'LOST VISION'}
                             </span>
                         </div>
                         <div style="font-size:0.9rem; color:var(--text-muted); font-weight:600;">
@@ -1050,6 +1132,30 @@
         `).join('') || '';
       },
 
+      async fetchObjects() {
+        const data = await this.fetch('/api/objects?limit=100');
+        const items = data?.objects || [];
+        const grid = document.getElementById('objects-grid');
+        if(!items.length) {
+            grid.innerHTML = '<div style="color:var(--text-muted);">No object detections logged in this timeframe.</div>';
+            return;
+        }
+        grid.innerHTML = items.map(obj => `
+          <div class="card">
+            <img src="${obj.snapshot}" class="card-img">
+            <div class="card-tag" style="background:var(--warning); color:#000;">${obj.object_label.toUpperCase()}</div>
+            <div class="card-content">
+              <div class="card-title">${obj.object_label.charAt(0).toUpperCase() + obj.object_label.slice(1)} Detected</div>
+              <div class="card-meta">
+                <span>${obj.camera_id} · ${obj.location}</span>
+                <span>${Math.round(obj.confidence * 100)}% Match</span>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.5rem;">${new Date(obj.timestamp).toLocaleString()}</div>
+            </div>
+          </div>
+        `).join('');
+      },
+
       async fetchWorkers() {
         const users = await this.fetch('/api/users');
         if (!users) return;
@@ -1074,7 +1180,7 @@
           return `
             <div class="subject-card">
               <div onclick="Core.openDossier(${JSON.stringify(p).replace(/"/g, '&quot;')})">
-                <img src="/api/intel-photos/${p.primary_photo}" class="subject-thumb">
+                ${p.primary_photo ? `<img src="/api/intel-photos/${p.primary_photo}" class="subject-thumb">` : `<div class="subject-thumb" style="background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.8rem; font-weight:800;">NO PHOTO</div>`}
                 <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${p.name}</div>
                 <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace; margin-bottom:1rem;">ID: ${p.id.slice(0,8)}...</div>
                 <div class="sync-container">
@@ -1163,6 +1269,9 @@
                 document.getElementById('dossier-sync-txt').textContent = `${syncPct}%`;
                 document.getElementById('dossier-sync-bar').style.width = `${syncPct}%`;
             }
+          } else {
+              const err = await res.json();
+              this.showToast({ type: 'error', person_name: 'Injection Failed', location: err.detail || 'Could not process photos.' });
           }
       },
 
@@ -1187,6 +1296,7 @@
           this.renderSearchPreviews();
           document.getElementById('search-result-area').style.display = 'none';
       },
+
       async searchFace() {
           if (!this.S_FILES.length) return;
           const fd = new FormData();
@@ -1222,6 +1332,91 @@
               `}).join('')}
           `;
           area.scrollIntoView({ behavior: 'smooth' });
+      },
+
+      ANALYSIS_FILE: null,
+      handleAnalysisDrop(e) {
+          e.preventDefault();
+          document.getElementById('a-drop-zone').classList.remove('active');
+          if (e.dataTransfer.files[0]) this.handleAnalysisFile(e.dataTransfer.files[0]);
+      },
+      handleAnalysisFile(file) {
+          this.ANALYSIS_FILE = file;
+          const dropText = document.getElementById('a-drop-text');
+          const analyzeBtn = document.getElementById('analyze-btn');
+          if (dropText) dropText.innerHTML = `<span style="color:var(--success); font-weight:900;">${file.name}</span> — Ready`;
+          if (analyzeBtn) analyzeBtn.disabled = false;
+          // Reset results area on new file
+          const prevArea = document.getElementById('analysis-preview-area');
+          const noResult = document.getElementById('analysis-no-result');
+          if (prevArea) prevArea.style.display = 'none';
+          if (noResult) noResult.style.display = 'flex';
+      },
+      handleDossierDrop(e) {
+          e.preventDefault();
+          const modal = document.getElementById('dossier-modal');
+          if (modal) modal.style.background = 'rgba(2,6,23,0.7)';
+          if (e.dataTransfer.files.length && this.OPEN_PERSON_ID) {
+              this.uploadToDossier(e.dataTransfer.files);
+          }
+      },
+      async analyzeSnapshot() {
+          if (!this.ANALYSIS_FILE) return;
+          const fd = new FormData();
+          fd.append('file', this.ANALYSIS_FILE);
+          
+          const btn = document.getElementById('analyze-btn');
+          if (btn) { btn.textContent = 'Analyzing...'; btn.disabled = true; }
+          
+          const noResult = document.getElementById('analysis-no-result');
+          if (noResult) noResult.style.display = 'none';
+          
+          this.showToast({ type: 'info', person_name: 'Core Analysis', location: 'Running neural vision stack...' });
+          
+          try {
+              const res = await fetch('/api/analyze-snapshot', { 
+                  method: 'POST', 
+                  headers: { 'Authorization': `Bearer ${this.TOKEN}` }, 
+                  body: fd 
+              });
+              const data = await res.json();
+              
+              const preview = document.getElementById('analysis-preview-area');
+              const img = document.getElementById('analysis-preview-img');
+              const meta = document.getElementById('analysis-results-meta');
+              
+              if (preview) preview.style.display = 'block';
+              if (img) img.src = data.preview || '';
+              
+              let html = `<div style="font-weight:800; color:var(--success);">Analysis Complete</div>`;
+              
+              if (data.face) {
+                  html += `<div style="padding:1rem; background:rgba(217,70,239,0.1); border:1px solid #d946ef; border-radius:1rem;">
+                             <div style="font-size:0.6rem; font-weight:800; color:#d946ef; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Biometric Match</div>
+                             <div style="font-weight:800; font-size:1.1rem;">${data.face.person.name}</div>
+                             <div style="font-size:0.75rem; color:#d946ef; margin-top:0.25rem;">Confidence: ${data.face.confidence}%</div>
+                           </div>`;
+              } else {
+                  html += `<div style="font-size:0.8rem; color:var(--text-muted); padding:0.75rem; background:rgba(255,255,255,0.02); border-radius:0.75rem;">No watchlist faces detected.</div>`;
+              }
+              
+              if (data.objects && data.objects.length) {
+                  html += `<div style="font-size:0.6rem; font-weight:800; color:var(--warning); text-transform:uppercase; letter-spacing:1px;">Detected Objects (${data.objects.length})</div>`;
+                  html += `<div style="display:flex; flex-wrap:wrap; gap:0.5rem;">`;
+                  data.objects.forEach(obj => {
+                      html += `<span style="background:rgba(245,158,11,0.1); border:1px solid var(--warning); color:var(--warning); padding:0.3rem 0.75rem; border-radius:2rem; font-size:0.75rem; font-weight:700;">${obj.label.toUpperCase()} <span style="opacity:0.7">${Math.round(obj.confidence*100)}%</span></span>`;
+                  });
+                  html += `</div>`;
+              } else {
+                  html += `<div style="font-size:0.8rem; color:var(--text-muted); padding:0.75rem; background:rgba(255,255,255,0.02); border-radius:0.75rem;">No objects identified in this frame.</div>`;
+              }
+              
+              if (meta) meta.innerHTML = html;
+          } catch (e) {
+              this.showToast({ type: 'error', person_name: 'Analysis Failed', location: 'Compute error or invalid file.' });
+          } finally {
+              if (btn) { btn.textContent = 'Initiate Deep Analysis'; btn.disabled = false; }
+          }
       },
 
       STAGED_FILES: [],
@@ -1275,6 +1470,9 @@
             this.renderPreviews();
             this.fetchIntelligence();
             this.showToast({ type: 'info', person_name: 'Sync Complete', location: 'Registry updated successfully.' });
+        } else {
+            const err = await res.json();
+            this.showToast({ type: 'error', person_name: 'Error', location: err.detail || 'Could not add to watchlist.' });
         }
       },
 

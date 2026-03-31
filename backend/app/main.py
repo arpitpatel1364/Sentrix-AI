@@ -19,13 +19,19 @@ from app.features.sightings.router import router as sightings_router
 from app.features.workers.router import router as workers_router
 from app.features.system.router import router as system_router
 from app.features.sse.router import router as sse_router
+from app.features.objects.router import router as objects_router
+from app.features.analysis.router import router as analysis_router
 
-@asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Core
     init_db()
     seed_default_users()
     init_face_engines()
+    
+    # Init Object Engine for manual analysis
+    from app.core.object_engine import init_object_engine
+    init_object_engine()
+    
     yield
     print("Sentrix-AI Server shutting down.")
 
@@ -47,6 +53,8 @@ app.include_router(sightings_router)
 app.include_router(workers_router)
 app.include_router(system_router)
 app.include_router(sse_router)
+app.include_router(objects_router)
+app.include_router(analysis_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():

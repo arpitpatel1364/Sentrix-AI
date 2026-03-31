@@ -8,8 +8,9 @@ from datetime import datetime
 from ...core.security import get_current_user, require_admin
 from ...core.database import get_db
 from ...core.face_engine import (
-    get_embedding, bytes_to_cv2, match_wanted, QDRANT_CLIENT, QDRANT_AVAILABLE
+    get_embedding, bytes_to_cv2, match_wanted, QDRANT_AVAILABLE
 )
+from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import update_worker_heartbeat, ACTIVE_WORKERS, get_live_nodes
 from ...core.sse_manager import SSE_CONNECTIONS, broadcast_alert
@@ -20,8 +21,8 @@ router = APIRouter(prefix="/api")
 
 def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embedding: np.ndarray, camera_id: str, location: str, ts: str):
     try:
-        if QDRANT_AVAILABLE and QDRANT_CLIENT:
-            QDRANT_CLIENT.upsert(
+        if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
+            face_engine.QDRANT_CLIENT.upsert(
                 collection_name="sightings",
                 points=[PointStruct(
                     id=sighting_id,
@@ -62,11 +63,12 @@ async def upload_frame(
     result = match_wanted(embedding)
     sighting_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
-    filename = f"{camera_id}/{sighting_id}.jpg"
     
     cam_dir = SNAPSHOTS_DIR / camera_id
     cam_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_path = SNAPSHOTS_DIR / filename
+    snap_filename = f"{sighting_id}.jpg"
+    filename = f"{camera_id}/{snap_filename}"   # DB path: cam-1/uuid.jpg
+    snapshot_path = cam_dir / snap_filename     # File path: SNAPSHOTS_DIR/cam-1/uuid.jpg
     cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70])
 
     sighting = {
@@ -155,3 +157,11 @@ async def worker_stats(user=Depends(get_current_user), db: sqlite3.Connection = 
         "recent_history": history,
         "is_active": any(k.startswith(f"{user['username']}:") for k in ACTIVE_WORKERS.keys())
     }
+
+@router.post("/worker/offline")
+async def worker_offline(camera_id: str = Form(...), user=Depends(get_current_user)):
+    from ...core.worker_state import remove_worker
+    node_key = f"{user['username']}:{camera_id}"
+    remove_worker(node_key)
+    print(f"[-] Worker Offline Notification: {node_key}")
+    return {"status": "offline_logged"}
