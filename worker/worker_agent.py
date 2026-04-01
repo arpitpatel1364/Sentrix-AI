@@ -28,10 +28,15 @@ if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
         pass
 
 # ==========================================
-# CCTV MULTI-PROCESS WORKER AGENT
+# CCTV MULTI-PROCESS WORKER AGENT v2
 # Two-Core Architecture:
 #   Core 1 — Face Engine: continuous crop + upload
 #   Core 2 — Object Engine: full frame + bbox draw + 30s cooldown
+#
+# FIXES in v2:
+#   - Object detector now correctly uses BCHW input (not BHWC)
+#   - Confidence = objectness × class_score (not class_score alone)
+#   - Letterbox coordinate rescaling properly accounts for padding
 # ==========================================
 
 COCO_CLASSES = [
@@ -50,20 +55,20 @@ COCO_CLASSES = [
 def parse_args():
     base_dir = Path(__file__).resolve().parent
     default_face_model = base_dir / "models" / "best.onnx"
-    default_obj_model = PROJECT_ROOT / "yolov4.onnx"
+    default_obj_model  = PROJECT_ROOT / "yolov4.onnx"
 
-    p = argparse.ArgumentParser(description="Multi-Process CCTV Worker (Two-Core)")
-    p.add_argument("--server", default="http://localhost:8000")
-    p.add_argument("--user", required=True)
-    p.add_argument("--password", required=True)
-    p.add_argument("--camera", nargs='+', default=["0"], help="Camera indices or RTSP URLs")
-    p.add_argument("--camera-id", nargs='+', default=["cam-1"], help="Camera IDs")
-    p.add_argument("--location", nargs='+', default=["Unknown Location"], help="Locations")
-    p.add_argument("--interval", type=float, default=0.5, help="Frame capture interval (seconds)")
+    p = argparse.ArgumentParser(description="Sentrix-AI Multi-Process CCTV Worker (Two-Core)")
+    p.add_argument("--server",    default="http://localhost:8000")
+    p.add_argument("--user",      required=True)
+    p.add_argument("--password",  required=True)
+    p.add_argument("--camera",    nargs='+', default=["0"],            help="Camera indices or RTSP URLs")
+    p.add_argument("--camera-id", nargs='+', default=["cam-1"],        help="Camera IDs")
+    p.add_argument("--location",  nargs='+', default=["Unknown Location"], help="Locations")
+    p.add_argument("--interval",  type=float, default=0.5,             help="Frame capture interval (s)")
     p.add_argument("--face-model", default=str(default_face_model))
-    p.add_argument("--obj-model", default=str(default_obj_model))
-    p.add_argument("--no-face", action="store_true")
-    p.add_argument("--no-obj", action="store_true")
+    p.add_argument("--obj-model",  default=str(default_obj_model))
+    p.add_argument("--no-face",   action="store_true")
+    p.add_argument("--no-obj",    action="store_true")
     return p.parse_args()
 
 
@@ -118,37 +123,18 @@ def open_camera(source):
     return None
 
 
-def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
-    # Resize and pad image while meeting stride-multiple constraints
-    shape = im.shape[:2]  # current shape [height, width]
-    if isinstance(new_shape, int):
-        new_shape = (new_shape, new_shape)
-
-    # Scale ratio (new / old)
-    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
-    if not scaleup:  # only scale down, do not scale up (for better test mAP)
-        r = min(r, 1.0)
-
-    # Compute padding
-    ratio = r, r  # width, height ratios
-    new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
-    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
-    if auto:  # minimum rectangle
-        dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
-    elif scaleFill:  # stretch
-        dw, dh = 0.0, 0.0
-        new_unpad = (new_shape[1], new_shape[0])
-        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
-
-    dw /= 2  # divide padding into 2 sides
-    dh /= 2
-
-    if shape[::-1] != new_unpad:  # resize
-        im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
-    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
-    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
-    return im, ratio, (dw, dh)
+def _letterbox_square(im, size=640, color=(114, 114, 114)):
+    """Resize to square with letterboxing. Returns (padded_img, scale, (pad_left, pad_top))."""
+    h, w = im.shape[:2]
+    scale = size / max(h, w)
+    nw, nh = int(round(w * scale)), int(round(h * scale))
+    im = cv2.resize(im, (nw, nh), interpolation=cv2.INTER_LINEAR)
+    pl = (size - nw) // 2
+    pt = (size - nh) // 2
+    pr = size - nw - pl
+    pb = size - nh - pt
+    im = cv2.copyMakeBorder(im, pt, pb, pl, pr, cv2.BORDER_CONSTANT, value=color)
+    return im, scale, (pl, pt)
 
 
 # ============================================================
@@ -196,11 +182,6 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue):
 
 
 # ============================================================
-# PROCESS: CORE 1 — FACE DETECTOR
-# Continuously detects faces, crops just the face region,
-# uploads immediately to /api/upload-frame
-# ============================================================
-# ============================================================
 # PROCESS: CORE 1 — FACE DETECTOR (YOLOv8/v10 compatible)
 # ============================================================
 def face_detector_worker(face_model, face_queue, upload_queue, server, token):
@@ -227,7 +208,7 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token):
                 frame, cam_id, location = face_queue.get(timeout=5)
             except mp.queues.Empty:
                 continue
-            
+
             if face_session is None:
                 continue
 
@@ -235,69 +216,60 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token):
                 continue
 
             h_orig, w_orig = frame.shape[:2]
-            
-            # Use letterbox to maintain aspect ratio
-            img, ratio, (dw, dh) = letterbox(frame, new_shape=640, auto=False)
-            
-            # Convert BGR to RGB
+
+            img, scale, (pad_left, pad_top) = _letterbox_square(frame, 640)
             rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            image_data = rgb.astype(np.float32) / 255.0
-            image_data = np.transpose(image_data, (2, 0, 1))  # (3, 640, 640)
-            image_data = np.expand_dims(image_data, axis=0)   # (1, 3, 640, 640)
+            blob = rgb.astype(np.float32) / 255.0
+            blob = np.transpose(blob, (2, 0, 1))   # HWC → CHW
+            blob = np.expand_dims(blob, axis=0)     # → BCHW
 
             input_name = face_session.get_inputs()[0].name
-            outputs = face_session.run(None, {input_name: image_data})
-            raw_out = outputs[0]  # Usually (1, 5, 8400) or (1, 84, 8400)
+            outputs = face_session.run(None, {input_name: blob})
+            raw_out = outputs[0]   # (1, 5, 8400) or (1, 84, 8400)
 
-            # Transpose if output is (1, 5, 8400) -> (8400, 5)
+            # Transpose if needed: (1, 5, 8400) → (8400, 5)
             if raw_out.shape[1] < raw_out.shape[2]:
                 out = raw_out[0].T
             else:
                 out = raw_out[0]
 
-            boxes = []
-            confs = []
-            
+            boxes, confs = [], []
             for row in out:
-                # row structure: [cx, cy, w, h, class_score...]
                 conf = float(row[4]) if len(row) > 4 else 0
                 if conf < 0.4:
                     continue
-
                 cx, cy, fw, fh = row[0:4]
-                
-                # Rescale coordinates to original frame
-                x1 = int((cx - fw / 2 - dw) / ratio[0])
-                y1 = int((cy - fh / 2 - dh) / ratio[1])
-                w, h = int(fw / ratio[0]), int(fh / ratio[1])
-                
+                # Undo letterbox
+                x1 = int((cx - fw / 2 - pad_left) / scale)
+                y1 = int((cy - fh / 2 - pad_top)  / scale)
+                w  = int(fw / scale)
+                h  = int(fh / scale)
                 x1, y1 = max(0, x1), max(0, y1)
                 boxes.append([x1, y1, w, h])
                 confs.append(conf)
 
             faces_found = 0
-            indices = cv2.dnn.NMSBoxes(boxes, confs, 0.4, 0.45)
-            if len(indices) > 0:
-                for i in indices.flatten():
-                    x, y, w, h = boxes[i]
-                    x2, y2 = min(w_orig, x + w), min(h_orig, y + h)
-
-                    if x2 <= x or y2 <= y or w < 20 or h < 20:
-                        continue
-
-                    # Pad for context
-                    pad = int(w * 0.15)
-                    crop = frame[
-                        max(0, y - pad): min(h_orig, y2 + pad),
-                        max(0, x - pad): min(w_orig, x2 + pad)
-                    ]
-                    if crop.size == 0: continue
-
-                    try:
-                        if not upload_queue.full():
-                            upload_queue.put_nowait(("face", crop.copy(), cam_id, location, "person", confs[i]))
-                            faces_found += 1
-                    except Exception: pass
+            if boxes:
+                indices = cv2.dnn.NMSBoxes(boxes, confs, 0.4, 0.45)
+                if len(indices) > 0:
+                    for i in indices.flatten():
+                        x, y, w, h = boxes[i]
+                        x2, y2 = min(w_orig, x + w), min(h_orig, y + h)
+                        if x2 <= x or y2 <= y or w < 20 or h < 20:
+                            continue
+                        pad = int(w * 0.15)
+                        crop = frame[
+                            max(0, y - pad): min(h_orig, y2 + pad),
+                            max(0, x - pad): min(w_orig, x2 + pad)
+                        ]
+                        if crop.size == 0:
+                            continue
+                        try:
+                            if not upload_queue.full():
+                                upload_queue.put_nowait(("face", crop.copy(), cam_id, location, "person", confs[i]))
+                                faces_found += 1
+                        except Exception:
+                            pass
 
             if faces_found > 0:
                 last_face_times[cam_id] = time.time()
@@ -310,34 +282,34 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token):
 
 
 # ============================================================
-# CLASS: DETECTION TRACKER — per-label 30s cooldown
+# CLASS: DETECTION TRACKER — per-label cooldown
 # ============================================================
 class DetectionTracker:
     def __init__(self, cooldown=30):
-        self.cooldown = cooldown
-        self.last_seen = {}  # {cam_id: {label: timestamp}}
+        self.cooldown  = cooldown
+        self.last_seen = {}   # {cam_id: {label: timestamp}}
 
     def should_upload(self, cam_id, label):
         now = time.time()
         if cam_id not in self.last_seen:
             self.last_seen[cam_id] = {}
-        last_time = self.last_seen[cam_id].get(label, 0)
-        if now - last_time > self.cooldown:
+        if now - self.last_seen[cam_id].get(label, 0) > self.cooldown:
             self.last_seen[cam_id][label] = now
             return True
         return False
 
 
 # ============================================================
-# PROCESS: CORE 2 — OBJECT DETECTOR
-# On detection: takes full frame, draws bounding boxes +
-# classification labels, uploads.
-# 30-second cooldown per label — no spam, new objects upload
-# immediately.
+# PROCESS: CORE 2 — OBJECT DETECTOR (FIXED v2)
+#
+# FIX 1: Input is now BCHW  (was BHWC — YOLOv4 requires BCHW)
+# FIX 2: conf = objectness × class_score  (was class_score only)
+# FIX 3: Coordinates properly unscaled from 416px space via letterbox
 # ============================================================
 def object_detector_worker(obj_model, obj_queue, upload_queue):
     print(f"[*] Core 2 — Object Engine starting")
     tracker = DetectionTracker(cooldown=15)
+    INPUT_SIZE = 416
 
     obj_session = None
     if os.path.exists(obj_model):
@@ -362,101 +334,99 @@ def object_detector_worker(obj_model, obj_queue, upload_queue):
                 frame, cam_id, location = obj_queue.get(timeout=5)
             except mp.queues.Empty:
                 continue
-            
+
             if obj_session is None:
                 continue
 
             h_orig, w_orig = frame.shape[:2]
             input_name = obj_session.get_inputs()[0].name
 
-            # Use letterbox for aspect-ratio preservation
-            img, ratio, (dw, dh) = letterbox(frame, new_shape=416, auto=False)
-            
-            # Convert BGR to RGB
-            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            image_data = rgb.astype(np.float32) / 255.0
-            image_data = np.expand_dims(image_data, axis=0)
+            # ── Preprocess ── letterbox → RGB → BCHW ───────────────────────
+            padded, scale, (pad_left, pad_top) = _letterbox_square(frame, INPUT_SIZE)
+            rgb  = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
+            blob = rgb.astype(np.float32) / 255.0
+            # This specific YOLOv4 ONNX expects BHWC
+            blob = rgb.astype(np.float32) / 255.0
+            blob = np.expand_dims(blob, axis=0)     # → BHWC
 
-            outs = obj_session.run(None, {input_name: image_data})
+            outs = obj_session.run(None, {input_name: blob})
 
             boxes, confs, class_ids = [], [], []
             for out in outs:
-                # Flatten the grid and anchors so we just iterate over individual predictions
                 out = out.reshape(-1, out.shape[-1])
                 for d in out:
+                    objectness = float(d[4])
+                    if objectness < 0.3:
+                        continue
                     scores = d[5:]
                     cid = int(np.argmax(scores))
-                    # Multiply objectness score (d[4]) by the class score to avoid false positives on background
-                    conf = float(d[4]) * float(scores[cid])
-                    if conf > 0.4:
-                        cx, cy, bw, bh = float(d[0]), float(d[1]), float(d[2]), float(d[3])
-                        
-                        # Rescale coordinates to original frame
-                        x = int((cx - bw / 2 - dw) / ratio[0])
-                        y = int((cy - bh / 2 - dh) / ratio[1])
-                        w = int(bw / ratio[0])
-                        h = int(bh / ratio[1])
-                        boxes.append([x, y, w, h])
-                        confs.append(conf)
-                        class_ids.append(cid)
+                    # FIX 2: multiply objectness × class score
+                    conf = objectness * float(scores[cid])
+                    if conf < 0.4:
+                        continue
+
+                    # FIX 3: raw coords are in 416px space — undo letterbox padding
+                    cx = float(d[0])
+                    cy = float(d[1])
+                    bw = float(d[2])
+                    bh = float(d[3])
+
+                    x = int((cx - bw / 2 - pad_left) / scale)
+                    y = int((cy - bh / 2 - pad_top)  / scale)
+                    w = int(bw / scale)
+                    h = int(bh / scale)
+
+                    boxes.append([max(0, x), max(0, y), w, h])
+                    confs.append(conf)
+                    class_ids.append(cid)
 
             if not boxes:
                 continue
-            
-            # Lowered NMS thresholds for better recall
+
             indices = cv2.dnn.NMSBoxes(boxes, confs, 0.4, 0.45)
             if len(indices) == 0:
                 continue
 
-            # Collect detected objects
             detected = []
             for i in indices.flatten():
                 label = COCO_CLASSES[class_ids[i]] if class_ids[i] < len(COCO_CLASSES) else "unknown"
                 detected.append({"bbox": boxes[i], "label": label, "conf": confs[i]})
 
-            # Group by label for cooldown check + selecting top-confidence per label
+            # Best detection per label
             label_groups = {}
             for obj in detected:
                 lbl = obj["label"]
                 if lbl not in label_groups or obj["conf"] > label_groups[lbl]["conf"]:
                     label_groups[lbl] = obj
 
-            # For each new/cooled-down label, upload a clearly visible, cropped annotated frame
             for label, best_obj in label_groups.items():
                 if not tracker.should_upload(cam_id, label):
-                    continue  # Same object seen within 30s, skip
+                    continue
 
                 x, y, w, h = best_obj["bbox"]
-                
-                # Add 20% padding for a better view
                 pad_x = int(w * 0.2)
                 pad_y = int(h * 0.2)
-                
                 x1 = max(0, x - pad_x)
                 y1 = max(0, y - pad_y)
                 x2 = min(w_orig, x + w + pad_x)
                 y2 = min(h_orig, y + h + pad_y)
-                
-                # Crop the object
                 crop = frame[y1:y2, x1:x2].copy()
-                
+
                 if crop.size == 0:
                     continue
-                    
-                # The object's new coordinates within the cropped image
-                box_x1 = max(0, x - x1)
-                box_y1 = max(0, y - y1)
-                box_x2 = min(crop.shape[1], box_x1 + w)
-                box_y2 = min(crop.shape[0], box_y1 + h)
-                
-                # Draw the bounding box and label on the cropped image
-                cv2.rectangle(crop, (box_x1, box_y1), (box_x2, box_y2), (0, 200, 255), 2)
-                tag = f"{best_obj['label'].upper()} {int(best_obj['conf'] * 100)}%"
-                tag_y = max(box_y1 - 8, 14)
-                cv2.putText(crop, tag, (box_x1, tag_y),
+
+                bx1 = max(0, x - x1)
+                by1 = max(0, y - y1)
+                bx2 = min(crop.shape[1], bx1 + w)
+                by2 = min(crop.shape[0], by1 + h)
+
+                cv2.rectangle(crop, (bx1, by1), (bx2, by2), (0, 200, 255), 2)
+                tag   = f"{best_obj['label'].upper()} {int(best_obj['conf'] * 100)}%"
+                tag_y = max(by1 - 8, 14)
+                cv2.putText(crop, tag, (bx1, tag_y),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
 
-                print(f"[OBJ] NEW (CROPPED): {label} ({int(best_obj['conf']*100)}%) | cam: {cam_id}")
+                print(f"[OBJ] DETECTED: {label} ({int(best_obj['conf']*100)}%) | cam: {cam_id}")
                 try:
                     if not upload_queue.full():
                         upload_queue.put_nowait(("object", crop, cam_id, location, label, best_obj["conf"]))
@@ -483,17 +453,17 @@ def upload_worker(server, token, upload_queue):
             img_bytes = buf.tobytes()
 
             if dtype == "face":
-                url = f"{server}/api/upload-frame"
+                url   = f"{server}/api/upload-frame"
                 files = {"file": ("face.jpg", img_bytes, "image/jpeg")}
-                data = {"camera_id": cam_id, "location": location}
+                data  = {"camera_id": cam_id, "location": location}
             else:
-                url = f"{server}/api/upload-object"
+                url   = f"{server}/api/upload-object"
                 files = {"file": ("object.jpg", img_bytes, "image/jpeg")}
-                data = {
-                    "camera_id": cam_id,
-                    "location": location,
+                data  = {
+                    "camera_id":    cam_id,
+                    "location":     location,
                     "object_label": label,
-                    "confidence": str(conf)
+                    "confidence":   str(conf)
                 }
 
             r = requests.post(url, files=files, data=data, headers=headers, timeout=15)
@@ -503,12 +473,10 @@ def upload_worker(server, token, upload_queue):
                     status = res.get("status", "stored")
                     if status == "match":
                         print(f"[!!!] FACE MATCH: {res.get('person')} | cam: {cam_id}")
-                    elif status == "no_face":
-                        pass  # Crop didn't have a clear enough face for embedding
                 else:
                     print(f"[+] OBJECT LOGGED: {label} | cam: {cam_id}")
             else:
-                print(f"[WARN] Upload {dtype} returned HTTP {r.status_code}")
+                print(f"[WARN] Upload {dtype} returned HTTP {r.status_code}: {r.text[:120]}")
 
         except Exception as e:
             if "timeout" not in str(e).lower() and "empty" not in str(e).lower():
@@ -520,7 +488,9 @@ def upload_worker(server, token, upload_queue):
 # ============================================================
 def main():
     args = parse_args()
-    print("Sentrix AI | Two-Core Worker Agent")
+    print("╔═══════════════════════════════════════╗")
+    print("║  Sentrix-AI Two-Core Worker  v2.0     ║")
+    print("╚═══════════════════════════════════════╝")
     print(f"  Server  : {args.server}")
     print(f"  Cameras : {args.camera}")
     print(f"  Cam IDs : {args.camera_id}")
@@ -529,64 +499,43 @@ def main():
     print("")
 
     token = login(args.server, args.user, args.password)
-    print(f"[+] Authenticated")
+    print(f"[+] Authenticated as {args.user}")
 
     processes = []
 
-    # Shared queues
-    # face_queue: raw frames for Core 1
-    # obj_queue:  raw frames for Core 2
-    # upload_queue: encoded images for uploader (both cores feed here)
-    face_queue = mp.Queue(maxsize=8) if not args.no_face else None
-    obj_queue = mp.Queue(maxsize=4) if not args.no_obj else None
+    face_queue   = mp.Queue(maxsize=8)  if not args.no_face else None
+    obj_queue    = mp.Queue(maxsize=4)  if not args.no_obj  else None
     upload_queue = mp.Queue(maxsize=40)
 
-    # Core 1 — Face Detector
     if not args.no_face:
-        p = mp.Process(
-            target=face_detector_worker,
-            args=(args.face_model, face_queue, upload_queue, args.server, token),
-            daemon=True
-        )
-        p.start()
-        processes.append(p)
+        p = mp.Process(target=face_detector_worker,
+                       args=(args.face_model, face_queue, upload_queue, args.server, token),
+                       daemon=True)
+        p.start(); processes.append(p)
         print("[+] Core 1 (Face) started")
 
-    # Core 2 — Object Detector
     if not args.no_obj:
-        p = mp.Process(
-            target=object_detector_worker,
-            args=(args.obj_model, obj_queue, upload_queue),
-            daemon=True
-        )
-        p.start()
-        processes.append(p)
+        p = mp.Process(target=object_detector_worker,
+                       args=(args.obj_model, obj_queue, upload_queue),
+                       daemon=True)
+        p.start(); processes.append(p)
         print("[+] Core 2 (Object) started")
 
-    # Uploader
-    p = mp.Process(
-        target=upload_worker,
-        args=(args.server, token, upload_queue),
-        daemon=True
-    )
-    p.start()
-    processes.append(p)
+    p = mp.Process(target=upload_worker,
+                   args=(args.server, token, upload_queue),
+                   daemon=True)
+    p.start(); processes.append(p)
     print("[+] Uploader started")
 
-    # Camera Capture Processes (one per camera)
     num_cams = len(args.camera)
     for i in range(num_cams):
         cam_src = args.camera[i]
-        cam_id = args.camera_id[i] if i < len(args.camera_id) else f"cam-{i+1}"
-        loc = args.location[i] if i < len(args.location) else "Global Perimeter"
-
-        p = mp.Process(
-            target=capture_worker,
-            args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue),
-            daemon=True
-        )
-        p.start()
-        processes.append(p)
+        cam_id  = args.camera_id[i] if i < len(args.camera_id) else f"cam-{i+1}"
+        loc     = args.location[i]  if i < len(args.location)  else "Global Perimeter"
+        p = mp.Process(target=capture_worker,
+                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue),
+                       daemon=True)
+        p.start(); processes.append(p)
         print(f"[+] Capture node {cam_id} started")
 
     print(f"\n[RUNNING] {num_cams} camera(s) | Face: {'OFF' if args.no_face else 'ON'} | Objects: {'OFF' if args.no_obj else 'ON'}")
@@ -610,7 +559,6 @@ def main():
                 print(f"[-] Node {cam_id} marked offline")
             except Exception:
                 pass
-
         for p in processes:
             p.terminate()
         print("[!] All processes stopped")

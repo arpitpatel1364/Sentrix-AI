@@ -54,9 +54,9 @@ def init_face_engines():
                 providers=providers
             )
             FACE_APP.prepare(ctx_id=0, det_size=(160, 160))
-            print(f"✓ InsightFace model loaded (buffalo_s, {providers[0]})")
+            print(f"InsightFace model loaded (buffalo_s, {providers[0]})")
         except Exception as e:
-            print(f"⚠  Could not load InsightFace: {e}")
+            print(f"Could not load InsightFace: {e}")
 
     # 2. Init Qdrant
     if QDRANT_AVAILABLE:

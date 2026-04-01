@@ -3,1557 +3,2232 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sentrix AI | Intelligence Hub</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Sentrix AI | Cognitive Vision Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=DM+Sans:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg-main: #020617;
-    --bg-side: #0f172a;
-    --bg-card: rgba(30, 41, 59, 0.5);
-    --border: rgba(255, 255, 255, 0.08);
-    --accent: #38bdf8;
-    --danger: #f43f5e;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --info: #8b5cf6;
-    --text-primary: #f8fafc;
-    --text-muted: #94a3b8;
-    --font: 'Outfit', sans-serif;
-  }
+:root {
+  --bg:        #0a0b10;
+  --bg2:       #11131a;
+  --bg3:       #171921;
+  --surface:   rgba(17,19,26,0.85);
+  --border:    rgba(255,255,255,0.05);
+  --border2:   rgba(255,255,255,0.1);
+  --amber:     #3b82f6; /* Sapphire Blue accent */
+  --amber-dim: rgba(59,130,246,0.1);
+  --amber-glow:rgba(59,130,246,0.2);
+  --cyan:      #10b981; /* Precise Green for status */
+  --cyan-dim:  rgba(16,185,129,0.1);
+  --red:       #ef4444; 
+  --red-dim:   rgba(239,68,68,0.1);
+  --green:     #10b981;
+  --green-dim: rgba(16,185,129,0.1);
+  --purple:    #8b5cf6;
+  --text:      #f1f5f9;
+  --muted:     #94a3b8;
+  --mono:      'Share Tech Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+  --display:   'Orbitron', sans-serif;
+  --sidebar-w: 260px;
+}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-  body { background: var(--bg-main); color: var(--text-primary); font-family: var(--font); height: 100vh; overflow: hidden; }
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 
-  /* --- AUTH SCREEN --- */
-  #login-screen {
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at top right, #1e293b, var(--bg-main));
-  }
-  .login-card {
-    background: var(--bg-side);
-    border: 1px solid var(--border);
-    padding: 3rem;
-    border-radius: 2rem;
-    width: 440px;
-    box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7);
-    text-align: center;
-  }
-  .login-logo { font-size: 2rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem; color: var(--accent); }
-  .logo-pulse { width: 14px; height: 14px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 20px var(--danger); animation: heartbeat 1.5s infinite; }
-  @keyframes heartbeat { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
-  
-  .login-card h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-  .login-card p { color: var(--text-muted); margin-bottom: 2.5rem; font-size: 0.9rem; }
-  
-  .field { text-align: left; margin-bottom: 1.5rem; }
-  .field label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
-  input {
-    width: 100%;
-    background: #000a1f;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    color: #fff;
-    padding: 1rem 1.25rem;
-    outline: none;
-    font-size: 1rem;
-  }
-  input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15); }
-  .btn {
-    width: 100%;
-    background: var(--accent);
-    color: #000;
-    padding: 1.1rem;
-    border: none;
-    border-radius: 0.75rem;
-    font-weight: 700;
-    font-size: 1rem;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(56,189,248,0.3);
-  }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(56,189,248,0.4); }
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  height:100vh;
+  overflow:hidden;
+}
 
-  /* --- APP LAYOUT --- */
-  #app { display: none; height: 100vh; grid-template-columns: 280px 1fr; }
-  
-  .sidebar { 
-    background: var(--bg-side); 
-    border-right: 1px solid var(--border); 
-    display: flex; 
-    flex-direction: column; 
-    padding: 2rem 1.5rem;
-    z-index: 100;
-  }
-  .nav { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
-  .nav-item {
-    padding: 1rem 1.25rem;
-    border-radius: 1rem;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    text-decoration: none;
-  }
-  .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.05); color: var(--text-primary); }
-  .nav-item.active { background: rgba(56, 189, 248, 0.1); color: var(--accent); border: 1px solid rgba(56,189,248,0.2); }
+/* ─── SCANLINE OVERLAY ─── */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
 
-  .sb-footer { border-top: 1px solid var(--border); padding-top: 2rem; }
-  .user-badge { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
-  .avatar { width: 36px; height: 36px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #000; font-size: 0.8rem; }
-  .logout-btn { color: var(--danger); font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; opacity: 0.7; }
-  .logout-btn:hover { opacity: 1; }
+/* ─── LOGIN ─── */
+#login-screen{
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: radial-gradient(circle at top right, rgba(59,130,246,0.04), transparent),
+              radial-gradient(circle at bottom left, rgba(16,185,129,0.02), transparent),
+              var(--bg);
+  position:relative;
+  overflow:hidden;
+}
+#login-screen::before{
+  content:'SENTRIX';
+  position:absolute;
+  font-family:var(--display);
+  font-size:clamp(80px,20vw,200px);
+  font-weight:900;
+  color:transparent;
+  -webkit-text-stroke:1px rgba(255,255,255,0.03);
+  letter-spacing:0.3em;
+  pointer-events:none;
+  user-select:none;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  white-space:nowrap;
+}
+.login-box{
+  width:420px;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:16px;
+  padding:2.5rem;
+  position:relative;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
+.login-box::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--amber),transparent);
+  border-radius:16px 16px 0 0;
+}
+.login-logo{
+  text-align:center;
+  margin-bottom:2rem;
+}
+.login-logo .wordmark{
+  font-family:var(--display);
+  font-size:1.6rem;
+  font-weight:700;
+  letter-spacing:0.15em;
+  color:var(--amber);
+}
+.login-logo .tagline{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  color:var(--muted);
+  letter-spacing:0.2em;
+  margin-top:0.25rem;
+}
+.login-corner{
+  display:inline-block;
+  width:8px;height:8px;
+  background:var(--red);
+  border-radius:50%;
+  box-shadow:0 0 12px var(--red);
+  animation:blink 1.4s ease-in-out infinite;
+  margin-right:0.5rem;
+  vertical-align:middle;
+}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
 
-  /* --- MAIN CONTENT --- */
-  .main { background: var(--bg-main); overflow: hidden; display: flex; flex-direction: column; }
-  .topbar {
-    height: 80px;
-    padding: 0 3rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(2, 6, 23, 0.8);
-    backdrop-filter: blur(12px);
-  }
-  .topbar-info { display: flex; align-items: center; gap: 1.5rem; }
-  .status-pill { padding: 0.4rem 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--success); border-radius: 2rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.4rem; }
-  .led { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); }
+.field{margin-bottom:1.25rem}
+.field label{
+  display:block;
+  font-family:var(--mono);
+  font-size:0.65rem;
+  color:var(--muted);
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  margin-bottom:0.5rem;
+}
+input[type=text],input[type=password]{
+  width:100%;
+  background:#0a0c12;
+  border:1px solid var(--border2);
+  color:var(--text);
+  padding:0.8rem 1rem;
+  border-radius:8px;
+  font-family:var(--mono);
+  font-size:0.9rem;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+input:focus{
+  border-color:var(--amber);
+  box-shadow:0 0 0 3px var(--amber-glow);
+}
+#login-btn{
+  width:100%;
+  background:var(--amber);
+  color:#000;
+  border:none;
+  padding:0.9rem;
+  border-radius:8px;
+  font-family:var(--display);
+  font-size:0.8rem;
+  font-weight:700;
+  letter-spacing:0.1em;
+  cursor:pointer;
+  transition:all .2s;
+  position:relative;
+  overflow:hidden;
+}
+#login-btn::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);
+}
+#login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(245,158,11,0.35)}
+#login-btn:active{transform:translateY(0)}
+#login-err{color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none;font-family:var(--mono)}
 
-  .view { flex: 1; overflow-y: auto; padding: 3rem; display: none; animation: fadeIn 0.4s ease-out; }
-  .view.active { display: block; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+/* ─── APP LAYOUT ─── */
+#app{
+  display:none;
+  height:100vh;
+}
+.layout{
+  display:grid;
+  grid-template-columns:var(--sidebar-w) 1fr;
+  height:100vh;
+}
 
-  /* --- COMPONENTS --- */
-  .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
-  .stat-card {
-    background: var(--bg-card);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--border);
-    padding: 1.75rem;
-    border-radius: 1.5rem;
-  }
-  .stat-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
-  .stat-val { font-size: 2.5rem; font-weight: 800; }
+/* ─── SIDEBAR ─── */
+.sidebar{
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  overflow:hidden;
+  position:relative;
+}
+.sidebar::after{
+  content:'';
+  position:absolute;
+  right:0;top:20%;bottom:20%;
+  width:1px;
+  background:linear-gradient(180deg,transparent,var(--amber),transparent);
+  opacity:0.3;
+}
+.sb-header{
+  padding:1.5rem 1.25rem 1rem;
+  border-bottom:1px solid var(--border);
+}
+.sb-logo{
+  display:flex;
+  align-items:center;
+  gap:0.75rem;
+}
+.sb-logo-icon{
+  width:36px;height:36px;
+  background:var(--amber-dim);
+  border:1px solid var(--amber-glow);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);
+  font-size:0.7rem;
+  font-weight:700;
+  color:var(--amber);
+  flex-shrink:0;
+}
+.sb-wordmark{
+  font-family:var(--display);
+  font-size:0.95rem;
+  font-weight:700;
+  letter-spacing:0.1em;
+  color:var(--text);
+}
+.sb-sub{
+  font-family:var(--mono);
+  font-size:0.55rem;
+  color:var(--muted);
+  letter-spacing:0.15em;
+  margin-top:1px;
+}
 
-  .feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 1.5rem;
-    overflow: hidden;
-    position: relative;
-    cursor: default;
-  }
-  .card:hover { transform: scale(1.02); border-color: var(--accent); }
-  .card-img { width: 100%; height: 260px; object-fit: cover; background: #000; }
-  .card-tag { position: absolute; top: 1rem; left: 1rem; background: var(--danger); color: #fff; padding: 0.4rem 0.75rem; border-radius: 0.75rem; font-size: 0.65rem; font-weight: 800; box-shadow: 0 8px 16px rgba(244, 63, 94, 0.4); }
-  .card-content { padding: 1.5rem; }
-  .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; }
-  .card-meta { font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+.sb-status{
+  margin:0.75rem 1.25rem 0;
+  background:var(--green-dim);
+  border:1px solid rgba(16,185,129,0.2);
+  border-radius:6px;
+  padding:0.4rem 0.75rem;
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--green);
+  letter-spacing:0.08em;
+}
+.sb-status .dot{width:5px;height:5px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
 
-  /* Search/Intelligence Tools */
-  .tool-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 2rem; padding: 2.5rem; margin-bottom: 2rem; }
-  /* Search/Intelligence Tools (Old styles removed, using intel-grid) */
-  
-  /* Tables */
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; padding: 1.25rem; color: var(--text-muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-  td { padding: 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .row-img { width: 44px; height: 44px; border-radius: 0.75rem; object-fit: cover; }
+.nav{flex:1;overflow-y:auto;padding:1rem 0.75rem}
+.nav-section{
+  font-family:var(--mono);
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.2em;
+  padding:0.5rem 0.5rem 0.25rem;
+  margin-top:0.75rem;
+}
+.nav-item{
+  display:flex;
+  align-items:center;
+  gap:0.75rem;
+  padding:0.65rem 0.75rem;
+  border-radius:8px;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:0.85rem;
+  font-weight:500;
+  transition:all .15s;
+  position:relative;
+  margin-bottom:2px;
+}
+.nav-item:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.nav-item.active{
+  background:var(--amber-dim);
+  color:var(--amber);
+  border:1px solid rgba(245,158,11,0.2);
+}
+.nav-item.active::before{
+  content:'';
+  position:absolute;
+  left:0;top:25%;bottom:25%;
+  width:2px;
+  background:var(--amber);
+  border-radius:0 2px 2px 0;
+  box-shadow:0 0 8px var(--amber);
+}
+.nav-icon{width:18px;height:18px;flex-shrink:0;opacity:0.7}
+.nav-item.active .nav-icon{opacity:1}
+.nav-badge{
+  margin-left:auto;
+  background:var(--red);
+  color:#fff;
+  font-size:0.6rem;
+  font-weight:700;
+  padding:1px 6px;
+  border-radius:10px;
+  min-width:18px;
+  text-align:center;
+  display:none;
+}
+.nav-badge.show{display:block}
 
-  /* --- TOASTS --- */
-  #toast-container { position: fixed; top: 2rem; right: 2rem; z-index: 1000; display: flex; flex-direction: column; gap: 1rem; }
-  .toast { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); border: 2px solid var(--danger); border-radius: 1.5rem; padding: 1.5rem; width: 380px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); animation: toastSlide 0.5s cubic-bezier(0.17, 0.89, 0.32, 1.49); }
-  @keyframes toastSlide { from { transform: translateX(120%); } to { transform: translateX(0); } }
+.sb-footer{
+  padding:1rem 1.25rem;
+  border-top:1px solid var(--border);
+}
+.user-info{
+  display:flex;
+  align-items:center;
+  gap:0.75rem;
+  margin-bottom:0.75rem;
+}
+.user-av{
+  width:32px;height:32px;
+  background:var(--amber-dim);
+  border:1px solid var(--amber-glow);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);
+  font-size:0.65rem;
+  font-weight:700;
+  color:var(--amber);
+  flex-shrink:0;
+}
+.user-name{font-weight:600;font-size:0.85rem}
+.user-role{font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em}
+.logout-btn{
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+  color:var(--muted);
+  font-size:0.8rem;
+  cursor:pointer;
+  padding:0.4rem 0;
+  transition:color .15s;
+}
+.logout-btn:hover{color:var(--red)}
 
-  /* --- VISUAL INTEL TOGGLE --- */
-  .v-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 0.5rem 1rem;
-    border-radius: 1rem;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    user-select: none;
-  }
-  .v-toggle:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--accent); }
-  .v-switch {
-    width: 32px;
-    height: 18px;
-    background: #1e293b;
-    border-radius: 1rem;
-    position: relative;
-    border: 1px solid var(--border);
-  }
-  .v-switch::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 12px;
-    height: 12px;
-    background: #94a3b8;
-    border-radius: 50%;
-    transition: all 0.3s;
-  }
-  .v-toggle.active .v-switch { background: rgba(56, 189, 248, 0.2); border-color: var(--accent); }
-  .v-toggle.active .v-switch::after { transform: translateX(14px); background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-  .v-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-  .v-toggle.active .v-label { color: var(--accent); }
+/* ─── MAIN AREA ─── */
+.main-area{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  overflow:hidden;
+  background: var(--bg);
+  box-shadow: none;
+}
 
-  /* --- PLACEHOLDER --- */
-  .img-placeholder {
-    width: 100%;
-    height: 260px;
-    background: repeating-linear-gradient(45deg, #0f172a, #0f172a 10px, #1e293b 10px, #1e293b 20px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 700;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .img-placeholder svg { opacity: 0.3; }
+.topbar{
+  height:60px;
+  padding:0 2rem;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:rgba(8,10,15,0.8);
+  backdrop-filter:blur(12px);
+  flex-shrink:0;
+}
+.topbar-left{display:flex;align-items:center;gap:0.75rem}
+.page-title{font-family:var(--display);font-size:0.8rem;letter-spacing:0.1em;font-weight:700}
+.breadcrumb{font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em}
+.topbar-right{display:flex;align-items:center;gap:1rem}
+.sys-time{font-family:var(--mono);font-size:0.7rem;color:var(--muted)}
+#alert-bell{
+  position:relative;
+  cursor:pointer;
+  padding:0.4rem;
+  border-radius:6px;
+  transition:background .15s;
+  color:var(--muted);
+}
+#alert-bell:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+#bell-count{
+  position:absolute;
+  top:-4px;right:-4px;
+  background:var(--red);
+  color:#fff;
+  font-size:0.55rem;
+  font-weight:700;
+  min-width:16px;height:16px;
+  border-radius:8px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  border:2px solid var(--bg);
+}
+#bell-count.show{display:flex}
 
-  .row-placeholder {
-    width: 44px;
-    height: 44px;
-    border-radius: 0.75rem;
-    background: #1e293b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 0.6rem;
-    border: 1px solid var(--border);
-  }
+/* ─── PAGE CONTAINER ─── */
+.pages{flex:1;overflow:hidden;position:relative}
+.page{
+  position:absolute;
+  inset:0;
+  overflow-y:auto;
+  padding:1.75rem 2rem;
+  display:none;
+  opacity:0;
+  transform:translateY(8px);
+  transition:opacity .25s ease,transform .25s ease;
+}
+.page.active{display:block;opacity:1;transform:translateY(0)}
 
-  /* --- INTEL GRID --- */
-  .intel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
-  .subject-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 1.5rem;
-    padding: 1.25rem;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-  }
-  .subject-card:hover { border-color: var(--accent); transform: translateY(-5px); background: rgba(56, 189, 248, 0.05); }
-  .subject-thumb { width:100%; height:180px; object-fit:cover; border-radius:1rem; margin-bottom:1rem; background:#000a1f; border: 1px solid var(--border); }
-  .subject-thumb:after { content: 'Biometric Data Missing'; display: flex; align-items: center; justify-content: center; height: 100%; font-size: 0.7rem; color: var(--text-muted); }
-  .sync-container { margin-top: 1rem; }
-  .sync-label { font-size: 0.6rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
-  .sync-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
-  .sync-fill { height: 100%; background: var(--accent); border-radius: 10px; box-shadow: 0 0 10px var(--accent); transition: width 1s ease-out; }
+/* ─── SECTION HEADER ─── */
+.sec-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:1.5rem;
+  flex-wrap:wrap;
+  gap:1rem;
+}
+.sec-title{
+  font-family:var(--display);
+  font-size:1.15rem;
+  letter-spacing:0.25em;
+  font-weight:900;
+  color:var(--text);
+  text-transform:uppercase;
+}
+.sec-sub{
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--muted);
+  letter-spacing:0.1em;
+  margin-top:2px;
+}
+.sec-actions{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap}
 
-  /* --- MODAL SYSTEM --- */
-  .modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(2, 6, 23, 0.7); backdrop-filter: blur(24px);
-    z-index: 1000; display: none; align-items: center; justify-content: center;
-    animation: fadeIn 0.3s ease-out;
-  }
-  .modal-content {
-    background: var(--bg-side); border: 1px solid var(--border);
-    width: 900px; max-height: 90vh; border-radius: 2.5rem;
-    padding: 3rem; position: relative; overflow-y: auto;
-    box-shadow: 0 50px 100px rgba(0,0,0,0.8);
-  }
-  .close-modal { position: absolute; top: 2rem; right: 2rem; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
-  .close-modal:hover { color: var(--text-primary); }
+/* ─── STAT GRID ─── */
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:1rem;
+  margin-bottom:1.75rem;
+}
+.stat-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:1.25rem;
+  position:relative;
+  overflow:hidden;
+  backdrop-filter:blur(8px);
+}
+.stat-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:1px;
+}
+.stat-card.amber::before{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.stat-card.cyan::before{background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
+.stat-card.red::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.stat-card.green::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.stat-card.purple::before{background:linear-gradient(90deg,transparent,var(--purple),transparent)}
 
-  .dossier-gallery { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-top: 2rem; }
-  .gallery-slot { width:100%; aspect-ratio: 1; border-radius: 1rem; background: rgba(255,255,255,0.02); border: 1px dashed var(--border); overflow: hidden; position: relative; }
-  .gallery-slot img { width:100%; height:100%; object-fit: cover; }
-  .slot-empty { display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: var(--text-muted); font-weight: 700; text-align: center; padding: 0.5rem; }
-  .slot-btn { cursor: pointer; border-style: solid; border-color: var(--accent); background: rgba(56, 189, 248, 0.05); }
-  .slot-btn:hover { background: rgba(56, 189, 248, 0.1); border-width: 2px; }
+.stat-label{
+  font-family:var(--mono);
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  margin-bottom:0.5rem;
+}
+.stat-val{
+  font-family:var(--display);
+  font-size:2rem;
+  font-weight:700;
+  line-height:1;
+}
+.stat-card.amber .stat-val{color:var(--amber)}
+.stat-card.cyan .stat-val{color:var(--cyan)}
+.stat-card.red .stat-val{color:var(--red)}
+.stat-card.green .stat-val{color:var(--green)}
+.stat-card.purple .stat-val{color:var(--purple)}
+.stat-sub{font-size:0.72rem;color:var(--muted);margin-top:0.25rem}
 
-  /* --- SELECTIVE REMOVAL UI --- */
-  .preview-wrapper { position: relative; display: inline-block; }
-  .remove-staged-btn {
-      position: absolute; top: -5px; right: -5px; 
-      width: 22px; height: 22px; border-radius: 50%;
-      background: var(--danger); color: white; display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 800; cursor: pointer; border: 2px solid var(--bg-dark); z-index: 10;
-      transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  }
-  .remove-staged-btn:hover { transform: scale(1.1); background: #ff4d60; }
-  .slot-delete-btn {
-      position: absolute; bottom: 5px; right: 5px; background: rgba(244,63,94,0.7);
-      color: #fff; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 900; cursor: pointer; transition: 0.2s; backdrop-filter: blur(4px);
-  }
-  .slot-delete-btn:hover { background: var(--danger); transform: translateY(-2px); }
+/* ─── CARDS & FEED ─── */
+.feed-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:1rem;
+}
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  transition:border-color .2s,transform .2s,box-shadow .2s;
+  backdrop-filter:blur(6px);
+}
+.card:hover{
+  border-color:var(--border2);
+  transform:translateY(-2px);
+  box-shadow:0 12px 30px rgba(0,0,0,0.4);
+}
+.card.matched{
+  border-color:rgba(244,63,94,0.35);
+  box-shadow:0 0 20px rgba(244,63,94,0.1);
+}
+.card.matched:hover{border-color:var(--red)}
+.card-thumb{
+  width:100%;
+  height:200px;
+  object-fit:cover;
+  background:#0a0b0e;
+  display:block;
+}
+.card-body{padding:1rem}
+.card-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:0.35rem;
+  padding:0.25rem 0.6rem;
+  border-radius:4px;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  margin-bottom:0.6rem;
+}
+.card-tag.match{background:rgba(244,63,94,0.2);color:var(--red);border:1px solid rgba(244,63,94,0.3)}
+.card-tag.unknown{background:rgba(100,116,139,0.15);color:var(--muted);border:1px solid var(--border)}
+.card-tag.object{background:rgba(34,211,238,0.12);color:var(--cyan);border:1px solid rgba(34,211,238,0.2)}
+.card-name{font-weight:600;font-size:0.9rem;margin-bottom:0.25rem}
+.card-meta{font-family:var(--mono);font-size:0.65rem;color:var(--muted)}
+.card-conf{
+  margin-top:0.5rem;
+  font-family:var(--mono);
+  font-size:0.65rem;
+  color:var(--amber);
+}
 
-  /* --- ACTIVE ALERTS MONITOR --- */
-  #active-alerts-monitor {
-    padding: 0 3rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-top: 1rem;
-  }
-  .alert-banner {
-    background: rgba(244, 63, 94, 0.1);
-    border: 2px solid var(--danger);
-    border-radius: 1.5rem;
-    padding: 1.5rem 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    animation: alertPulse 2s infinite ease-in-out, fadeIn 0.4s ease-out;
-    backdrop-filter: blur(12px);
-  }
-  .alert-banner.lost {
-    background: rgba(148, 163, 184, 0.05);
-    border-color: var(--text-muted);
-    animation: none;
-    opacity: 0.8;
-  }
-  @keyframes alertPulse { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(244, 63, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } }
-  .alert-info h4 { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
-  .alert-tag { padding: 0.3rem 0.75rem; border-radius: 0.75rem; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-  .tag-live { background: var(--danger); color: #fff; }
-  .tag-lost { background: var(--text-muted); color: #000; }
+/* ─── TABLE ─── */
+.table-wrap{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  backdrop-filter:blur(6px);
+}
+table{width:100%;border-collapse:collapse}
+thead{background:rgba(0,0,0,0.3)}
+th{
+  padding:0.9rem 1.25rem;
+  text-align:left;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--muted);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+td{
+  padding:0.85rem 1.25rem;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:0.85rem;
+  vertical-align:middle;
+}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.td-img{width:40px;height:40px;border-radius:6px;object-fit:cover;background:#0a0b0e}
+.td-mono{font-family:var(--mono);font-size:0.75rem;color:var(--muted)}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:0.3rem;
+  padding:0.2rem 0.6rem;
+  border-radius:4px;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+}
+.badge.match{background:rgba(244,63,94,0.15);color:var(--red);border:1px solid rgba(244,63,94,0.25)}
+.badge.unknown{background:rgba(100,116,139,0.1);color:var(--muted);border:1px solid var(--border)}
+.badge.online{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,0.2)}
+.badge.offline{background:rgba(100,116,139,0.1);color:var(--muted);border:1px solid var(--border)}
+.badge.admin{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,0.2)}
+.badge.worker{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(34,211,238,0.2)}
 
-  /* --- NEURAL DROP ZONE --- */
-  .drop-zone {
-    width: 100%; min-height: 120px;
-    border: 2px dashed var(--border);
-    border-radius: 1.5rem;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 0.75rem; color: var(--text-muted);
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.01);
-    transition: all 0.3s ease;
-  }
-  .drop-zone.active { border-color: var(--accent); background: rgba(56, 189, 248, 0.05); color: var(--accent); }
-  .drop-zone p { font-size: 0.8rem; font-weight: 600; }
-  .drop-zone svg { opacity: 0.5; }
+/* ─── BUTTONS ─── */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  gap:0.4rem;
+  padding:0.55rem 1.1rem;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+  font-size:0.82rem;
+  font-weight:600;
+  font-family:var(--sans);
+  transition:all .15s;
+  white-space:nowrap;
+}
+.btn-primary{background:var(--amber);color:#fff}
+.btn-primary:hover{opacity:0.9;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:rgba(255,255,255,0.05);color:var(--text);border-color:var(--border2)}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(244,63,94,0.25)}
+.btn-danger:hover{background:rgba(244,63,94,0.25);border-color:var(--red)}
+.btn-cyan{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(34,211,238,0.2)}
+.btn-cyan:hover{background:rgba(34,211,238,0.2);border-color:var(--cyan)}
+.btn-sm{padding:0.35rem 0.75rem;font-size:0.75rem}
+.btn:disabled{opacity:0.4;cursor:not-allowed;pointer-events:none}
 
-  .preview-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-top: 1rem; }
-  .preview-item { width: 100%; aspect-ratio: 1; border-radius: 0.75rem; object-fit: cover; border: 1px solid var(--border); animation: fadeIn 0.3s ease-out; }
+/* ─── FORMS ─── */
+.form-group{margin-bottom:1rem}
+.form-label{
+  display:block;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--muted);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin-bottom:0.4rem;
+}
+.form-input{
+  width:100%;
+  background:rgba(0,0,0,0.3);
+  border:1px solid var(--border2);
+  color:var(--text);
+  padding:0.65rem 0.9rem;
+  border-radius:8px;
+  font-family:var(--sans);
+  font-size:0.85rem;
+  outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.form-input:focus{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-glow)}
+select.form-input option{background:var(--bg3)}
+
+/* ─── PANEL / MODAL ─── */
+.panel{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:12px;
+  padding:1.5rem;
+  margin-bottom:1.5rem;
+  backdrop-filter:blur(8px);
+}
+.panel-title{
+  font-family:var(--display);
+  font-size:0.75rem;
+  letter-spacing:0.12em;
+  color:var(--amber);
+  margin-bottom:1rem;
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+}
+
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(4px);
+  z-index:500;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:1.5rem;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:16px;
+  padding:2rem;
+  width:100%;
+  max-width:500px;
+  position:relative;
+  box-shadow:0 40px 80px rgba(0,0,0,0.7);
+  max-height:90vh;
+  overflow-y:auto;
+}
+.modal-title{
+  font-family:var(--display);
+  font-size:0.85rem;
+  letter-spacing:0.12em;
+  margin-bottom:1.5rem;
+}
+.modal-close{
+  position:absolute;
+  top:1rem;right:1rem;
+  background:transparent;
+  border:none;
+  color:var(--muted);
+  cursor:pointer;
+  font-size:1.2rem;
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:6px;
+  transition:all .15s;
+}
+.modal-close:hover{background:rgba(255,255,255,0.08);color:var(--text)}
+
+/* ─── TOAST ─── */
+#toasts{
+  position:fixed;
+  top:1.25rem;
+  right:1.25rem;
+  z-index:1000;
+  display:flex;
+  flex-direction:column;
+  gap:0.75rem;
+  pointer-events:none;
+  max-width:360px;
+}
+.toast{
+  background:rgba(13,17,23,0.96);
+  border-radius:12px;
+  padding:1rem 1.25rem;
+  pointer-events:all;
+  animation:toastIn .35s cubic-bezier(0.34,1.56,0.64,1);
+  border-left:3px solid;
+}
+.toast.alert-match{
+  border-color:var(--red);
+  box-shadow:0 0 30px rgba(244,63,94,0.15),0 16px 40px rgba(0,0,0,0.6);
+  border-top:1px solid rgba(244,63,94,0.2);
+  border-right:1px solid rgba(244,63,94,0.1);
+  border-bottom:1px solid rgba(244,63,94,0.1);
+}
+.toast.alert-obj{
+  border-color:var(--cyan);
+  box-shadow:0 0 30px rgba(34,211,238,0.1),0 16px 40px rgba(0,0,0,0.6);
+  border-top:1px solid rgba(34,211,238,0.15);
+  border-right:1px solid rgba(34,211,238,0.08);
+  border-bottom:1px solid rgba(34,211,238,0.08);
+}
+.toast.alert-sight{
+  border-color:var(--amber);
+  box-shadow:0 0 30px rgba(245,158,11,0.1),0 16px 40px rgba(0,0,0,0.6);
+  border-top:1px solid rgba(245,158,11,0.15);
+  border-right:1px solid rgba(245,158,11,0.08);
+  border-bottom:1px solid rgba(245,158,11,0.08);
+}
+.toast-type{
+  font-family:var(--mono);
+  font-size:0.58rem;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  margin-bottom:0.35rem;
+}
+.toast.alert-match .toast-type{color:var(--red)}
+.toast.alert-obj .toast-type{color:var(--cyan)}
+.toast.alert-sight .toast-type{color:var(--amber)}
+.toast-msg{font-weight:600;font-size:0.85rem;line-height:1.3}
+.toast-meta{font-family:var(--mono);font-size:0.65rem;color:var(--muted);margin-top:0.25rem}
+@keyframes toastIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes toastOut{to{transform:translateX(110%);opacity:0;max-height:0;padding:0;margin:0}}
+
+/* ─── UPLOAD ZONE ─── */
+.upload-zone{
+  border:2px dashed var(--border2);
+  border-radius:12px;
+  padding:2.5rem;
+  text-align:center;
+  cursor:pointer;
+  transition:all .2s;
+  position:relative;
+}
+.upload-zone:hover,.upload-zone.drag{
+  border-color:var(--amber);
+  background:var(--amber-dim);
+}
+.upload-zone input[type=file]{
+  position:absolute;
+  inset:0;
+  opacity:0;
+  cursor:pointer;
+}
+.upload-icon{font-size:2rem;margin-bottom:0.75rem;opacity:0.4}
+.upload-text{font-size:0.85rem;color:var(--muted)}
+
+/* ─── PERSON CARD ─── */
+.person-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  transition:all .2s;
+  backdrop-filter:blur(6px);
+}
+.person-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.person-photos{
+  display:flex;
+  height:120px;
+  overflow:hidden;
+}
+.person-photos img{
+  flex:1;
+  object-fit:cover;
+  border-right:1px solid var(--border);
+  min-width:0;
+}
+.person-photos img:last-child{border-right:none}
+.person-body{padding:1rem}
+.person-name{font-weight:700;font-size:0.9rem;margin-bottom:0.25rem}
+.person-meta{font-family:var(--mono);font-size:0.62rem;color:var(--muted)}
+
+/* ─── ANALYSIS ─── */
+#analysis-preview{
+  width:100%;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#000;
+  max-height:400px;
+  object-fit:contain;
+  display:none;
+}
+.result-item{
+  background:rgba(0,0,0,0.2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:0.75rem 1rem;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:0.5rem;
+}
+.result-label{font-weight:600;font-size:0.85rem;text-transform:capitalize}
+.conf-bar-wrap{display:flex;align-items:center;gap:0.75rem;flex:1;max-width:200px}
+.conf-bar{height:4px;background:rgba(255,255,255,0.08);border-radius:2px;flex:1;overflow:hidden}
+.conf-fill{height:100%;background:var(--cyan);border-radius:2px;transition:width .5s ease}
+
+/* ─── MISC ─── */
+.empty-state{
+  text-align:center;
+  padding:4rem 2rem;
+  color:var(--muted);
+}
+.empty-icon{font-size:3rem;margin-bottom:1rem;opacity:0.25}
+.empty-text{font-size:0.9rem;margin-bottom:0.5rem}
+.empty-sub{font-size:0.75rem;font-family:var(--mono)}
+
+.loader{
+  display:inline-block;
+  width:16px;height:16px;
+  border:2px solid rgba(255,255,255,0.1);
+  border-top-color:var(--amber);
+  border-radius:50%;
+  animation:spin .6s linear infinite;
+  flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.tag-row{display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem}
+.tag{
+  padding:0.2rem 0.6rem;
+  border-radius:4px;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);
+  color:var(--muted);
+}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+
+.progress-ring{--r:calc(var(--pct,0)*1%)}
+.counter{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  color:var(--muted);
+  letter-spacing:0.1em;
+}
+
+/* ─── WATCHLIST PERSON ROW ─── */
+.person-row-photos{display:flex;gap:4px}
+.person-row-photos img{width:36px;height:36px;border-radius:5px;object-fit:cover;background:#0a0b0e;border:1px solid var(--border)}
+
+/* scrollbar inside page */
+.page::-webkit-scrollbar{width:4px}
+.page::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ─── ACTIVE ALERTS MONITOR ─── */
+#active-alerts-monitor {
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.alert-banner {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid var(--red);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: alertPulse 2s infinite ease-in-out;
+  backdrop-filter: blur(12px);
+}
+.alert-banner.lost {
+  background: rgba(107, 105, 148, 0.05);
+  border-color: var(--muted);
+  animation: none;
+  opacity: 0.8;
+}
+@keyframes alertPulse { 
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); } 
+  70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); } 
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } 
+}
+.alert-info h4 { font-family: var(--display); font-size: 1rem; margin: 0; color: var(--text); }
+.alert-tag { 
+    padding: 0.2rem 0.6rem; border-radius: 4px; font-family: var(--mono); font-size: 0.6rem; font-weight: 700; 
+    text-transform: uppercase; margin-left: 0.75rem;
+}
+.tag-live { background: var(--red); color: #fff; }
+.tag-lost { background: var(--muted); color: #fff; }
+
+.gallery-slot { 
+    width:100%; aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,0.02); 
+    border: 1px dashed var(--border); overflow: hidden; position: relative; display: flex;
+    align-items: center; justify-content: center; cursor: pointer;
+}
+.gallery-slot img { width:100%; height:100%; object-fit: cover; }
+.slot-delete-btn {
+    position: absolute; top: 5px; right: 5px; background: rgba(244,63,94,0.8);
+    color: #fff; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 900; cursor: pointer; transition: 0.2s;
+}
+.slot-delete-btn:hover { background: var(--red); transform: scale(1.1); }
+.slot-empty { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); text-align: center; }
+
 </style>
 </head>
 <body>
 
-  <!-- AUTH SECTION -->
-  <div id="login-screen">
-    <div class="login-card">
-      <div class="login-logo"><div class="logo-pulse"></div> SENTRIX</div>
-      <h1>Intelligence Ops</h1>
-      <p>Authentication required for system access.</p>
-      <div class="field">
-        <label>Operator ID</label>
-        <input type="text" id="login-user" placeholder="e.g. admin" onkeydown="if(event.key==='Enter') Core.login()">
-      </div>
-      <div class="field">
-        <label>Access Key</label>
-        <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter') Core.login()">
-      </div>
-      <button class="btn" onclick="Core.login()">Authenticate</button>
-      <div id="login-err" style="display:none; color:var(--danger); font-size:0.85rem; margin-top:1.5rem; font-weight:600;">Invalid Credentials</div>
+<!-- ═══════════════════════ LOGIN ═══════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="wordmark" style="letter-spacing:0.35em;font-weight:900"><span class="login-corner"></span>SENTRIX AI</div>
+      <div class="tagline">COGNITIVE VISION SUITE // v3.2</div>
     </div>
+    <div class="field">
+      <label>Operator ID</label>
+      <input type="text" id="li-user" placeholder="admin" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Authorization Key</label>
+      <input type="password" id="li-pass" placeholder="••••••••" autocomplete="off">
+    </div>
+    <button id="login-btn" onclick="doLogin()">▶ AUTHENTICATE</button>
+    <div id="login-err">⚠ AUTHENTICATION FAILED — Invalid credentials</div>
   </div>
+</div>
 
-  <!-- MAIN APP -->
-  <div id="app">
-    <aside class="sidebar">
-      <div class="login-logo" style="margin-bottom:3rem; justify-content:flex-start;"><div class="logo-pulse"></div> SENTRIX</div>
-      <nav class="nav">
-        <div class="nav-item active" data-view="dashboard" id="nav-dashboard">Surveillance</div>
-        <div class="nav-item" data-view="intelligence" id="nav-intel">Intelligence</div>
-        <div class="nav-item" data-view="objects" id="nav-objects">Object Intel</div>
-        <div class="nav-item" data-view="analysis" id="nav-analysis">Snapshot Analysis</div>
-        <div class="nav-item" data-view="workers" id="nav-operators">Node Operators</div>
-        <div class="nav-item" data-view="history" id="nav-history">Deep History</div>
-        <div class="nav-item" data-view="worker-panel" id="nav-worker" style="display:none">Scanner Status</div>
-      </nav>
-      <div class="sb-footer">
-        <div class="user-badge">
-          <div class="avatar" id="user-initials">AD</div>
-          <div style="flex:1">
-            <div id="username-display" style="font-weight:700; font-size:0.95rem;">Admin</div>
-            <div id="role-display" style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">System Overlord</div>
-          </div>
-        </div>
-        <div class="logout-btn" onclick="Core.logout()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-          Terminate Session
+<!-- ═══════════════════════ APP ═══════════════════════ -->
+<div id="app">
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-logo">
+        <div class="sb-logo-icon">SX</div>
+        <div>
+          <div class="sb-wordmark" style="letter-spacing:0.15em;font-weight:900">SENTRIX</div>
+          <div class="sb-sub">ADVANCED VISION SUITE</div>
         </div>
       </div>
-    </aside>
+    </div>
+    <div class="sb-status" id="sb-status">
+      <div class="dot"></div>
+      <span>SYSTEM ACTIVE</span>
+      <span style="margin-left:auto" id="sb-node-count">0 NODES</span>
+    </div>
 
-    <main class="main">
-      <header class="topbar">
-        <h2 id="view-title" style="font-weight:800; font-size:1.5rem;">Surveillance Feed</h2>
-        <div class="topbar-info">
-          <div id="admin-tools" style="display:none">
-             <button onclick="Core.resetSystem()" style="background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2); padding:0.5rem 1rem; border-radius:0.75rem; font-size:0.7rem; font-weight:800; cursor:pointer;">SYSTEM RESET</button>
-          </div>
-          <div class="status-pill"><div class="led"></div> Ops Active</div>
-        </div>
-      </header>
-
-      <div id="active-alerts-monitor">
-          <!-- Persistent alerts will be injected here -->
+    <nav class="nav">
+      <div class="nav-section">// ANALYSIS</div>
+      <div class="nav-item active" onclick="showPage('overview',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" onclick="showPage('sightings',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
+        Face Sightings
+        <span class="nav-badge" id="badge-sightings">0</span>
+      </div>
+      <div class="nav-item" onclick="showPage('objects',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Object Detections
+        <span class="nav-badge" id="badge-objects">0</span>
       </div>
 
-      <!-- VIEW: MONITOR -->
-      <section class="view active" id="view-dashboard">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
-            <h3 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted)">Sector Performance</h3>
-            <div id="live-entry-badge" style="background:rgba(56, 189, 248, 0.1); border:1px solid var(--accent); color:var(--accent); padding:0.5rem 1.25rem; border-radius:1rem; font-weight:900; font-size:0.8rem; display:flex; align-items:center; gap:0.5rem;">
-                <div class="logo-pulse" style="width:8px; height:8px;"></div> LIVE DETECTIONS: <span id="live-count">0</span>
-            </div>
-        </div>
-
-        <div class="grid-stats">
-          <div class="stat-card">
-             <div class="stat-label">Neural Captures</div>
-             <div id="stat-sightings" class="stat-val" style="color:var(--text-primary)">0</div>
-          </div>
-          <div class="stat-card">
-             <div class="stat-label">High Priority Hits</div>
-             <div id="stat-matches" class="stat-val" style="color:var(--danger)">0</div>
-          </div>
-          <div class="stat-card">
-             <div class="stat-label">Watchlist Active</div>
-             <div id="stat-wanted" class="stat-val" style="color:var(--accent)">0</div>
-          </div>
-          <div class="stat-card">
-             <div class="stat-label">Detected Objects</div>
-             <div id="stat-objects" class="stat-val" style="color:var(--warning)">0</div>
-          </div>
-          <div class="stat-card">
-             <div class="stat-label">System Nodes</div>
-             <div id="stat-nodes" class="stat-val" style="color:var(--success)">0</div>
-          </div>
-        </div>
-        
-        <!-- NODE MONITOR -->
-        <div style="display:grid; grid-template-columns: 280px 1fr; gap:1.5rem; height:400px;">
-          <!-- Active Nodes List -->
-          <div style="background:var(--bg-side); border:1px solid var(--border); border-radius:1.5rem; display:flex; flex-direction:column;">
-            <div style="padding:1.25rem; border-bottom:1px solid var(--border); font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Active Nodes</div>
-            <div id="active-nodes-list" style="flex:1; padding:1.25rem; overflow-y:auto; display:flex; flex-direction:column; gap:0.75rem;">
-               <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; margin-top:2rem;">Scanning for nodes...</div>
-            </div>
-          </div>
-          
-          <!-- Live Activity Stream -->
-          <div style="background:var(--bg-side); border:1px solid var(--border); border-radius:1.5rem; display:flex; flex-direction:column;">
-             <div style="padding:1.25rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Live Activity Log</div>
-                <div style="color:var(--success); font-size:0.65rem; font-weight:800;">REAL-TIME BYPASS</div>
-             </div>
-             <div id="live-log" style="flex:1; overflow-y:auto; padding:1.25rem; display:flex; flex-direction:column; gap:1rem;">
-                <!-- Feed items will be prepended here -->
-                <div id="log-placeholder" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0.3;">
-                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                   <div style="font-size:0.8rem; margin-top:1rem; font-weight:600;">Awaiting camera connection...</div>
-                </div>
-             </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- VIEW: INTELLIGENCE -->
-      <section class="view" id="view-intelligence">
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:2rem;">
-            <!-- PILLAR 1: NEURAL REGISTRY -->
-            <div class="tool-box" style="height:fit-content; border-top: 4px solid var(--accent);">
-              <h3 style="margin-bottom:0.5rem; color:var(--accent);">Neural Registry</h3>
-              <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.5rem;">Enroll high-fidelity "Neuromesh" profiles into the watchlist.</p>
-              
-              <div class="field">
-                <label>Subject Identity</label>
-                <input type="text" id="w-name" placeholder="Name or Identifier">
-              </div>
-              
-              <div class="field">
-                <label>Neural Mesh Capture (15 Samples)</label>
-                <div id="w-drop-zone" class="drop-zone" 
-                     onclick="document.getElementById('w-file').click()"
-                     ondragover="event.preventDefault(); this.classList.add('active')"
-                     ondragleave="this.classList.remove('active')"
-                     ondrop="Core.handleDrop(event)">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <p id="w-drop-text" style="font-size:0.75rem;">Drop samples for mesh generation</p>
-                    <input type="file" id="w-file" multiple="multiple" accept="image/*" style="display:none" onchange="Core.handleFiles(this.files)">
-                </div>
-                <div id="w-preview-grid" class="preview-grid"></div>
-              </div>
-              
-              <button class="btn" style="margin-top:1.5rem; width:100%;" onclick="Core.addWanted()">Commit to Watchlist</button>
-            </div>
-
-            <!-- PILLAR 2: DEEP FORENSIC SCAN -->
-            <div class="tool-box" style="height:fit-content; border-top: 4px solid var(--warning);">
-              <h3 style="margin-bottom:0.5rem; color:var(--warning);">Historical Forensic Scan</h3>
-              <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.5rem;">Track individuals across all timeframes using multi-vector analysis.</p>
-              
-              <div class="field">
-                <label>Search Samples (15 Samples Max)</label>
-                <div id="s-drop-zone" class="drop-zone" 
-                     onclick="document.getElementById('s-file-hidden').click()"
-                     ondragover="event.preventDefault(); this.classList.add('active')"
-                     ondragleave="this.classList.remove('active')"
-                     ondrop="Core.handleSearchDrop(event)">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <p id="s-drop-text" style="font-size:0.75rem;">Drop samples for forensic tracking</p>
-                    <input type="file" id="s-file-hidden" multiple="multiple" accept="image/*" style="display:none" onchange="Core.handleSearchFiles(this.files)">
-                </div>
-                <div id="s-preview-grid" class="preview-grid"></div>
-              </div>
-              
-              <button class="btn" style="margin-top:1.5rem; width:100%;" onclick="Core.searchFace()">Initiate Forensic Scan</button>
-            </div>
-        </div>
-
-        <div style="margin-top:3rem;">
-          <div>
-            <h3 style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
-                Active Registry
-                <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">UPDATING IN REAL-TIME</span>
-            </h3>
-            <div id="wanted-list" class="intel-grid"></div>
-            
-            <script>
-                // Component-level injection for removal
-                const addRemovalUI = (id) => `<button class="btn" style="background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2); width:auto; padding:0.5rem 1rem; font-size:0.7rem; font-weight:800; margin-top:1rem;" onclick="Core.removeWanted('${id}')">Terminate Record</button>`;
-            </script>
-            
-            <div id="search-result-area" style="display:none; margin-top:3rem; border-top:1px solid var(--border); padding-top:2rem;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                <h3 style="margin:0">Temporal Search Results</h3>
-                <button class="btn" style="width:auto; padding:0.5rem 1rem; font-size:0.7rem; background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2);" onclick="Core.clearSearchResults()">Purge Search View</button>
-              </div>
-              <div id="search-results-list" class="intel-grid"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- DOSSIER MODAL -->
-      <div id="dossier-modal" class="modal-overlay" 
-           onclick="if(event.target === this) Core.closeDossier()"
-           ondragover="event.preventDefault(); this.style.background='rgba(56,189,248,0.1)'"
-           ondragleave="this.style.background='rgba(2,6,23,0.7)'"
-           ondrop="Core.handleDossierDrop(event)">
-          <div class="modal-content">
-              <div class="close-modal" onclick="Core.closeDossier()">&times;</div>
-              <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid var(--border); padding-bottom: 2rem;">
-                  <div>
-                    <div style="font-size:0.7rem; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:2px; margin-bottom:0.5rem;">Biometric Intelligence Dossier</div>
-                    <h1 id="dossier-name" style="font-size:2.5rem; font-weight:800;">Subject Name</h1>
-                    <div id="dossier-id" style="font-size:0.8rem; color:var(--text-muted); font-family:monospace; margin-top:0.5rem;">ID: --------</div>
-                  </div>
-                  <div style="text-align:right">
-                      <div class="sync-label" style="width:200px;">Neural Sync Status <span id="dossier-sync-txt">0%</span></div>
-                      <div class="sync-bar" style="width:200px; height:10px;"><div id="dossier-sync-bar" class="sync-fill" style="width:0%"></div></div>
-                  </div>
-              </div>
-
-                  <div style="margin-top:2.5rem;">
-                      <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h3 style="font-size:0.9rem;">Neural Templates (Watcher Mesh)</h3>
-                        <div style="display:flex; gap:1rem; align-items:center;">
-                            <button class="btn" style="background:rgba(244,63,94,0.1); color:var(--danger); border:1px solid rgba(244,63,94,0.2); width:auto; padding:0.6rem 1.25rem; font-size:0.75rem;" onclick="Core.removeWanted(Core.OPEN_PERSON_ID)">Terminate Profile</button>
-                            <input type="file" id="dossier-add-file" multiple="multiple" style="display:none" onchange="Core.uploadToDossier()" accept="image/*">
-                            <button class="btn" style="padding:0.6rem 1.25rem; font-size:0.75rem; width:auto;" onclick="document.getElementById('dossier-add-file').click()">+ Inject New Data</button>
-                        </div>
-                      </div>
-                      <div id="dossier-gallery" class="dossier-gallery"></div>
-                  </div>
-
-              <div style="margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.75rem; font-weight:600;">
-                  <div>Enlisted by: <span id="dossier-enlisted-by" style="color:var(--text-primary)">--</span></div>
-                  <div>Record Created: <span id="dossier-created-at" style="color:var(--text-primary)">--</span></div>
-              </div>
-          </div>
+      <div class="nav-section">// COGNITIVE TOOLS</div>
+      <div class="nav-item" onclick="showPage('watchlist',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Intelligence Archive
+      </div>
+      <div class="nav-item" onclick="showPage('search',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Biometric Lookup
+      </div>
+      <div class="nav-item" onclick="showPage('analysis',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Frame Analysis
       </div>
 
-      <!-- VIEW: WORKERS -->
-      <section class="view" id="view-workers">
-        <div style="display:grid; grid-template-columns: 400px 1fr; gap:3rem;">
+      <div class="nav-section">// ADMIN</div>
+      <div class="nav-item" onclick="showPage('workers',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Camera Nodes
+      </div>
+      <div class="nav-item" onclick="showPage('users',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        User Accounts
+      </div>
+      <div class="nav-item" onclick="showPage('system',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93L17.66 6.34A8 8 0 1 0 6.34 17.66l-1.41 1.41A10 10 0 1 1 19.07 4.93z"/></svg>
+        System
+      </div>
+    </nav>
+
+    <div class="sb-footer">
+      <div class="user-info">
+        <div class="user-av" id="user-av">?</div>
+        <div>
+          <div class="user-name" id="user-name">—</div>
+          <div class="user-role" id="user-role-label">—</div>
+        </div>
+      </div>
+      <div class="logout-btn" onclick="doLogout()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Disconnect
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="page-title" id="topbar-title">OVERVIEW</span>
+        <span class="breadcrumb" id="topbar-sub">// TACTICAL OVERVIEW</span>
+      </div>
+      <div class="topbar-right">
+        <span class="sys-time" id="sys-time">--:--:--</span>
+        <div id="alert-bell" onclick="showPage('sightings')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <div id="bell-count" class="show">0</div>
+        </div>
+      </div>
+    </header>
+
+    <div id="active-alerts-monitor"></div>
+
+    <div class="pages">
+
+      <!-- ── OVERVIEW ── -->
+      <div class="page active" id="page-overview">
+        <div class="sec-head">
           <div>
-            <div class="tool-box">
-                <h3 style="margin-bottom:1.5rem">Provision Personnel</h3>
-                <div class="field">
-                    <label>Worker ID</label>
-                    <input type="text" id="u-user" placeholder="username">
-                </div>
-                <div class="field">
-                    <label>Access Credential</label>
-                    <input type="password" id="u-pass" placeholder="password">
-                </div>
-                <div class="field">
-                    <label>Deployment Role</label>
-                    <select id="u-role" style="width:100%; background:#000a1f; color:#fff; padding:1rem; border-radius:0.75rem; border:1px solid var(--border); font-family:inherit;">
-                        <option value="worker">Field Operative (Worker)</option>
-                        <option value="admin">Site Admin</option>
-                    </select>
-                </div>
-                <button class="btn" onclick="Core.addUser()">Activate Operative</button>
-            </div>
+            <div class="sec-title">TACTICAL OVERVIEW</div>
+            <div class="sec-sub">// REAL-TIME INTELLIGENCE DASHBOARD</div>
           </div>
-          <div>
-            <h3 style="margin-bottom:1.5rem">Active & Registered Nodes</h3>
-            <div class="stat-card" style="padding:0; overflow:hidden;">
-              <table>
-                <thead>
-                    <tr><th>Identity</th><th>Role</th><th>Actions</th></tr>
-                </thead>
-                <tbody id="worker-rows"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- VIEW: HISTORY -->
-      <section class="view" id="view-history">
-        <div class="stat-card" style="padding:0; overflow:hidden;">
-          <table>
-            <thead>
-              <tr><th>Capture</th><th>Subject</th><th>Status</th><th>Node / Geo</th><th>Logged At</th></tr>
-            </thead>
-            <tbody id="history-rows"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- VIEW: OBJECTS -->
-      <section class="view" id="view-objects">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
-            <h3 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted)">Object Intelligence Log</h3>
-            <button class="btn" style="width:auto; padding:0.5rem 1rem; font-size:0.7rem; background:rgba(56,189,248,0.1); color:var(--accent); border:1px solid rgba(56,189,248,0.2);" onclick="Core.fetchObjects()">Refresh Feed</button>
-        </div>
-        <div id="objects-grid" class="feed">
-            <div style="color:var(--text-muted);">Scanning for object data...</div>
-        </div>
-      </section>
-
-      <!-- VIEW: SNAPSHOT ANALYSIS -->
-      <section class="view" id="view-analysis">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; align-items:start;">
-          <!-- Left: Upload & Run -->
-          <div class="tool-box" style="border-top: 4px solid var(--info);">
-            <h3 style="margin-bottom:0.5rem; color:var(--info);">Neural Vision Analysis</h3>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1.5rem;">Upload a snapshot to run simultaneous face recognition and object detection.</p>
-
-            <div id="a-drop-zone" class="drop-zone"
-                 onclick="document.getElementById('a-file').click()"
-                 ondragover="event.preventDefault(); this.classList.add('active')"
-                 ondragleave="this.classList.remove('active')"
-                 ondrop="Core.handleAnalysisDrop(event)">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <p id="a-drop-text">Drop or click to load a CCTV snapshot</p>
-              <input type="file" id="a-file" accept="image/*" style="display:none" onchange="Core.handleAnalysisFile(this.files[0])">
-            </div>
-
-            <button id="analyze-btn" class="btn" style="margin-top:1.5rem;" onclick="Core.analyzeSnapshot()" disabled>
-              Initiate Deep Analysis
+          <div class="sec-actions">
+            <button class="btn btn-ghost btn-sm" onclick="loadStats()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Refresh
             </button>
           </div>
+        </div>
 
-          <!-- Right: Results -->
+        <div class="stat-grid" id="stat-grid">
+          <div class="stat-card amber">
+            <div class="stat-label">Face Sightings</div>
+            <div class="stat-val" id="s-sightings">—</div>
+            <div class="stat-sub">Total recorded</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Threat Matches</div>
+            <div class="stat-val" id="s-matches">—</div>
+            <div class="stat-sub">Watchlist hits</div>
+          </div>
+          <div class="stat-card cyan">
+            <div class="stat-label">Object Events</div>
+            <div class="stat-val" id="s-objects">—</div>
+            <div class="stat-sub">Total detections</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">On Watchlist</div>
+            <div class="stat-val" id="s-wanted">—</div>
+            <div class="stat-sub">Active targets</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Live Nodes</div>
+            <div class="stat-val" id="s-nodes">—</div>
+            <div class="stat-sub">Camera workers</div>
+          </div>
+        </div>
+
+        <div class="two-col">
           <div>
-            <div id="analysis-preview-area" style="display:none;">
-              <div style="font-size:0.7rem; font-weight:800; color:var(--info); text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">Analysis Output</div>
-              <img id="analysis-preview-img" style="width:100%; border-radius:1.5rem; border:1px solid var(--border); margin-bottom:1.5rem;" src="">
-              <div id="analysis-results-meta" style="background:var(--bg-card); border:1px solid var(--border); border-radius:1.5rem; padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+            <div class="sec-head" style="margin-bottom:1rem">
+              <div class="sec-title" style="font-size:0.75rem">RECENT SIGHTINGS</div>
+            </div>
+            <div id="overview-sightings" class="feed-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
+          </div>
+          <div>
+            <div class="sec-head" style="margin-bottom:1rem">
+              <div class="sec-title" style="font-size:0.75rem">RECENT OBJECTS</div>
+            </div>
+            <div id="overview-objects" class="feed-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SIGHTINGS ── -->
+      <div class="page" id="page-sightings">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">FACE SIGHTINGS</div>
+            <div class="sec-sub">// BIOMETRIC ACTIVITY LOG</div>
+          </div>
+          <div class="sec-actions">
+            <button class="btn btn-ghost btn-sm" onclick="loadSightings()">↺ Refresh</button>
+          </div>
+        </div>
+        <div id="sightings-feed" class="feed-grid"></div>
+      </div>
+
+      <!-- ── OBJECTS ── -->
+      <div class="page" id="page-objects">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">OBJECT DETECTIONS</div>
+            <div class="sec-sub">// AUTOMATED ITEM RECOGNITION LOG</div>
+          </div>
+          <div class="sec-actions">
+            <button class="btn btn-ghost btn-sm" onclick="loadObjects()">↺ Refresh</button>
+          </div>
+        </div>
+        <div id="objects-feed" class="feed-grid"></div>
+      </div>
+
+      <!-- ── WATCHLIST ── -->
+      <div class="page" id="page-watchlist">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">INTELLIGENCE ARCHIVE</div>
+            <div class="sec-sub">// SUBJECT REGISTRY</div>
+          </div>
+          <div class="sec-actions">
+            <button class="btn btn-primary btn-sm" onclick="openAddPerson()">+ Add Target</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadWatchlist()">↺ Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Photos</th>
+                <th>Name / ID</th>
+                <th>Added By</th>
+                <th>Added At</th>
+                <th>Photos</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="watchlist-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── FACE SEARCH ── -->
+      <div class="page" id="page-search">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">BIOMETRIC LOOKUP</div>
+            <div class="sec-sub">// REVERSE FACE IDENTIFICATION</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="panel">
+              <div class="panel-title">▷ UPLOAD FACE PHOTO(S)</div>
+              <div class="upload-zone" id="search-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleSearchDrop(event)">
+                <input type="file" id="search-files" multiple accept="image/*" onchange="previewSearchFiles(this)">
+                <div class="upload-icon">⊕</div>
+                <div class="upload-text">Drag & drop or click to select face images</div>
+                <div id="search-preview" style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center"></div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="runFaceSearch()" id="search-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Run Biometric Search
+              </button>
+            </div>
+          </div>
+          <div id="search-results-wrap" style="display:none">
+            <div class="panel">
+              <div class="panel-title" id="search-result-title">RESULTS</div>
+              <div id="search-results"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SNAPSHOT ANALYSIS ── -->
+      <div class="page" id="page-analysis">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">FRAME ANALYSIS</div>
+            <div class="sec-sub">// COGNITIVE INFERENCE ENGINE</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="panel">
+              <div class="panel-title">▷ SUBMIT SNAPSHOT</div>
+              <div class="upload-zone" id="analysis-zone">
+                <input type="file" id="analysis-file" accept="image/*" onchange="previewAnalysis(this)">
+                <div class="upload-icon">⊕</div>
+                <div class="upload-text">Drop image for full analysis</div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="runAnalysis()" id="analysis-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Run Full Analysis
+              </button>
+            </div>
+          </div>
+          <div id="analysis-results-wrap" style="display:none">
+            <div class="panel">
+              <div class="panel-title">ANALYSIS OUTPUT</div>
+              <img id="analysis-preview" alt="Annotated preview">
+              <div id="analysis-results" style="margin-top:1rem"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── WORKERS ── -->
+      <div class="page" id="page-workers">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">CAMERA NODES</div>
+            <div class="sec-sub">// ACTIVE WORKER REGISTRY</div>
+          </div>
+          <div class="sec-actions">
+            <button class="btn btn-ghost btn-sm" onclick="loadWorkers()">↺ Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Node ID</th><th>Status</th><th>Last Seen</th></tr>
+            </thead>
+            <tbody id="workers-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── USERS ── -->
+      <div class="page" id="page-users">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">USER ACCOUNTS</div>
+            <div class="sec-sub">// OPERATOR ACCESS REGISTRY</div>
+          </div>
+          <div class="sec-actions">
+            <button class="btn btn-primary btn-sm" onclick="openAddUser()">+ New Operator</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↺ Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Username</th><th>Role</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="users-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── SYSTEM ── -->
+      <div class="page" id="page-system">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">SYSTEM CONTROL</div>
+            <div class="sec-sub">// CONFIGURATION &amp; MAINTENANCE</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="panel">
+              <div class="panel-title">▷ SYSTEM STATUS</div>
+              <div style="display:flex;flex-direction:column;gap:0.75rem">
+                <div class="result-item">
+                  <span class="result-label">Backend API</span>
+                  <span class="badge online"><span class="dot" style="width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block"></span>Online</span>
+                </div>
+                <div class="result-item">
+                  <span class="result-label">SSE Stream</span>
+                  <span class="badge" id="sse-status-badge" style="background:rgba(100,116,139,0.1);color:var(--muted);border:1px solid var(--border)">Connecting…</span>
+                </div>
+                <div class="result-item">
+                  <span class="result-label">Active Sessions</span>
+                  <span class="td-mono" id="sys-sessions">—</span>
+                </div>
+                <div class="result-item">
+                  <span class="result-label">Live Nodes</span>
+                  <span class="td-mono" id="sys-nodes">—</span>
+                </div>
               </div>
             </div>
-            <div id="analysis-no-result" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; opacity:0.3; padding:3rem 0;">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <div style="font-size:0.8rem; font-weight:600;">Upload an image to begin analysis</div>
+          </div>
+          <div>
+            <div class="panel" style="border-color:rgba(244,63,94,0.2)">
+              <div class="panel-title" style="color:var(--red)">⚠ DANGER ZONE</div>
+              <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6">
+                Factory reset will wipe <strong style="color:var(--text)">all sightings, watchlist entries, object detections,</strong> and non-admin users. This action is <strong style="color:var(--red)">irreversible.</strong>
+              </p>
+              <button class="btn btn-danger" onclick="confirmReset()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Factory Reset System
+              </button>
             </div>
           </div>
         </div>
-      </section>
-      <section class="view" id="view-worker-panel">
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:2rem;">
-          <div class="stat-card" style="border-color:var(--accent); background:rgba(56, 189, 248, 0.05);">
-             <div class="stat-label">SCANNER STATUS</div>
-             <div id="w-status" class="stat-val" style="color:var(--accent); font-size:1.5rem;">ACTIVE & SYNCED</div>
-             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">Streaming to Intelligence Hub</div>
-          </div>
-          <div class="stat-card">
-             <div class="stat-label">TOTAL CAPTURES</div>
-             <div id="w-total" class="stat-val">0</div>
-          </div>
-        </div>
-        
-        <h3 style="margin-top:3rem; margin-bottom:1.5rem;">Recent Scanner Data (Your Node)</h3>
-        <div id="worker-history-grid" class="feed">
-           <div style="color:var(--text-muted);">Awaiting first capture...</div>
-        </div>
-      </section>
-    </main>
+      </div>
+
+    </div><!-- /pages -->
+  </div><!-- /main-area -->
+</div><!-- /layout -->
+</div><!-- /app -->
+
+<!-- ─── MODALS ─── -->
+<!-- Add Person Modal -->
+<div class="modal-overlay" id="modal-add-person">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-add-person')">✕</button>
+    <div class="modal-title">ADD TARGET TO WATCHLIST</div>
+    <div class="form-group">
+      <label class="form-label">Full Name / Alias</label>
+      <input type="text" class="form-input" id="ap-name" placeholder="e.g. John Doe">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reference Photos (max 15)</label>
+      <div class="upload-zone">
+        <input type="file" id="ap-files" multiple accept="image/*" onchange="showFileCount(this,'ap-count')">
+        <div class="upload-icon">⊕</div>
+        <div class="upload-text">Upload clear face photos</div>
+        <div id="ap-count" style="margin-top:0.5rem;font-size:0.75rem;color:var(--amber)"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="addWatchlistPerson()" id="ap-btn">Add to Watchlist</button>
+    <div id="ap-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
   </div>
+</div>
 
-  <div id="toast-container"></div>
+<!-- Add User Modal -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-add-user')">✕</button>
+    <div class="modal-title">CREATE OPERATOR ACCOUNT</div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input type="text" class="form-input" id="au-user" placeholder="worker2">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="au-pass" placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-input" id="au-role">
+        <option value="worker">Worker (Camera Node)</option>
+        <option value="admin">Admin (Full Access)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="addUser()" id="au-btn">Create Account</button>
+    <div id="au-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
 
-  <script>
-    const Core = {
-      TOKEN: localStorage.getItem('s_token'),
-      SHOW_VISUALS: true, // Always show in Registry
-      USER: null,
-      SSE: null,
-      ACTIVE_ALERTS: {}, // { person_id: { name, location, node, lastSeen, snapshot } }
+<!-- Confirm Reset Modal -->
+<div class="modal-overlay" id="modal-confirm-reset">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title" style="color:var(--red)">⚠ CONFIRM FACTORY RESET</div>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.7">
+      Type <code style="color:var(--red);font-family:var(--mono)">RESET</code> to confirm destruction of all data.
+    </p>
+    <div class="form-group">
+      <input type="text" class="form-input" id="reset-confirm" placeholder="Type RESET to confirm">
+    </div>
+    <div style="display:flex;gap:0.75rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-confirm-reset')">Cancel</button>
+      <button class="btn btn-danger" style="flex:1" onclick="doReset()" id="reset-btn">Confirm Reset</button>
+    </div>
+  </div>
+</div>
 
-      init() {
-        if (this.TOKEN) {
-          const payload = JSON.parse(atob(this.TOKEN.split('.')[1]));
-          this.USER = { username: payload.sub, role: payload.role };
-          this.start();
-        }
-        this.setupNav();
-      },
+<!-- Dossier Modal -->
+<div class="modal-overlay" id="modal-dossier">
+  <div class="modal" style="max-width:900px">
+    <button class="modal-close" onclick="closeDossier()">✕</button>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--border);padding-bottom:1.5rem;margin-bottom:1.5rem">
+      <div>
+        <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.15em;margin-bottom:0.4rem">BIOMETRIC INTELLIGENCE DOSSIER</div>
+        <div id="dossier-name" style="font-family:var(--display);font-size:1.5rem;font-weight:700;letter-spacing:0.05em">Subject</div>
+        <div id="dossier-id" style="font-family:var(--mono);font-size:0.7rem;color:var(--muted);margin-top:0.3rem">ID: --------</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--mono);font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;display:flex;justify-content:space-between;width:200px;margin-bottom:0.3rem"><span>NEURAL SYNC</span><span id="dossier-sync-txt">0%</span></div>
+        <div style="width:200px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden"><div id="dossier-sync-bar" style="height:100%;background:var(--amber);border-radius:3px;box-shadow:0 0 8px var(--amber);width:0%;transition:width 0.6s"></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="panel-title" style="margin:0">▷ NEURAL TEMPLATES</div>
+      <div style="display:flex;gap:0.75rem">
+        <button class="btn btn-danger btn-sm" onclick="deletePerson(DOSSIER_PERSON_ID,document.getElementById('dossier-name').textContent)">Terminate Profile</button>
+        <input type="file" id="dossier-add-file" multiple style="display:none" onchange="uploadToDossier()" accept="image/*">
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('dossier-add-file').click()">+ Inject Data</button>
+      </div>
+    </div>
+    <div id="dossier-gallery" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.75rem"></div>
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-family:var(--mono);font-size:0.65rem;color:var(--muted)">
+      <div>Enlisted: <span id="dossier-enlisted-by" style="color:var(--text)">--</span></div>
+      <div>Created: <span id="dossier-created-at" style="color:var(--text)">--</span></div>
+    </div>
+  </div>
+</div>
 
-      async fetch(url, opts = {}) {
-        opts.headers = { ...opts.headers, 'Authorization': `Bearer ${this.TOKEN}` };
-        const r = await fetch(url, opts);
-        if (r.status === 401) this.logout();
-        return r.ok ? r.json() : null;
-      },
+<!-- Toast Container -->
+<div id="toasts"></div>
 
-      async login() {
-        const u = document.getElementById('login-user').value;
-        const p = document.getElementById('login-pass').value;
-        const err = document.getElementById('login-err');
-        err.style.display = 'none';
+<script>
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+let TOKEN = null, ME = null, ROLE = null;
+let ES = null;
+let alertCount = 0;
+let newSightings = 0, newObjects = 0;
+const API = '';
+let DOSSIER_PERSON_ID = null;
+let ACTIVE_ALERTS = {};
 
-        const r = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: u, password: p })
-        });
+// ══════════════════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════════════════
+function updateClock(){
+  const now = new Date();
+  document.getElementById('sys-time').textContent =
+    now.toLocaleTimeString('en-GB',{hour12:false});
+}
+setInterval(updateClock,1000);
+updateClock();
 
-        if (r.ok) {
-          const data = await r.json();
-          this.TOKEN = data.token;
-          this.USER = data;
-          localStorage.setItem('s_token', data.token);
-          this.start();
-        } else {
-          err.style.display = 'block';
-        }
-      },
+// ══════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════
+async function doLogin(){
+  const u = document.getElementById('li-user').value.trim();
+  const p = document.getElementById('li-pass').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  if(!u||!p){err.style.display='block';err.textContent='⚠ Enter credentials';return}
+  btn.textContent='AUTHENTICATING…'; btn.disabled=true; err.style.display='none';
+  try{
+    const r = await fetch(`${API}/api/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail||'Auth failed');
+    TOKEN=d.token; ME=d.username; ROLE=d.role;
+    document.getElementById('user-name').textContent=ME;
+    document.getElementById('user-role-label').textContent=ROLE.toUpperCase();
+    document.getElementById('user-av').textContent=ME[0].toUpperCase();
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    bootstrap();
+  }catch(e){
+    err.style.display='block'; err.textContent='⚠ '+e.message;
+  }finally{
+    btn.textContent='▶ AUTHENTICATE'; btn.disabled=false;
+  }
+}
+document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+document.getElementById('li-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
-      logout() {
-        localStorage.removeItem('s_token');
-        location.reload();
-      },
+function doLogout(){
+  if(ES){ES.close();ES=null;}
+  TOKEN=null; ME=null; ROLE=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('li-pass').value='';
+}
 
-      start() {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app').style.display = 'grid';
-        document.getElementById('username-display').textContent = this.USER.username;
-        document.getElementById('role-display').textContent = this.USER.role === 'admin' ? 'System Admin' : 'Field Worker';
-        document.getElementById('user-initials').textContent = this.USER.username.slice(0,2).toUpperCase();
-        
-        if(this.USER.role === 'admin') {
-           document.getElementById('admin-tools').style.display = 'block';
-        } else {
-           // Worker Specific Setup — hide all admin-only nav items
-           ['nav-dashboard','nav-intel','nav-objects','nav-analysis','nav-operators','nav-history'].forEach(id => {
-               const el = document.getElementById(id);
-               if (el) el.style.display = 'none';
-           });
-           document.getElementById('nav-worker').style.display = 'flex';
-           document.getElementById('nav-worker').click();
-           this.fetchWorkerStats();
-           setInterval(() => this.fetchWorkerStats(), 5000);
-        }
+// ══════════════════════════════════════════════════
+//  BOOTSTRAP
+// ══════════════════════════════════════════════════
+function bootstrap(){
+  loadStats(); loadSightings(); loadObjects();
+  connectSSE();
+  setInterval(loadStats,30000);
+  setInterval(loadWorkers,20000);
+  setInterval(updateAlertHeartbeat, 2000);
+}
 
-        if (this.USER.role === 'admin') {
-           this.fetchStats();
-           this.fetchWorkers();
-           this.fetchIntelligence();
-           setInterval(() => this.fetchStats(), 8000);
-        }
-        this.initSSE();
+// ══════════════════════════════════════════════════
+//  API HELPERS
+// ══════════════════════════════════════════════════
+async function api(path,opts={}){
+  const r = await fetch(`${API}${path}`,{
+    ...opts,
+    headers:{...opts.headers,'Authorization':`Bearer ${TOKEN}`}
+  });
+  if(!r.ok){
+    const d = await r.json().catch(()=>({}));
+    throw new Error(d.detail||`HTTP ${r.status}`);
+  }
+  return r.json();
+}
 
-        // Tactical Alert Heartbeat (Checks for vision loss every 2s)
-        setInterval(() => this.updateAlertHeartbeat(), 2000);
-      },
+// ══════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════
+const pageTitles = {
+  overview:  ['OVERVIEW','// TACTICAL DASHBOARD'],
+  sightings: ['FACE SIGHTINGS','// BIOMETRIC ACTIVITY LOG'],
+  objects:   ['OBJECT DETECTIONS','// ITEM RECOGNITION LOG'],
+  watchlist: ['WATCHLIST','// PERSON-OF-INTEREST REGISTRY'],
+  search:    ['FACE SEARCH','// BIOMETRIC REVERSE LOOKUP'],
+  analysis:  ['SNAPSHOT ANALYSIS','// MULTI-MODEL INFERENCE'],
+  workers:   ['CAMERA NODES','// WORKER REGISTRY'],
+  users:     ['USER ACCOUNTS','// OPERATOR REGISTRY'],
+  system:    ['SYSTEM CONTROL','// MAINTENANCE'],
+};
 
-      setupNav() {
-        document.querySelectorAll('.nav-item').forEach(item => {
-          item.onclick = () => {
-            const view = item.dataset.view;
-            document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            item.classList.add('active');
-            const viewEl = document.getElementById(`view-${view}`);
-            if (viewEl) viewEl.classList.add('active');
-            const label = item.textContent.trim();
-            document.getElementById('view-title').textContent = view === 'dashboard' ? 'Live Feed' : label;
-            
-            if (view === 'history') this.fetchHistory();
-            if (view === 'intelligence') this.fetchIntelligence();
-            if (view === 'objects') this.fetchObjects();
-            if (view === 'workers') this.fetchWorkers();
-          };
-        });
-      },
+function showPage(id,navEl){
+  document.querySelectorAll('.page').forEach(p=>{p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const page = document.getElementById('page-'+id);
+  if(page) page.classList.add('active');
+  if(navEl) navEl.classList.add('active');
+  else{
+    document.querySelectorAll('.nav-item').forEach(n=>{
+      if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes(`'${id}'`))
+        n.classList.add('active');
+    });
+  }
+  const t = pageTitles[id]||[id.toUpperCase(),''];
+  document.getElementById('topbar-title').textContent = t[0];
+  document.getElementById('topbar-sub').textContent   = t[1];
 
-      async fetchStats() {
-        const stats = await this.fetch('/api/stats');
-        const activeNodes = await this.fetch('/api/active-users');
+  // Reset badges when visiting
+  if(id==='sightings'){newSightings=0;updateBadge('badge-sightings',0)}
+  if(id==='objects'){newObjects=0;updateBadge('badge-objects',0)}
 
-        if (!stats || !activeNodes) return;
-        
-        document.getElementById('stat-sightings').textContent = stats.total_sightings || 0;
-        document.getElementById('live-count').textContent = (stats.total_sightings || 0) + (stats.total_objects || 0);
-        document.getElementById('stat-matches').textContent = stats.total_matches || 0;
-        document.getElementById('stat-wanted').textContent = stats.total_wanted || 0;
-        document.getElementById('stat-objects').textContent = stats.total_objects || 0;
-        document.getElementById('stat-nodes').textContent = activeNodes?.count || 0;
+  // Lazy-load page data
+  const loaders={watchlist:loadWatchlist,workers:loadWorkers,users:loadUsers,system:loadSystem};
+  if(loaders[id]) loaders[id]();
+}
 
-        // Upgrade: Proper Tactical Node Monitoring
-        const nodeContainer = document.getElementById('active-nodes-list');
-        if (activeNodes?.nodes && nodeContainer) {
-            nodeContainer.innerHTML = activeNodes.nodes.length ? activeNodes.nodes.map(node => `
-                <div style="padding:1.25rem; background:rgba(56, 189, 248, 0.05); border:1px solid rgba(56, 189, 248, 0.2); border-radius:1.5rem; display:flex; flex-direction:column; gap:0.75rem; position:relative; overflow:hidden;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; z-index:1;">
-                        <div style="display:flex; align-items:center; gap:0.75rem;">
-                            <div class="logo-pulse" style="width:8px; height:8px; background:var(--success); box-shadow: 0 0 10px var(--success);"></div>
-                            <div style="font-weight:800; font-size:0.9rem; letter-spacing:-0.5px;">${node.id}</div>
-                        </div>
-                        <div style="font-size:0.6rem; font-weight:900; color:var(--accent); text-transform:uppercase; background:rgba(56,189,248,0.1); padding:0.2rem 0.5rem; border-radius:1rem;">Sensor OK</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:flex-end; z-index:1;">
-                        <div>
-                            <div style="font-size:0.6rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:0.2rem;">Sector Assignment</div>
-                            <div style="font-size:0.75rem; font-weight:700;">Global Perimeter</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:0.6rem; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:0.2rem;">Last Sync</div>
-                            <div style="font-size:0.75rem; font-weight:700; color:var(--success);">${this.relTime(new Date(node.last_seen * 1000).toISOString())}</div>
-                        </div>
-                    </div>
-                    <!-- Subtle background decoration -->
-                    <div style="position:absolute; bottom:-10px; right:-10px; opacity:0.05;">
-                        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
-                    </div>
-                </div>
-            `).join('') : '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; margin-top:2rem;">Searching for active nodes...</div>';
-        }
-      },
+// ══════════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════════
+async function loadStats(){
+  try{
+    const s = await api('/api/stats');
+    document.getElementById('s-sightings').textContent = s.total_sightings??'—';
+    document.getElementById('s-matches').textContent   = s.total_matches??'—';
+    document.getElementById('s-objects').textContent   = s.total_objects??'—';
+    document.getElementById('s-wanted').textContent    = s.total_wanted??'—';
+    document.getElementById('s-nodes').textContent     = s.total_nodes??'—';
+    document.getElementById('sb-node-count').textContent = `${s.total_nodes||0} NODES`;
+    document.getElementById('sys-nodes').textContent   = s.total_nodes??'—';
+  }catch(e){console.warn('[stats]',e)}
+}
 
-      relTime(iso) {
-        const diff = Math.floor((new Date() - new Date(iso)) / 1000);
-        if (diff < 60) return `${diff}s ago`;
-        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
-        return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      },
+// ══════════════════════════════════════════════════
+//  SIGHTINGS
+// ══════════════════════════════════════════════════
+async function loadSightings(){
+  try{
+    const d = await api('/api/sightings?limit=60');
+    renderSightingsFeed(d.sightings,'sightings-feed');
+    renderSightingsFeed(d.sightings.slice(0,4),'overview-sightings');
+    updateBadge('badge-sightings',newSightings);
+  }catch(e){console.warn('[sightings]',e)}
+}
 
-      initSSE() {
-        if (this.SSE) this.SSE.close();
-        this.SSE = new EventSource(`/api/stream?token=${this.TOKEN}`);
-        this.SSE.addEventListener('alert', e => {
-          const data = JSON.parse(e.data);
-          this.handleIncomingAlert(data);
-        });
-      },
+function renderSightingsFeed(sightings,containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  if(!sightings||!sightings.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-text">No sightings recorded</div><div class="empty-sub">// AWAITING CAMERA INPUT</div></div>`;
+    return;
+  }
+  el.innerHTML = sightings.map(s=>`
+    <div class="card ${s.matched?'matched':''}">
+      <img class="card-thumb" src="${s.snapshot}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23111%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23333%22>No img</text></svg>'">
+      <div class="card-body">
+        <div class="card-tag ${s.matched?'match':'unknown'}">${s.matched?'⚠ MATCH':'UNIDENTIFIED'}</div>
+        <div class="card-name">${s.matched?s.person_name:'Unknown Person'}</div>
+        <div class="card-meta">
+          <span>${s.camera_id||'—'}</span>
+          <span>${fmtTs(s.timestamp)}</span>
+        </div>
+        ${s.matched?`<div class="card-conf">Confidence: ${s.confidence}%</div>`:''}
+        <div class="card-meta" style="margin-top:0.35rem">${s.location||'—'}</div>
+      </div>
+    </div>
+  `).join('');
+}
 
-      handleIncomingAlert(data) {
-          // Update Live Log
-          const log = document.getElementById('live-log');
-          const placeholder = document.getElementById('log-placeholder');
-          if (log) {
-              if (placeholder) placeholder.remove();
-              const item = document.createElement('div');
-              item.style.cssText = 'padding:1rem; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:1rem; display:flex; gap:1rem; align-items:center; animation: fadeIn 0.3s ease-out;';
-              
-              const isMatch = data.type === 'wanted_match';
-              const isObject = data.type === 'new_object';
-              
-              const imgSize = isMatch ? '50px' : '40px';
-              const borderStyle = isMatch ? '2px solid var(--danger)' : (isObject ? '1px solid var(--warning)' : '1px solid var(--border)');
-              const imgHtml = data.snapshot ? `<img src="${data.snapshot}" style="width:${imgSize}; height:${imgSize}; border-radius:0.75rem; object-fit:cover; border:${borderStyle};">` : '';
-              
-              let title = 'New Sighting Detected';
-              let titleColor = 'var(--text-primary)';
-              if (isMatch) { title = 'CRITICAL MATCH: ' + data.person_name; titleColor = 'var(--danger)'; }
-              if (isObject) { title = 'OBJECT DETECTED: ' + data.object_label.toUpperCase(); titleColor = 'var(--warning)'; }
+// ══════════════════════════════════════════════════
+//  OBJECTS
+// ══════════════════════════════════════════════════
+async function loadObjects(){
+  try{
+    const d = await api('/api/objects?limit=60');
+    renderObjectsFeed(d.objects,'objects-feed');
+    renderObjectsFeed(d.objects.slice(0,4),'overview-objects');
+    updateBadge('badge-objects',newObjects);
+  }catch(e){console.warn('[objects]',e)}
+}
 
-              item.innerHTML = `
-                  ${imgHtml}
-                  <div style="flex:1">
-                      <div style="font-size:0.85rem; font-weight:700; color:${titleColor}">${title}</div>
-                      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">Node: ${data.camera_id || 'Remote Node'} · ${new Date().toLocaleTimeString()}</div>
-                  </div>
-              `;
-              log.prepend(item);
-              if (log.children.length > 20) log.lastElementChild.remove();
-          }
+function renderObjectsFeed(objects,containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  if(!objects||!objects.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">◈</div><div class="empty-text">No object detections</div><div class="empty-sub">// AWAITING CAMERA INPUT</div></div>`;
+    return;
+  }
+  el.innerHTML = objects.map(o=>`
+    <div class="card">
+      <img class="card-thumb" src="${o.snapshot}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23111%22 width=%22100%22 height=%22100%22/></svg>'">
+      <div class="card-body">
+        <div class="card-tag object">${(o.object_label||'unknown').toUpperCase()}</div>
+        <div class="card-name">${capitalize(o.object_label||'Unknown')}</div>
+        <div class="card-meta">
+          <span>${o.camera_id||'—'}</span>
+          <span>${fmtTs(o.timestamp)}</span>
+        </div>
+        <div class="card-conf">Confidence: ${Math.round((o.confidence||0)*100)}%</div>
+        <div class="card-meta" style="margin-top:0.35rem">${o.location||'—'}</div>
+      </div>
+    </div>
+  `).join('');
+}
 
-          if (data.type === 'new_object') {
-              const objEl = document.getElementById('stat-objects');
-              if (objEl) objEl.textContent = parseInt(objEl.textContent) + 1;
-              
-              // If on objects view, refresh
-              const activeView = document.querySelector('.view.active');
-              if (activeView && activeView.id === 'view-objects') this.fetchObjects();
-          }
+// ══════════════════════════════════════════════════
+//  WATCHLIST
+// ══════════════════════════════════════════════════
+async function loadWatchlist(){
+  try{
+    const persons = await api('/api/wanted');
+    const tb = document.getElementById('watchlist-table');
+    if(!persons.length){
+      tb.innerHTML=`<tr><td colspan="6"><div class="empty-state" style="padding:2rem"><div class="empty-icon">◎</div><div class="empty-text">Watchlist empty</div></div></td></tr>`;
+      return;
+    }
+    tb.innerHTML = persons.map(p=>{
+      const initials = p.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      const photoId = p.primary_photo;
+      const thumbSrc = photoId ? `/api/intel-photos/${photoId}` : null;
+      return `
+      <tr>
+        <td>
+          ${thumbSrc
+            ? `<img class="td-img" src="${thumbSrc}" onerror="this.outerHTML='<div class=\\'td-img\\' style=\\'background:var(--amber-dim);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:0.7rem;color:var(--amber)\\'>${initials}</div>'">`
+            : `<div class="td-img" style="background:var(--amber-dim);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:0.7rem;color:var(--amber)">${initials}</div>`}
+        </td>
+        <td>
+          <div style="font-weight:600">${esc(p.name)}</div>
+          <div class="td-mono">${p.id.slice(0,8)}…</div>
+        </td>
+        <td class="td-mono">${esc(p.added_by||'—')}</td>
+        <td class="td-mono">${fmtTs(p.added_at)}</td>
+        <td><span class="badge worker">${p.photo_count} photo${p.photo_count!==1?'s':''}</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" style="margin-right:0.4rem" onclick="openDossier(${JSON.stringify(p).replace(/"/g, '&quot;')})">Dossier</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePerson('${p.id}','${esc(p.name)}')">Remove</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.warn('[watchlist]',e)}
+}
 
-          if (data.type === 'wanted_match') {
-              this.showToast(data);
-              // Lock-on to most wanted subject
-              this.ACTIVE_ALERTS[data.person_id] = {
-                  id: data.person_id,
-                  name: data.person_name,
-                  location: data.location,
-                  node: data.camera_id,
-                  lastSeen: Date.now(),
-                  snapshot: data.snapshot,
-                  inVision: true
-              };
-              this.renderActiveAlerts();
-          }
-          
-          // Update live sighting for existing alert
-          if (data.type === 'new_sighting' && data.person_id) {
-              if (this.ACTIVE_ALERTS[data.person_id]) {
-                  this.ACTIVE_ALERTS[data.person_id].lastSeen = Date.now();
-                  this.ACTIVE_ALERTS[data.person_id].location = data.location;
-                  this.ACTIVE_ALERTS[data.person_id].node = data.camera_id;
-                  this.ACTIVE_ALERTS[data.person_id].snapshot = data.snapshot;
-                  this.ACTIVE_ALERTS[data.person_id].inVision = true;
-                  this.renderActiveAlerts();
-              }
-          }
-          
-          // Increment counter immediately for UI feedback
-          const countEl = document.getElementById('live-count');
-          const sightingsEl = document.getElementById('stat-sightings');
-          if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
-          if (sightingsEl) sightingsEl.textContent = parseInt(sightingsEl.textContent) + 1;
-          
-          if (data.type === 'wanted_match') {
-              const matchEl = document.getElementById('stat-matches');
-              if (matchEl) matchEl.textContent = parseInt(matchEl.textContent) + 1;
-          }
+function openAddPerson(){
+  document.getElementById('ap-name').value='';
+  document.getElementById('ap-files').value='';
+  document.getElementById('ap-count').textContent='';
+  document.getElementById('ap-err').style.display='none';
+  openModal('modal-add-person');
+}
 
-          // Then fetch real stats to sync
-          setTimeout(() => this.fetchStats(), 1000);
-      },
+async function addWatchlistPerson(){
+  const name = document.getElementById('ap-name').value.trim();
+  const files = document.getElementById('ap-files').files;
+  const btn  = document.getElementById('ap-btn');
+  const err  = document.getElementById('ap-err');
+  if(!name){err.style.display='block';err.textContent='Name required';return}
+  if(!files.length){err.style.display='block';err.textContent='At least one photo required';return}
+  btn.disabled=true; btn.textContent='Processing…'; err.style.display='none';
+  try{
+    const fd = new FormData();
+    fd.append('name',name);
+    for(const f of files) fd.append('files',f);
+    await api('/api/wanted',{method:'POST',body:fd});
+    closeModal('modal-add-person');
+    toast('Target added to watchlist: '+name,'amber');
+    loadWatchlist(); loadStats();
+  }catch(e){err.style.display='block';err.textContent=e.message}
+  finally{btn.disabled=false;btn.textContent='Add to Watchlist'}
+}
 
-      showToast(data) {
-        const container = document.getElementById('toast-container');
-        const el = document.createElement('div');
-        el.className = 'toast';
-        
-        const isMatch = data.type === 'wanted_match';
-        
-        el.style.borderColor = isMatch ? 'var(--danger)' : 'var(--accent)';
-        
-        let header = 'System Update';
-        if (isMatch) header = 'Target Identified';
-        if (data.person_name?.includes('Success')) header = 'Node Provisioned';
-        if (data.person_name?.includes('Revoked')) header = 'Access Terminated';
+async function deletePerson(id,name){
+  if(!confirm(`Remove "${name}" from watchlist?`)) return;
+  try{
+    await api(`/api/wanted/${id}`,{method:'DELETE'});
+    toast('Removed: '+name,'muted');
+    loadWatchlist(); loadStats();
+  }catch(e){toast('Error: '+e.message,'red')}
+}
 
-        const imgHtml = data.snapshot 
-            ? `<img src="${data.snapshot}" style="width:60px; height:60px; border-radius:1rem; object-fit:cover; border:2px solid ${isMatch ? 'var(--danger)' : 'var(--accent)'};">`
-            : `<div style="width:60px; height:60px; border-radius:1rem; background:rgba(56, 189, 248, 0.1); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent);">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-               </div>`;
+function showFileCount(input,countId){
+  const el=document.getElementById(countId);
+  if(el) el.textContent = input.files.length ? `${input.files.length} file(s) selected`:'';
+}
 
-        const subtext = (data.camera_id ? `${data.camera_id} · ` : '') + (data.location || 'Operation Protocol Logged');
+// ══════════════════════════════════════════════════
+//  FACE SEARCH
+// ══════════════════════════════════════════════════
+function previewSearchFiles(input){
+  const prev = document.getElementById('search-preview');
+  prev.innerHTML='';
+  Array.from(input.files).slice(0,6).forEach(f=>{
+    const url = URL.createObjectURL(f);
+    const img = document.createElement('img');
+    img.src=url; img.style.cssText='width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border2)';
+    prev.appendChild(img);
+  });
+}
+function handleSearchDrop(e){
+  e.preventDefault();
+  const z=document.getElementById('search-zone');
+  z.classList.remove('drag');
+  const files=e.dataTransfer.files;
+  if(files.length){
+    const input=document.getElementById('search-files');
+    const dt=new DataTransfer();
+    for(const f of files) dt.items.add(f);
+    input.files=dt.files;
+    previewSearchFiles(input);
+  }
+}
 
-        el.innerHTML = `
-          <div style="font-weight:900; color:${isMatch ? 'var(--danger)' : 'var(--accent)'}; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem;">${header}</div>
-          <div style="display:flex; gap:1.25rem; align-items:center;">
-             ${imgHtml}
-            <div style="flex:1">
-              <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${data.person_name || 'System Notification'}</div>
-              <div style="font-size:0.8rem; color:var(--text-muted);">${subtext}</div>
-            </div>
+async function runFaceSearch(){
+  const files = document.getElementById('search-files').files;
+  const btn   = document.getElementById('search-btn');
+  if(!files.length){toast('Select at least one face image','red');return}
+  btn.disabled=true; btn.innerHTML='<span class="loader"></span> Searching…';
+  try{
+    const fd = new FormData();
+    for(const f of files) fd.append('files',f);
+    const d = await api('/api/search-face',{method:'POST',body:fd});
+    renderSearchResults(d);
+  }catch(e){toast('Search failed: '+e.message,'red')}
+  finally{btn.disabled=false;btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Biometric Search'}
+}
+
+function renderSearchResults(d){
+  const wrap  = document.getElementById('search-results-wrap');
+  const title = document.getElementById('search-result-title');
+  const res   = document.getElementById('search-results');
+  wrap.style.display='block';
+  title.textContent = d.found ? `⚠ MATCH: ${d.person}` : 'NO WATCHLIST MATCH';
+  title.style.color = d.found ? 'var(--red)' : 'var(--cyan)';
+  if(!d.matches||!d.matches.length){
+    res.innerHTML=`<div class="empty-state" style="padding:1.5rem"><div class="empty-text">No matching sightings in history</div></div>`;
+    return;
+  }
+  res.innerHTML = d.matches.map(m=>`
+    <div class="result-item" style="gap:1rem;flex-wrap:wrap">
+      <img src="${m.snapshot}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:0.82rem">${fmtTs(m.timestamp)}</div>
+        <div class="td-mono">${esc(m.camera_id||'—')} · ${esc(m.location||'—')}</div>
+      </div>
+      <span class="badge ${m.matched?'match':'unknown'}" style="flex-shrink:0">${Math.round(m.confidence)}%</span>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  SNAPSHOT ANALYSIS
+// ══════════════════════════════════════════════════
+function previewAnalysis(input){
+  if(input.files.length){
+    const url=URL.createObjectURL(input.files[0]);
+    const zone=document.getElementById('analysis-zone');
+    zone.querySelector('.upload-icon').textContent='';
+    zone.querySelector('.upload-text').textContent=input.files[0].name;
+    const prev=document.getElementById('analysis-preview');
+    prev.src=url; prev.style.display='block';
+    document.getElementById('analysis-results-wrap').style.display='block';
+    document.getElementById('analysis-results').innerHTML='<div class="td-mono" style="color:var(--muted)">Run analysis to see results…</div>';
+  }
+}
+
+async function runAnalysis(){
+  const file = document.getElementById('analysis-file').files[0];
+  const btn  = document.getElementById('analysis-btn');
+  if(!file){toast('Select a snapshot first','red');return}
+  btn.disabled=true; btn.innerHTML='<span class="loader"></span> Analyzing…';
+  try{
+    const fd=new FormData();
+    fd.append('file',file);
+    const d = await api('/api/analyze-snapshot',{method:'POST',body:fd});
+    const prev=document.getElementById('analysis-preview');
+    prev.src=d.preview; prev.style.display='block';
+    renderAnalysisResults(d);
+    document.getElementById('analysis-results-wrap').style.display='block';
+  }catch(e){toast('Analysis failed: '+e.message,'red')}
+  finally{btn.disabled=false;btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Run Full Analysis'}
+}
+
+function renderAnalysisResults(d){
+  const el=document.getElementById('analysis-results');
+  let html='';
+  if(d.face){
+    html+=`<div style="margin-bottom:1rem;padding:0.75rem;background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);border-radius:8px">
+      <div style="font-family:var(--mono);font-size:0.6rem;color:var(--red);letter-spacing:0.1em;margin-bottom:0.4rem">⚠ FACE MATCH</div>
+      <div style="font-weight:600">${esc(d.face.person.name)}</div>
+      <div class="td-mono">${d.face.confidence}% confidence</div>
+    </div>`;
+  }
+  if(d.objects&&d.objects.length){
+    html+=`<div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;margin-bottom:0.5rem">DETECTED OBJECTS (${d.objects.length})</div>`;
+    html += d.objects.map(o=>`
+      <div class="result-item" style="margin-bottom:0.4rem">
+        <span class="result-label">${capitalize(o.label)}</span>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar"><div class="conf-fill" style="width:${Math.round(o.confidence*100)}%"></div></div>
+          <span class="td-mono">${Math.round(o.confidence*100)}%</span>
+        </div>
+      </div>
+    `).join('');
+  }
+  if(!d.face && (!d.objects||!d.objects.length)){
+    html='<div class="empty-state" style="padding:1rem"><div class="empty-text">Nothing detected</div><div class="empty-sub">// No faces or objects above threshold</div></div>';
+  }
+  el.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════
+//  WORKERS
+// ══════════════════════════════════════════════════
+async function loadWorkers(){
+  try{
+    const d = await api('/api/active-users');
+    const tb=document.getElementById('workers-table');
+    const nodes = d.nodes||[];
+    document.getElementById('sys-sessions').textContent = d.sessions?.length||0;
+    if(!nodes.length){
+      tb.innerHTML=`<tr><td colspan="3"><div class="empty-state" style="padding:2rem"><div class="empty-icon">◎</div><div class="empty-text">No active nodes</div></div></td></tr>`;
+      return;
+    }
+    const now=Date.now()/1000;
+    tb.innerHTML = nodes.map(n=>{
+      const age = Math.round(now-n.last_seen);
+      const live = age < 30;
+      return `<tr>
+        <td>
+          <div style="font-weight:600;font-family:var(--mono);font-size:0.82rem">${esc(n.id)}</div>
+        </td>
+        <td><span class="badge ${live?'online':'offline'}">${live?'● LIVE':'○ IDLE'}</span></td>
+        <td class="td-mono">${age}s ago</td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.warn('[workers]',e)}
+}
+
+// ══════════════════════════════════════════════════
+//  USERS
+// ══════════════════════════════════════════════════
+async function loadUsers(){
+  try{
+    const users = await api('/api/users');
+    const tb=document.getElementById('users-table');
+    tb.innerHTML = users.map(u=>`
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <div style="width:32px;height:32px;background:${u.role==='admin'?'var(--amber-dim)':'var(--cyan-dim)'};border:1px solid ${u.role==='admin'?'var(--amber-glow)':'rgba(34,211,238,0.2)'};border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:0.65rem;color:${u.role==='admin'?'var(--amber)':'var(--cyan)'}">${u.username[0].toUpperCase()}</div>
+            <span style="font-weight:600">${esc(u.username)}</span>
           </div>
-        `;
-        container.prepend(el);
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 5000);
-      },
+        </td>
+        <td><span class="badge ${u.role}">${u.role.toUpperCase()}</span></td>
+        <td>
+          ${u.username!=='admin'
+            ?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.username)}')">Remove</button>`
+            :'<span class="td-mono">protected</span>'}
+        </td>
+      </tr>
+    `).join('');
+  }catch(e){console.warn('[users]',e)}
+}
 
-      updateAlertHeartbeat() {
-          let threshold = 8000; // 8 seconds vision loss
-          let changed = false;
-          for (let id in this.ACTIVE_ALERTS) {
-              const alert = this.ACTIVE_ALERTS[id];
-              const isLost = (Date.now() - alert.lastSeen) > threshold;
-              if (alert.inVision && isLost) {
-                  alert.inVision = false;
-                  changed = true;
-              }
-          }
-          if (changed) this.renderActiveAlerts();
-      },
+function openAddUser(){
+  document.getElementById('au-user').value='';
+  document.getElementById('au-pass').value='';
+  document.getElementById('au-err').style.display='none';
+  openModal('modal-add-user');
+}
+async function addUser(){
+  const u=document.getElementById('au-user').value.trim();
+  const p=document.getElementById('au-pass').value;
+  const r=document.getElementById('au-role').value;
+  const btn=document.getElementById('au-btn');
+  const err=document.getElementById('au-err');
+  if(!u||!p){err.style.display='block';err.textContent='All fields required';return}
+  btn.disabled=true;btn.textContent='Creating…';err.style.display='none';
+  try{
+    await api('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p,role:r})});
+    closeModal('modal-add-user');
+    toast('Operator created: '+u,'amber');
+    loadUsers();
+  }catch(e){err.style.display='block';err.textContent=e.message}
+  finally{btn.disabled=false;btn.textContent='Create Account'}
+}
+async function deleteUser(username){
+  if(!confirm(`Delete account "${username}"?`)) return;
+  try{
+    await api(`/api/users/${username}`,{method:'DELETE'});
+    toast('Account removed: '+username,'muted');
+    loadUsers();
+  }catch(e){toast('Error: '+e.message,'red')}
+}
 
-      renderActiveAlerts() {
-          const monitor = document.getElementById('active-alerts-monitor');
-          const alerts = Object.values(this.ACTIVE_ALERTS);
-          if (!alerts.length) {
-              monitor.innerHTML = '';
-              return;
-          }
-          monitor.innerHTML = alerts.map(a => `
-              <div class="alert-banner ${a.inVision ? '' : 'lost'}">
-                  <div style="display:flex; align-items:center; gap:2rem;">
-                     <img src="${a.snapshot}" style="width:60px; height:60px; border-radius:1rem; object-fit:cover; border:2px solid ${a.inVision ? 'var(--danger)' : 'var(--text-muted)'};">
-                     <div class="alert-info">
-                        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.25rem;">
-                            <h4>${a.name}</h4>
-                            <span class="alert-tag ${a.inVision ? 'tag-live' : 'tag-lost'}">
-                                ${a.inVision ? 'IN VISION' : 'LOST VISION'}
-                            </span>
-                        </div>
-                        <div style="font-size:0.9rem; color:var(--text-muted); font-weight:600;">
-                            Sighting at <strong>${a.location}</strong> via node <strong>${a.node}</strong>
-                        </div>
-                     </div>
-                  </div>
-                  <button class="btn" style="width:auto; padding:0.75rem 1.5rem; background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2);" 
-                          onclick="Core.deactivateAlert('${a.id}')">DEACTIVATE ALERT</button>
-              </div>
-          `).join('');
-      },
+// ══════════════════════════════════════════════════
+//  SYSTEM
+// ══════════════════════════════════════════════════
+async function loadSystem(){
+  try{
+    const d = await api('/api/active-users');
+    document.getElementById('sys-sessions').textContent = d.sessions?.length||0;
+    document.getElementById('sys-nodes').textContent    = d.nodes?.length||0;
+  }catch(e){}
+}
+function confirmReset(){document.getElementById('reset-confirm').value='';openModal('modal-confirm-reset')}
+async function doReset(){
+  const val=document.getElementById('reset-confirm').value;
+  if(val!=='RESET'){toast('Type RESET exactly to confirm','red');return}
+  const btn=document.getElementById('reset-btn');
+  btn.disabled=true;btn.textContent='Resetting…';
+  try{
+    await api('/api/system/reset',{method:'POST'});
+    closeModal('modal-confirm-reset');
+    toast('System reset complete','amber');
+    loadStats();
+  }catch(e){toast('Reset failed: '+e.message,'red')}
+  finally{btn.disabled=false;btn.textContent='Confirm Reset'}
+}
 
-      deactivateAlert(id) {
-          delete this.ACTIVE_ALERTS[id];
-          this.renderActiveAlerts();
-      },
+// ══════════════════════════════════════════════════
+//  SSE
+// ══════════════════════════════════════════════════
+function connectSSE(){
+  if(ES){ES.close();}
+  const badge=document.getElementById('sse-status-badge');
+  ES = new EventSource(`${API}/api/stream?token=${TOKEN}`);
+  ES.addEventListener('connected',()=>{
+    badge.textContent='● Live'; badge.style.background='var(--green-dim)';
+    badge.style.color='var(--green)'; badge.style.border='1px solid rgba(16,185,129,0.2)';
+  });
+  ES.addEventListener('alert', e=>{
+    try{
+      const d=JSON.parse(e.data);
+      handleAlert(d);
+    }catch(err){}
+  });
+  ES.onerror=()=>{
+    badge.textContent='○ Disconnected'; badge.style.background='rgba(100,116,139,0.1)';
+    badge.style.color='var(--muted)'; badge.style.border='1px solid var(--border)';
+    setTimeout(connectSSE,5000);
+  };
+}
 
-      STAGED_SEARCH_FILES: [],
-      handleSearchDrop(e) {
-          e.preventDefault();
-          document.getElementById('s-drop-zone').classList.remove('active');
-          if (e.dataTransfer.files) this.handleSearchFiles(e.dataTransfer.files);
-      },
-      handleSearchFiles(files) {
-          this.STAGED_SEARCH_FILES = Array.from(files).slice(0, 15);
-          this.renderSearchPreviews();
-      },
-      renderSearchPreviews() {
-          const grid = document.getElementById('s-preview-grid');
-          const txt = document.getElementById('s-drop-text');
-          if (!this.STAGED_SEARCH_FILES.length) {
-              grid.innerHTML = '';
-              txt.textContent = 'Drop samples for forensic tracking';
-              return;
-          }
-          txt.innerHTML = `<span style="color:var(--warning); font-weight:900;">${this.STAGED_SEARCH_FILES.length}/15</span> Search Samples Staged`;
-          grid.innerHTML = this.STAGED_SEARCH_FILES.map(f => {
-              const url = URL.createObjectURL(f);
-              return `<img src="${url}" class="preview-item">`;
-          }).join('');
-      },
+// ══════════════════════════════════════════════════
+//  DOSSIER FUNCTIONS
+// ══════════════════════════════════════════════════
+async function openDossier(person) {
+    DOSSIER_PERSON_ID = person.id;
+    const modal = document.getElementById('modal-dossier');
+    document.getElementById('dossier-name').textContent = person.name;
+    document.getElementById('dossier-id').textContent = `ID: ${person.id}`;
+    document.getElementById('dossier-enlisted-by').textContent = person.added_by || 'System';
+    document.getElementById('dossier-created-at').textContent = fmtTs(person.added_at);
+    
+    updateDossierSync(person.photo_count);
+    modal.classList.add('open');
+    
+    const photos = await api(`/api/wanted/${person.id}/photos`);
+    renderGallery(photos || []);
+}
 
-      async searchFace() {
-        if (!this.STAGED_SEARCH_FILES.length) {
-            this.showToast({ type: 'info', person_name: 'Input Required', location: 'Drop photos to initiate scan.' });
-            return;
-        }
-        const fd = new FormData();
-        for(let f of this.STAGED_SEARCH_FILES) fd.append('files', f);
-        
-        const area = document.getElementById('search-result-area');
-        const list = document.getElementById('search-results-list');
-        area.style.display = 'block';
-        list.className = 'intel-grid'; // Use the high-end grid
-        list.innerHTML = '<div style="color:var(--warning); font-weight:700;">Initiating Deep Forensic Scan...</div>';
+function updateDossierSync(count) {
+    const syncPct = Math.round((count / 15) * 100);
+    document.getElementById('dossier-sync-txt').textContent = `${syncPct}%`;
+    document.getElementById('dossier-sync-bar').style.width = `${syncPct}%`;
+}
 
-        const res = await fetch('/api/search-face', {
-          method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd
-        });
-        const data = await res.json();
-        
-        if (!data.found) {
-            list.innerHTML = '<div style="color:var(--text-muted);">No historical matches found across all vectors.</div>';
-            return;
-        }
-
-        list.innerHTML = `
-            <div style="grid-column: 1 / -1; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-weight:800; color:var(--warning); font-size:1.2rem;">Identified: ${data.person}</div>
-                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">${data.total_count} FORENSIC PEAK MATCHES</div>
-            </div>
-            ${data.matches.map(loc => {
-                const confColor = loc.confidence > 90 ? 'var(--success)' : (loc.confidence > 70 ? 'var(--warning)' : 'var(--danger)');
-                return `
-                <div class="subject-card" style="border-top: 4px solid ${confColor}; cursor:default;">
-                    <img src="${loc.snapshot}" class="subject-thumb" style="height:140px;">
-                    <div style="font-weight:800; font-size:0.9rem; color:var(--accent);">${loc.location || 'Unknown'}</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Node: ${loc.camera_id}</div>
-                    <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.1rem;">${new Date(loc.timestamp).toLocaleString()}</div>
-                    
-                    <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Reliability</span>
-                        <span style="font-size:0.8rem; font-weight:900; color:${confColor}">${loc.confidence}%</span>
-                    </div>
-                </div>
-            `}).join('')}
-        `;
-      },
-
-      async fetchHistory() {
-        const data = await this.fetch('/api/sightings?limit=100');
-        const items = data?.sightings || [];
-        document.getElementById('history-rows').innerHTML = items.map(s => `
-          <tr>
-            <td>
-              ${this.SHOW_VISUALS ? `
-                <img src="${s.snapshot}" class="row-img">
-              ` : `
-                <div class="row-placeholder">HIDDEN</div>
-              `}
-            </td>
-            <td><strong>${s.person_name}</strong></td>
-            <td style="color:${s.matched ? 'var(--danger)' : 'var(--text-muted)'}; font-weight:800;">${s.matched ? 'WATCHLIST HIT' : 'ROUTINE'}</td>
-            <td>${s.camera_id} · ${s.location}</td>
-            <td style="font-size:0.8rem; color:var(--text-muted);">${new Date(s.timestamp).toLocaleString()}</td>
-          </tr>
-        `).join('') || '';
-      },
-
-      async fetchObjects() {
-        const data = await this.fetch('/api/objects?limit=100');
-        const items = data?.objects || [];
-        const grid = document.getElementById('objects-grid');
-        if(!items.length) {
-            grid.innerHTML = '<div style="color:var(--text-muted);">No object detections logged in this timeframe.</div>';
-            return;
-        }
-        grid.innerHTML = items.map(obj => `
-          <div class="card">
-            <img src="${obj.snapshot}" class="card-img">
-            <div class="card-tag" style="background:var(--warning); color:#000;">${obj.object_label.toUpperCase()}</div>
-            <div class="card-content">
-              <div class="card-title">${obj.object_label.charAt(0).toUpperCase() + obj.object_label.slice(1)} Detected</div>
-              <div class="card-meta">
-                <span>${obj.camera_id} · ${obj.location}</span>
-                <span>${Math.round(obj.confidence * 100)}% Match</span>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.5rem;">${new Date(obj.timestamp).toLocaleString()}</div>
-            </div>
-          </div>
-        `).join('');
-      },
-
-      async fetchWorkers() {
-        const users = await this.fetch('/api/users');
-        if (!users) return;
-        document.getElementById('worker-rows').innerHTML = users.map(u => `
-          <tr>
-            <td><strong>${u.username}</strong></td>
-            <td><span style="font-size:0.7rem; font-weight:900; text-transform:uppercase; background:rgba(255,255,255,0.05); padding:0.3rem 0.6rem; border-radius:0.5rem; color:var(--accent);">${u.role}</span></td>
-            <td>
-              ${u.username !== 'admin' ? `
-                <button onclick="Core.deleteUser('${u.username}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:800; font-size:0.7rem; letter-spacing:1px;">DECOMMISSION</button>
-              ` : '<span style="color:var(--success); font-size:0.7rem; font-weight:800;">PROTECTED</span>'}
-            </td>
-          </tr>
-        `).join('');
-      },
-
-      async fetchIntelligence() {
-        const data = await this.fetch('/api/wanted');
-        if (!data) return;
-        document.getElementById('wanted-list').innerHTML = data.map(p => {
-          const syncPercent = Math.min(100, Math.round((p.photo_count / 15) * 100));
-          return `
-            <div class="subject-card">
-              <div onclick="Core.openDossier(${JSON.stringify(p).replace(/"/g, '&quot;')})">
-                ${p.primary_photo ? `<img src="/api/intel-photos/${p.primary_photo}" class="subject-thumb">` : `<div class="subject-thumb" style="background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.8rem; font-weight:800;">NO PHOTO</div>`}
-                <div style="font-weight:800; font-size:1.1rem; margin-bottom:0.25rem;">${p.name}</div>
-                <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace; margin-bottom:1rem;">ID: ${p.id.slice(0,8)}...</div>
-                <div class="sync-container">
-                    <div class="sync-label"><span>NEURAL SYNC</span> <span>${syncPercent}%</span></div>
-                    <div class="sync-bar"><div class="sync-fill" style="width: ${syncPercent}%"></div></div>
-                </div>
-              </div>
-              <button class="btn" style="background:rgba(244,63,94,0.05); color:var(--danger); border:1px solid rgba(244,63,94,0.1); width:100%; padding:0.5rem; font-size:0.65rem; font-weight:800; margin-top:1rem;" onclick="Core.removeWanted('${p.id}')">TERMINATE ARCHIVE</button>
-            </div>
-          `;
-        }).join('');
-      },
-
-      OPEN_PERSON_ID: null,
-      async openDossier(person) {
-          this.OPEN_PERSON_ID = person.id;
-          const modal = document.getElementById('dossier-modal');
-          document.getElementById('dossier-name').textContent = person.name;
-          document.getElementById('dossier-id').textContent = `ID: ${person.id}`;
-          document.getElementById('dossier-enlisted-by').textContent = person.added_by || 'System';
-          document.getElementById('dossier-created-at').textContent = new Date(person.added_at).toLocaleString();
-          
-          const syncPct = Math.round((person.photo_count / 15) * 100);
-          document.getElementById('dossier-sync-txt').textContent = `${syncPct}%`;
-          document.getElementById('dossier-sync-bar').style.width = `${syncPct}%`;
-
-          const gallery = document.getElementById('dossier-gallery');
-          gallery.innerHTML = '<div style="color:var(--accent)">Retrieving Neural Data...</div>';
-          modal.style.display = 'flex';
-          
-          const photos = await this.fetch(`/api/wanted/${person.id}/photos`);
-          this.renderGallery(photos || []);
-      },
-
-      renderGallery(photos) {
-          const gallery = document.getElementById('dossier-gallery');
-          let html = '';
-          for(let i=0; i<15; i++) {
-              if (photos[i]) {
-                  html += `
-                    <div class="gallery-slot" style="position:relative;">
-                        <img src="/api/intel-photos/${photos[i].id}">
-                        <div class="slot-delete-btn" title="Purge Sample" onclick="Core.deletePhoto('${photos[i].id}')">X</div>
-                    </div>`;
-              } else {
-                  html += `<div class="gallery-slot slot-empty slot-btn" onclick="document.getElementById('dossier-add-file').click()">Slot ${i+1}<br>+ Inject</div>`;
-              }
-          }
-          gallery.innerHTML = html;
-      },
-
-      async deletePhoto(photoId) {
-          if(!confirm('CRITICAL: Purge this specific biometric template from the subject mesh?')) return;
-          const res = await this.fetch(`/api/wanted/${this.OPEN_PERSON_ID}/photos/${photoId}`, { method: 'DELETE' });
-          if(res) {
-              const photos = await this.fetch(`/api/wanted/${this.OPEN_PERSON_ID}/photos`);
-              this.renderGallery(photos || []);
-              this.showToast({ type: 'info', person_name: 'Neural Purge', location: 'Biometric template removed.' });
-              this.fetchIntelligence(); // Re-sync percentages
-          }
-      },
-
-      closeDossier() {
-          document.getElementById('dossier-modal').style.display = 'none';
-          this.fetchIntelligence();
-          this.OPEN_PERSON_ID = null;
-      },
-
-      async uploadToDossier(droppedFiles = null) {
-          const files = droppedFiles || document.getElementById('dossier-add-file').files;
-          if (!files || !files.length || !this.OPEN_PERSON_ID) return;
-          const fd = new FormData();
-          fd.append('name', document.getElementById('dossier-name').textContent);
-          for(let f of files) fd.append('files', f);
-
-          this.showToast({ type: 'info', person_name: 'Neural Injection', location: `Adding ${files.length} samples to mesh...` });
-          const res = await fetch('/api/wanted', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
-          
-          if (res.ok) {
-            const photos = await this.fetch(`/api/wanted/${this.OPEN_PERSON_ID}/photos`);
-            this.renderGallery(photos || []);
-            const updatedWanted = await this.fetch('/api/wanted');
-            const p = updatedWanted.find(x => x.id === this.OPEN_PERSON_ID);
-            if (p) {
-                const syncPct = Math.round((p.photo_count / 15) * 100);
-                document.getElementById('dossier-sync-txt').textContent = `${syncPct}%`;
-                document.getElementById('dossier-sync-bar').style.width = `${syncPct}%`;
-            }
-          } else {
-              const err = await res.json();
-              this.showToast({ type: 'error', person_name: 'Injection Failed', location: err.detail || 'Could not process photos.' });
-          }
-      },
-
-      S_FILES: [],
-      handleSearchDrop(e) { e.preventDefault(); document.getElementById('s-drop-zone').classList.remove('active'); this.handleSearchFiles(e.dataTransfer.files); },
-      async handleSearchFiles(files) { this.S_FILES = Array.from(files).slice(0, 15); this.renderSearchPreviews(); },
-      removeSearchStaged(idx) { this.S_FILES.splice(idx, 1); this.renderSearchPreviews(); },
-      renderSearchPreviews() {
-          const grid = document.getElementById('s-preview-grid');
-          if (!this.S_FILES.length) { grid.innerHTML = ''; return; }
-          document.getElementById('s-drop-text').innerHTML = `<span style="color:var(--warning); font-weight:900;">${this.S_FILES.length}/15</span> Samples Loaded`;
-          grid.innerHTML = this.S_FILES.map((f, idx) => `
-            <div class="preview-wrapper">
-                <div class="remove-staged-btn" onclick="Core.removeSearchStaged(${idx})">&times;</div>
-                <img src="${URL.createObjectURL(f)}" class="preview-item">
-            </div>
-          `).join('');
-      },
-
-      clearSearchResults() {
-          this.S_FILES = [];
-          this.renderSearchPreviews();
-          document.getElementById('search-result-area').style.display = 'none';
-      },
-
-      async searchFace() {
-          if (!this.S_FILES.length) return;
-          const fd = new FormData();
-          for(let f of this.S_FILES) fd.append('files', f);
-          
-          this.showToast({ type: 'info', person_name: 'Forensic Scan', location: 'Analyzing historical vectors...' });
-          const res = await fetch('/api/search-face', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
-          const data = await res.json();
-          
-          const area = document.getElementById('search-result-area');
-          const list = document.getElementById('search-results-list');
-          
-          area.style.display = 'block';
-          list.innerHTML = `
-              <div style="grid-column: 1/-1; padding: 1.5rem; background: rgba(56,189,248,0.05); border: 1px solid var(--accent); border-radius: 1.5rem; margin-bottom: 2rem;">
-                  <div style="font-size: 0.7rem; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Forensic Identity Match</div>
-                  <div style="font-size: 1.5rem; font-weight: 800;">${data.person}</div>
-                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Most relevant forensic sightings: (Top 4 Visuals)</div>
-              </div>
-              ${data.matches.slice(0, 4).map(loc => {
-                  const confColor = loc.confidence > 90 ? 'var(--success)' : (loc.confidence > 70 ? 'var(--warning)' : 'var(--danger)');
-                  return `
-                  <div class="subject-card" style="border-top: 4px solid ${confColor}; cursor:default;">
-                      <img src="${loc.snapshot}" class="subject-thumb" style="height:140px;">
-                      <div style="font-weight:800; font-size:0.9rem; color:var(--accent);">${loc.location || 'Sector Unknown'}</div>
-                      <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Node: ${loc.camera_id}</div>
-                      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.1rem;">${this.relTime(loc.timestamp)}</div>
-                      <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                          <span style="font-size:0.6rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Confidence</span>
-                          <span style="font-size:0.8rem; font-weight:900; color:${confColor}">${loc.confidence}%</span>
-                      </div>
-                  </div>
-              `}).join('')}
-          `;
-          area.scrollIntoView({ behavior: 'smooth' });
-      },
-
-      ANALYSIS_FILE: null,
-      handleAnalysisDrop(e) {
-          e.preventDefault();
-          document.getElementById('a-drop-zone').classList.remove('active');
-          if (e.dataTransfer.files[0]) this.handleAnalysisFile(e.dataTransfer.files[0]);
-      },
-      handleAnalysisFile(file) {
-          this.ANALYSIS_FILE = file;
-          const dropText = document.getElementById('a-drop-text');
-          const analyzeBtn = document.getElementById('analyze-btn');
-          if (dropText) dropText.innerHTML = `<span style="color:var(--success); font-weight:900;">${file.name}</span> — Ready`;
-          if (analyzeBtn) analyzeBtn.disabled = false;
-          // Reset results area on new file
-          const prevArea = document.getElementById('analysis-preview-area');
-          const noResult = document.getElementById('analysis-no-result');
-          if (prevArea) prevArea.style.display = 'none';
-          if (noResult) noResult.style.display = 'flex';
-      },
-      handleDossierDrop(e) {
-          e.preventDefault();
-          const modal = document.getElementById('dossier-modal');
-          if (modal) modal.style.background = 'rgba(2,6,23,0.7)';
-          if (e.dataTransfer.files.length && this.OPEN_PERSON_ID) {
-              this.uploadToDossier(e.dataTransfer.files);
-          }
-      },
-      async analyzeSnapshot() {
-          if (!this.ANALYSIS_FILE) return;
-          const fd = new FormData();
-          fd.append('file', this.ANALYSIS_FILE);
-          
-          const btn = document.getElementById('analyze-btn');
-          if (btn) { btn.textContent = 'Analyzing...'; btn.disabled = true; }
-          
-          const noResult = document.getElementById('analysis-no-result');
-          if (noResult) noResult.style.display = 'none';
-          
-          this.showToast({ type: 'info', person_name: 'Core Analysis', location: 'Running neural vision stack...' });
-          
-          try {
-              const res = await fetch('/api/analyze-snapshot', { 
-                  method: 'POST', 
-                  headers: { 'Authorization': `Bearer ${this.TOKEN}` }, 
-                  body: fd 
-              });
-              const data = await res.json();
-              
-              const preview = document.getElementById('analysis-preview-area');
-              const img = document.getElementById('analysis-preview-img');
-              const meta = document.getElementById('analysis-results-meta');
-              
-              if (preview) preview.style.display = 'block';
-              if (img) img.src = data.preview || '';
-              
-              let html = `<div style="font-weight:800; color:var(--success);">Analysis Complete</div>`;
-              
-              if (data.face) {
-                  html += `<div style="padding:1rem; background:rgba(217,70,239,0.1); border:1px solid #d946ef; border-radius:1rem;">
-                             <div style="font-size:0.6rem; font-weight:800; color:#d946ef; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Biometric Match</div>
-                             <div style="font-weight:800; font-size:1.1rem;">${data.face.person.name}</div>
-                             <div style="font-size:0.75rem; color:#d946ef; margin-top:0.25rem;">Confidence: ${data.face.confidence}%</div>
-                           </div>`;
-              } else {
-                  html += `<div style="font-size:0.8rem; color:var(--text-muted); padding:0.75rem; background:rgba(255,255,255,0.02); border-radius:0.75rem;">No watchlist faces detected.</div>`;
-              }
-              
-              if (data.objects && data.objects.length) {
-                  html += `<div style="font-size:0.6rem; font-weight:800; color:var(--warning); text-transform:uppercase; letter-spacing:1px;">Detected Objects (${data.objects.length})</div>`;
-                  html += `<div style="display:flex; flex-wrap:wrap; gap:0.5rem;">`;
-                  data.objects.forEach(obj => {
-                      html += `<span style="background:rgba(245,158,11,0.1); border:1px solid var(--warning); color:var(--warning); padding:0.3rem 0.75rem; border-radius:2rem; font-size:0.75rem; font-weight:700;">${obj.label.toUpperCase()} <span style="opacity:0.7">${Math.round(obj.confidence*100)}%</span></span>`;
-                  });
-                  html += `</div>`;
-              } else {
-                  html += `<div style="font-size:0.8rem; color:var(--text-muted); padding:0.75rem; background:rgba(255,255,255,0.02); border-radius:0.75rem;">No objects identified in this frame.</div>`;
-              }
-              
-              if (meta) meta.innerHTML = html;
-          } catch (e) {
-              this.showToast({ type: 'error', person_name: 'Analysis Failed', location: 'Compute error or invalid file.' });
-          } finally {
-              if (btn) { btn.textContent = 'Initiate Deep Analysis'; btn.disabled = false; }
-          }
-      },
-
-      STAGED_FILES: [],
-      handleDrop(e) {
-          e.preventDefault();
-          document.getElementById('w-drop-zone').classList.remove('active');
-          if (e.dataTransfer.files) this.handleFiles(e.dataTransfer.files);
-      },
-      handleFiles(files) {
-          this.STAGED_FILES = Array.from(files).slice(0, 15);
-          this.renderPreviews();
-      },
-      removeStaged(idx) {
-          this.STAGED_FILES.splice(idx, 1);
-          this.renderPreviews();
-      },
-      renderPreviews() {
-          const grid = document.getElementById('w-preview-grid');
-          const txt = document.getElementById('w-drop-text');
-          if (!this.STAGED_FILES.length) {
-              grid.innerHTML = '';
-              txt.textContent = 'Drag Folder or Select Files';
-              return;
-          }
-          txt.innerHTML = `<span style="color:var(--accent); font-weight:900;">${this.STAGED_FILES.length}/15</span> Neural Samples Staged`;
-          grid.innerHTML = this.STAGED_FILES.map((f, idx) => {
-              const url = URL.createObjectURL(f);
-              return `
-                <div class="preview-wrapper">
-                  <div class="remove-staged-btn" onclick="Core.removeStaged(${idx})">&times;</div>
-                  <img src="${url}" class="preview-item">
-                </div>`;
-          }).join('');
-      },
-
-      async addWanted() {
-        const name = document.getElementById('w-name').value;
-        if (!name || !this.STAGED_FILES.length) {
-            this.showToast({ type: 'info', person_name: 'Input Required', location: 'Enter name and drop photos.' });
-            return;
-        }
-        const fd = new FormData(); fd.append('name', name); 
-        for(let f of this.STAGED_FILES) fd.append('files', f);
-        
-        this.showToast({ type: 'info', person_name: 'Neural Processing', location: 'Injecting Mesh Data...' });
-        const res = await fetch('/api/wanted', { method: 'POST', headers: { 'Authorization': `Bearer ${this.TOKEN}` }, body: fd });
-        
-        if (res.ok) {
-            document.getElementById('w-name').value = ''; 
-            this.STAGED_FILES = [];
-            this.renderPreviews();
-            this.fetchIntelligence();
-            this.showToast({ type: 'info', person_name: 'Sync Complete', location: 'Registry updated successfully.' });
+function renderGallery(photos) {
+    const gallery = document.getElementById('dossier-gallery');
+    let html = '';
+    for(let i=0; i<15; i++) {
+        if (photos[i]) {
+            html += `
+              <div class="gallery-slot">
+                  <img src="/api/intel-photos/${photos[i].id}">
+                  <div class="slot-delete-btn" title="Purge Sample" onclick="deletePhoto('${photos[i].id}')">✕</div>
+              </div>`;
         } else {
-            const err = await res.json();
-            this.showToast({ type: 'error', person_name: 'Error', location: err.detail || 'Could not add to watchlist.' });
+            html += `<div class="gallery-slot slot-empty" onclick="document.getElementById('dossier-add-file').click()">Slot ${i+1}<br>+ Inject</div>`;
         }
-      },
+    }
+    gallery.innerHTML = html;
+}
 
-      async removeWanted(id) {
-        if(!confirm('Archive intelligence data for this subject?')) return;
-        await this.fetch(`/api/wanted/${id}`, { method: 'DELETE' });
-        this.fetchIntelligence();
-      },
+async function uploadToDossier() {
+    const files = document.getElementById('dossier-add-file').files;
+    if (!files.length || !DOSSIER_PERSON_ID) return;
+    const fd = new FormData();
+    fd.append('name', document.getElementById('dossier-name').textContent);
+    for(let f of files) fd.append('files', f);
 
-      async addUser() {
-        const u = document.getElementById('u-user').value;
-        const p = document.getElementById('u-pass').value;
-        const r = document.getElementById('u-role').value;
-        if (!u || !p) {
-            this.showToast({ type: 'info', person_name: 'Input Required', location: 'Enter both username and password.' });
-            return;
+    toast(`Injecting ${files.length} neural samples...`, 'amber');
+    try {
+        await api('/api/wanted', { method: 'POST', body: fd });
+        const photos = await api(`/api/wanted/${DOSSIER_PERSON_ID}/photos`);
+        renderGallery(photos || []);
+        updateDossierSync(photos.length);
+        loadWatchlist();
+    } catch(e) {
+        toast('Injection Error: ' + e.message, 'red');
+    }
+}
+
+async function deletePhoto(photoId) {
+    if(!confirm('Archive this biometric template from the subject mesh?')) return;
+    try {
+        await api(`/api/wanted/${DOSSIER_PERSON_ID}/photos/${photoId}`, { method: 'DELETE' });
+        const photos = await api(`/api/wanted/${DOSSIER_PERSON_ID}/photos`);
+        renderGallery(photos || []);
+        updateDossierSync(photos.length);
+        loadWatchlist();
+    } catch(e) { toast('Purge Error: ' + e.message, 'red'); }
+}
+
+function closeDossier() {
+    document.getElementById('modal-dossier').classList.remove('open');
+    DOSSIER_PERSON_ID = null;
+}
+
+// ══════════════════════════════════════════════════
+//  ACTIVE ALERTS MONITOR
+// ══════════════════════════════════════════════════
+function updateAlertHeartbeat() {
+    let threshold = 8000; // 8 seconds vision loss
+    let changed = false;
+    for (let id in ACTIVE_ALERTS) {
+        const alert = ACTIVE_ALERTS[id];
+        const isLost = (Date.now() - alert.lastSeen) > threshold;
+        if (alert.inVision && isLost) {
+            alert.inVision = false;
+            changed = true;
         }
+    }
+    if (changed) renderActiveAlerts();
+}
 
-        this.showToast({ type: 'info', person_name: 'Provisioning Hub', location: `Activating operative ${u}...` });
-        const res = await this.fetch('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: u, password: p, role: r })
-        });
-        
-        if (res) {
-          document.getElementById('u-user').value = ''; 
-          document.getElementById('u-pass').value = '';
-          this.showToast({ type: 'info', person_name: 'Activation Success', location: `Operative ${u} is now on the grid.` });
-          this.fetchWorkers();
-        } else {
-          this.showToast({ type: 'info', person_name: 'Enrollment Error', location: 'Identity collision or server rejection.' });
-        }
-      },
-
-      async deleteUser(user) {
-        if(!confirm(`CRITICAL: Decommission operative ${user}? Access will be immediately revoked.`)) return;
-        this.showToast({ type: 'info', person_name: 'Commencing Decommission', location: `Purging access for ${user}...` });
-        const res = await this.fetch(`/api/users/${user}`, { method: 'DELETE' });
-        if(res) {
-            this.showToast({ type: 'info', person_name: 'Access Revoked', location: `Operative ${user} removed from grid.` });
-            this.fetchWorkers();
-        }
-      },
-
-      async resetSystem() {
-         if(!confirm('CRITICAL ACTION: This will wipe ALL surveillance history and neural templates. Continue?')) return;
-         const res = await this.fetch('/api/system/reset', { method: 'POST' });
-          if(res?.ok) {
-             this.showToast({ type: 'info', person_name: 'System Scrubbed', location: 'All intelligence data has been purged.' });
-             setTimeout(() => location.reload(), 2000);
-          }
-       },
-
-       async fetchWorkerStats() {
-          const data = await this.fetch('/api/worker/stats');
-          if(!data) return;
-          
-          document.getElementById('w-total').textContent = data.total_detections;
-          document.getElementById('w-status').textContent = data.is_active ? 'ACTIVE & SYNCED' : 'NODE OFFLINE';
-          document.getElementById('w-status').style.color = data.is_active ? 'var(--accent)' : 'var(--danger)';
-          
-          const grid = document.getElementById('worker-history-grid');
-          if(data.recent_history.length) {
-              grid.innerHTML = data.recent_history.map(item => `
-                  <div class="card">
-                      <img src="${item.snapshot}" class="card-img">
-                      <div class="card-content">
-                          <div class="card-title">Detection Logged</div>
-                          <div class="card-meta">
-                              <span>${item.camera_id}</span>
-                              <span>${this.relTime(item.timestamp)}</span>
-                          </div>
-                      </div>
+function renderActiveAlerts() {
+    const monitor = document.getElementById('active-alerts-monitor');
+    const alerts = Object.values(ACTIVE_ALERTS);
+    if (!alerts.length) {
+        monitor.innerHTML = '';
+        return;
+    }
+    monitor.innerHTML = alerts.map(a => `
+        <div class="alert-banner ${a.inVision ? '' : 'lost'}">
+            <div style="display:flex; align-items:center; gap:1.5rem;">
+               <img src="${a.snapshot}" style="width:50px; height:50px; border-radius:8px; object-fit:cover; border:1px solid ${a.inVision ? 'var(--red)' : 'var(--muted)'}">
+               <div class="alert-info">
+                  <div style="display:flex; align-items:center; margin-bottom:0.15rem;">
+                      <h4>${a.name}</h4>
+                      <span class="alert-tag ${a.inVision ? 'tag-live' : 'tag-lost'}">
+                          ${a.inVision ? 'IN VISION' : 'VISION LOST'}
+                      </span>
                   </div>
-              `).join('');
-          }
-       }
+                  <div style="font-family:var(--mono); font-size:0.75rem; color:var(--muted)">
+                      Last seen at <strong>${a.location}</strong> via <strong>${a.node}</strong>
+                  </div>
+               </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="deactivateAlert('${a.id}')">Dismiss Alert</button>
+        </div>
+    `).join('');
+}
+
+function deactivateAlert(id) {
+    delete ACTIVE_ALERTS[id];
+    renderActiveAlerts();
+}
+
+function handleAlert(d){
+  alertCount++;
+  updateBadge('bell-count',alertCount);
+  if(d.type==='wanted_match'){
+    newSightings++;
+    updateBadge('badge-sightings',newSightings);
+    toast(`⚠ MATCH: ${d.person_name} — ${d.location||d.camera_id}`,'match');
+    
+    // Register to Active Monitor
+    ACTIVE_ALERTS[d.person_id] = {
+        id: d.person_id,
+        name: d.person_name,
+        location: d.location || 'Unknown',
+        node: d.camera_id || 'Remote',
+        lastSeen: Date.now(),
+        snapshot: d.snapshot,
+        inVision: true
     };
+    renderActiveAlerts();
 
-    Core.init();
-  </script>
+    loadSightings(); loadStats();
+  } else if(d.type==='new_sighting'){
+    newSightings++;
+    updateBadge('badge-sightings',newSightings);
+    
+    // Update existing alert if applicable
+    if (d.person_id && ACTIVE_ALERTS[d.person_id]) {
+        ACTIVE_ALERTS[d.person_id].lastSeen = Date.now();
+        ACTIVE_ALERTS[d.person_id].location = d.location || 'Unknown';
+        ACTIVE_ALERTS[d.person_id].node = d.camera_id || 'Remote';
+        ACTIVE_ALERTS[d.person_id].snapshot = d.snapshot;
+        ACTIVE_ALERTS[d.person_id].inVision = true;
+        renderActiveAlerts();
+    }
+
+    toast(`New sighting — ${d.camera_id||d.location}`,'sight');
+    loadSightings(); loadStats();
+  } else if(d.type==='new_object'){
+    newObjects++;
+    updateBadge('badge-objects',newObjects);
+    toast(`Object: ${capitalize(d.object_label||'unknown')} — ${d.camera_id}`,'obj');
+    loadObjects(); loadStats();
+  }
+}
+
+
+// ══════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════
+function toast(msg,type='amber'){
+  const map={match:'alert-match',obj:'alert-obj',sight:'alert-sight',amber:'alert-sight',red:'alert-match',muted:'alert-obj',cyan:'alert-obj'};
+  const cls = map[type]||'alert-sight';
+  const labelMap={match:'THREAT MATCH',obj:'OBJECT DETECTED',sight:'SIGHTING LOGGED',amber:'ALERT',red:'ERROR',muted:'INFO',cyan:'DETECTION'};
+  const label = labelMap[type]||'ALERT';
+  const el=document.createElement('div');
+  el.className=`toast ${cls}`;
+  el.innerHTML=`<div class="toast-type">${label}</div><div class="toast-msg">${esc(msg)}</div><div class="toast-meta">${new Date().toLocaleTimeString('en-GB')}</div>`;
+  const container=document.getElementById('toasts');
+  container.appendChild(el);
+  setTimeout(()=>{
+    el.style.animation='toastOut .3s ease forwards';
+    setTimeout(()=>el.remove(),300);
+  },4500);
+}
+
+// ══════════════════════════════════════════════════
+//  MODALS
+// ══════════════════════════════════════════════════
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')})
+});
+
+// ══════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════
+function updateBadge(id,count){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.textContent=count>99?'99+':count;
+  el.classList.toggle('show',count>0);
+}
+function fmtTs(ts){
+  if(!ts) return '—';
+  try{
+    const d=new Date(ts+'Z'.replace('ZZ','Z'));
+    return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour12:false}).slice(0,5);
+  }catch{return ts.slice(0,16).replace('T',' ')}
+}
+function esc(s){
+  if(typeof s!=='string') return String(s||'');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function capitalize(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
+</script>
 </body>
 </html>
