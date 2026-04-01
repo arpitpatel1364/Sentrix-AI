@@ -69,6 +69,7 @@ def parse_args():
     p.add_argument("--obj-model",  default=str(default_obj_model))
     p.add_argument("--no-face",   action="store_true")
     p.add_argument("--no-obj",    action="store_true")
+    p.add_argument("--objects",   nargs='+', default=[], help="Specific objects to detect, e.g., 'car person'. If empty, detects all.")
     return p.parse_args()
 
 
@@ -300,13 +301,15 @@ class DetectionTracker:
 
 
 # ============================================================
-# PROCESS: CORE 2 — OBJECT DETECTOR (FIXED v2)
+# PROCESS: CORE 2 — OBJECT DETECTOR (v3 — Fixed)
 #
-# FIX 1: Input is now BCHW  (was BHWC — YOLOv4 requires BCHW)
-# FIX 2: conf = objectness × class_score  (was class_score only)
-# FIX 3: Coordinates properly unscaled from 416px space via letterbox
+# Architecture: Detection → annotation_queue → Annotator Process → upload_queue
+# This ensures heavy drawing/encoding never blocks the detector loop.
+#
+# Coordinate math: unscale center first, then convert to corners
+# (matching the backend object_engine.py approach)
 # ============================================================
-def object_detector_worker(obj_model, obj_queue, upload_queue):
+def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects):
     print(f"[*] Core 2 — Object Engine starting")
     tracker = DetectionTracker(cooldown=15)
     INPUT_SIZE = 416
@@ -341,13 +344,11 @@ def object_detector_worker(obj_model, obj_queue, upload_queue):
             h_orig, w_orig = frame.shape[:2]
             input_name = obj_session.get_inputs()[0].name
 
-            # ── Preprocess ── letterbox → RGB → BCHW ───────────────────────
+            # ── Preprocess ── letterbox → RGB → BHWC ───────────────────────
             padded, scale, (pad_left, pad_top) = _letterbox_square(frame, INPUT_SIZE)
             rgb  = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
             blob = rgb.astype(np.float32) / 255.0
-            # This specific YOLOv4 ONNX expects BHWC
-            blob = rgb.astype(np.float32) / 255.0
-            blob = np.expand_dims(blob, axis=0)     # → BHWC
+            blob = np.expand_dims(blob, axis=0)     # HWC → BHWC
 
             outs = obj_session.run(None, {input_name: blob})
 
@@ -360,25 +361,37 @@ def object_detector_worker(obj_model, obj_queue, upload_queue):
                         continue
                     scores = d[5:]
                     cid = int(np.argmax(scores))
-                    # FIX 2: multiply objectness × class score
                     conf = objectness * float(scores[cid])
                     if conf < 0.4:
                         continue
 
-                    # FIX 3: raw coords are in 416px space — undo letterbox padding
-                    cx = float(d[0])
-                    cy = float(d[1])
-                    bw = float(d[2])
-                    bh = float(d[3])
+                    # Coords are in 416px letterboxed space
+                    cx_416 = float(d[0])
+                    cy_416 = float(d[1])
+                    bw_416 = float(d[2])
+                    bh_416 = float(d[3])
 
-                    x = int((cx - bw / 2 - pad_left) / scale)
-                    y = int((cy - bh / 2 - pad_top)  / scale)
-                    w = int(bw / scale)
-                    h = int(bh / scale)
+                    # Unscale center first, then convert to top-left corner
+                    cx_orig = (cx_416 - pad_left) / scale
+                    cy_orig = (cy_416 - pad_top)  / scale
+                    bw_orig = bw_416 / scale
+                    bh_orig = bh_416 / scale
 
-                    boxes.append([max(0, x), max(0, y), w, h])
-                    confs.append(conf)
-                    class_ids.append(cid)
+                    x = int(cx_orig - bw_orig / 2)
+                    y = int(cy_orig - bh_orig / 2)
+                    w = int(bw_orig)
+                    h = int(bh_orig)
+
+                    # Clamp to frame boundaries
+                    x = max(0, min(x, w_orig - 1))
+                    y = max(0, min(y, h_orig - 1))
+                    w = min(w, w_orig - x)
+                    h = min(h, h_orig - y)
+
+                    if w > 5 and h > 5:
+                        boxes.append([x, y, w, h])
+                        confs.append(conf)
+                        class_ids.append(cid)
 
             if not boxes:
                 continue
@@ -390,6 +403,8 @@ def object_detector_worker(obj_model, obj_queue, upload_queue):
             detected = []
             for i in indices.flatten():
                 label = COCO_CLASSES[class_ids[i]] if class_ids[i] < len(COCO_CLASSES) else "unknown"
+                if target_objects and label not in target_objects:
+                    continue
                 detected.append({"bbox": boxes[i], "label": label, "conf": confs[i]})
 
             # Best detection per label
@@ -403,33 +418,16 @@ def object_detector_worker(obj_model, obj_queue, upload_queue):
                 if not tracker.should_upload(cam_id, label):
                     continue
 
-                x, y, w, h = best_obj["bbox"]
-                pad_x = int(w * 0.2)
-                pad_y = int(h * 0.2)
-                x1 = max(0, x - pad_x)
-                y1 = max(0, y - pad_y)
-                x2 = min(w_orig, x + w + pad_x)
-                y2 = min(h_orig, y + h + pad_y)
-                crop = frame[y1:y2, x1:x2].copy()
-
-                if crop.size == 0:
-                    continue
-
-                bx1 = max(0, x - x1)
-                by1 = max(0, y - y1)
-                bx2 = min(crop.shape[1], bx1 + w)
-                by2 = min(crop.shape[0], by1 + h)
-
-                cv2.rectangle(crop, (bx1, by1), (bx2, by2), (0, 200, 255), 2)
-                tag   = f"{best_obj['label'].upper()} {int(best_obj['conf'] * 100)}%"
-                tag_y = max(by1 - 8, 14)
-                cv2.putText(crop, tag, (bx1, tag_y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
-
                 print(f"[OBJ] DETECTED: {label} ({int(best_obj['conf']*100)}%) | cam: {cam_id}")
+
+                # Offload drawing + crop + upload to annotation subprocess
                 try:
-                    if not upload_queue.full():
-                        upload_queue.put_nowait(("object", crop, cam_id, location, label, best_obj["conf"]))
+                    if not annotation_queue.full():
+                        annotation_queue.put_nowait((
+                            frame.copy(), cam_id, location,
+                            best_obj["bbox"], best_obj["label"], best_obj["conf"],
+                            h_orig, w_orig
+                        ))
                 except Exception:
                     pass
 
@@ -437,6 +435,66 @@ def object_detector_worker(obj_model, obj_queue, upload_queue):
             import traceback
             print(f"[!] Core 2 error: {e}")
             traceback.print_exc()
+
+
+# ============================================================
+# PROCESS: ANNOTATION WORKER — draws bbox + crops + queues upload
+# Runs in its own process so drawing never blocks detection
+# ============================================================
+def _annotation_worker(annotation_queue, upload_queue):
+    """Receives raw detection data, draws clean bounding boxes on the
+    full frame, then crops the annotated region for upload."""
+
+    while True:
+        try:
+            data = annotation_queue.get(timeout=10)
+        except Exception:
+            continue
+
+        try:
+            frame, cam_id, location, bbox, label, conf, h_orig, w_orig = data
+            x, y, w, h = bbox
+
+            # ── Draw on full frame first ──────────────────────────────────
+            annotated = frame.copy()
+
+            # Box coordinates (already clamped in detector)
+            x1, y1 = x, y
+            x2, y2 = min(x + w, w_orig), min(y + h, h_orig)
+
+            # Draw clean rectangle
+            color = (0, 200, 255)  # orange-ish
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+
+            # Draw label background + text
+            tag = f"{label.upper()} {int(conf * 100)}%"
+            (tw, th), baseline = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+            tag_y = max(y1 - 6, th + 4)
+            cv2.rectangle(annotated, (x1, tag_y - th - 4), (x1 + tw + 6, tag_y + 2), color, -1)
+            cv2.putText(annotated, tag, (x1 + 3, tag_y - 2),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2)
+
+            # ── Crop annotated region with padding ────────────────────────
+            pad_x = int(w * 0.25)
+            pad_y = int(h * 0.25)
+            crop_x1 = max(0, x1 - pad_x)
+            crop_y1 = max(0, y1 - pad_y)
+            crop_x2 = min(w_orig, x2 + pad_x)
+            crop_y2 = min(h_orig, y2 + pad_y)
+
+            crop = annotated[crop_y1:crop_y2, crop_x1:crop_x2]
+
+            if crop.size == 0:
+                continue
+
+            try:
+                if not upload_queue.full():
+                    upload_queue.put_nowait(("object", crop.copy(), cam_id, location, label, conf))
+            except Exception:
+                pass
+
+        except Exception as e:
+            print(f"[!] Annotation error: {e}")
 
 
 # ============================================================
@@ -506,6 +564,7 @@ def main():
     face_queue   = mp.Queue(maxsize=8)  if not args.no_face else None
     obj_queue    = mp.Queue(maxsize=4)  if not args.no_obj  else None
     upload_queue = mp.Queue(maxsize=40)
+    annotation_queue = mp.Queue(maxsize=20) if not args.no_obj else None
 
     if not args.no_face:
         p = mp.Process(target=face_detector_worker,
@@ -515,11 +574,18 @@ def main():
         print("[+] Core 1 (Face) started")
 
     if not args.no_obj:
+        target_objs = [o.lower() for o in args.objects]
         p = mp.Process(target=object_detector_worker,
-                       args=(args.obj_model, obj_queue, upload_queue),
+                       args=(args.obj_model, obj_queue, annotation_queue, target_objs),
                        daemon=True)
         p.start(); processes.append(p)
         print("[+] Core 2 (Object) started")
+
+        p_ann = mp.Process(target=_annotation_worker,
+                           args=(annotation_queue, upload_queue),
+                           daemon=True)
+        p_ann.start(); processes.append(p_ann)
+        print("[+] Annotator started")
 
     p = mp.Process(target=upload_worker,
                    args=(args.server, token, upload_queue),

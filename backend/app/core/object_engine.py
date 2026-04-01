@@ -4,7 +4,7 @@ Object Detection Engine — YOLOv4 ONNX
 FIXES from original:
 1. Input format changed from BHWC → BCHW (YOLOv4 requires channels-first)
 2. Coordinate scaling fixed: raw output is in 416px space, not normalized 0-1
-3. Confidence now = objectness_score × class_score (not class_score alone)
+3. Confidence now = objectness_score + class_score (not class_score alone)
 4. Letterbox preprocessing for aspect-ratio-correct resizing
 """
 
@@ -120,7 +120,14 @@ def detect_objects(image: np.ndarray, threshold: float = 0.4):
             w = int(bw_orig)
             h = int(bh_orig)
 
-            boxes.append([max(0, x), max(0, y), w, h])
+            # Clamp to image boundaries
+            x = max(0, min(x, w_orig - 1))
+            y = max(0, min(y, h_orig - 1))
+            w = min(w, w_orig - x)
+            h = min(h, h_orig - y)
+
+            if w > 5 and h > 5:
+                boxes.append([x, y, w, h])
             confs.append(conf)
             class_ids.append(cid)
 
