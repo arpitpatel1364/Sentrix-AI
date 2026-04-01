@@ -52,11 +52,19 @@ def init_object_engine():
     global OBJECT_MODEL
     try:
         from ultralytics import YOLOWorld
-        # Load weights: Forced to CPU in backend to save VRAM for workers
-        OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))
-        OBJECT_MODEL.to('cpu')
+        import torch
         
-        # Set default to 'Daily Usage' vocabulary as requested
+        # Load weights: Forced to CPU in backend to save VRAM for workers
+        # Pass device='cpu' to constructor to avoid any CUDA initialization spikes
+        try:
+            print(f"[*] Backend: Loading Object Engine model on CPU...")
+            OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))
+            OBJECT_MODEL.to('cpu') # Double check
+        except Exception as e:
+            print(f"⚠  Backend Object Engine OOM or Error: {e}")
+            return
+        
+        # Set default to 'Daily Usage' vocabulary
         OBJECT_MODEL.set_classes(DAILY_USAGE_CLASSES)
         
         print(f"✓ Object Engine ready (YOLO World v2) defaults: {DAILY_USAGE_CLASSES[:5]}...")

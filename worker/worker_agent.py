@@ -23,6 +23,9 @@ if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
     os.environ["LD_LIBRARY_PATH"] = LIBS_PATH + ":" + os.environ.get("LD_LIBRARY_PATH", "")
     try:
         if sys.platform.startswith('linux'):
+            # Optimization for low-VRAM systems
+            if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+                os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
             os.execv(sys.executable, [sys.executable] + sys.argv)
     except Exception:
         pass
@@ -86,6 +89,7 @@ def parse_args():
     p.add_argument("--no-face",   action="store_true")
     p.add_argument("--no-obj",    action="store_true")
     p.add_argument("--objects",   nargs='+', default=[], help="Specific objects to detect, e.g., 'car person'. If empty, detects all.")
+    p.add_argument("--cpu",       action="store_true", help="Force CPU inference for all engines")
     return p.parse_args()
 
 
@@ -157,7 +161,7 @@ def _letterbox_square(im, size=640, color=(114, 114, 114)):
 # ============================================================
 # PROCESS: CAMERA CAPTURE — feeds both face and object queues
 # ============================================================
-def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, live_queue):
+def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, live_queue, cam_rois):
     print(f"[*] Capture Node started: {cam_id} ({cam_src})")
     cap = open_camera(cam_src)
     if not cap or not cap.isOpened():
@@ -165,49 +169,63 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
         return
 
     prev_gray = None
+    
+    # ROI check: [x1, y1, w, h] in absolute coords, roi in normalized [rx1, ry1, rx2, ry2]
+    def is_in_roi(bbox, roi, im_h, im_w):
+        if not roi: return True
+        bx, by, bw, bh = bbox
+        # Check center of bounding box
+        cx, cy = (bx + bw/2) / im_w, (by + bh/2) / im_h
+        return (roi[0] <= cx <= roi[2]) and (roi[1] <= cy <= roi[3])
+
+
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            time.sleep(1)
-            continue
-
-        # Motion gate — skip static scenes
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.resize(gray, (160, 120))
-        if prev_gray is not None:
-            diff = cv2.absdiff(prev_gray, gray)
-            if np.mean(diff) < 2.0:
-                time.sleep(0.1)
+        try:
+            ret, frame = cap.read()
+            if not ret:
+                time.sleep(1)
                 continue
-        prev_gray = gray
 
-        frame_copy = frame.copy()
+            # Motion gate — skip static scenes
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.resize(gray, (160, 120))
+            if prev_gray is not None:
+                diff = cv2.absdiff(prev_gray, gray)
+                if np.mean(diff) < 2.0:
+                    time.sleep(0.1)
+                    continue
+            prev_gray = gray
 
-        try:
-            if face_queue and not face_queue.full():
-                face_queue.put_nowait((frame_copy, cam_id, location))
-        except Exception:
-            pass
+            frame_copy = frame.copy()
+            
+            # Detection queues now get FULL frame
+            try:
+                if obj_queue and not obj_queue.full():
+                    obj_queue.put_nowait((frame_copy.copy(), cam_id, location))
+            except Exception:
+                pass
 
-        try:
-            if obj_queue and not obj_queue.full():
-                obj_queue.put_nowait((frame_copy, cam_id, location))
-        except Exception:
-            pass
+            try:
+                if face_queue and not face_queue.full():
+                    face_queue.put_nowait((frame_copy.copy(), cam_id, location))
+            except Exception:
+                pass
 
-        try:
-            if live_queue and not live_queue.full():
-                live_queue.put_nowait((frame_copy, cam_id, location))
-        except Exception:
-            pass
+            try:
+                if live_queue and not live_queue.full():
+                    live_queue.put_nowait((frame_copy, cam_id, location))
+            except Exception:
+                pass
 
-        time.sleep(0.03)  # High-frequency capture for live stream (~30 FPS)
+            time.sleep(0.03)  # High-frequency capture for live stream (~30 FPS)
+        except KeyboardInterrupt:
+            break
 
 
 # ============================================================
 # PROCESS: CORE 1 — FACE DETECTOR (YOLOv8/v10 compatible)
 # ============================================================
-def face_detector_worker(face_model, face_queue, upload_queue, server, token):
+def face_detector_worker(face_model, face_queue, upload_queue, server, token, cam_rois, force_cpu=False):
     print(f"[*] Core 1 — Face Engine starting")
 
     last_face_times = {}
@@ -216,7 +234,14 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token):
     face_session = None
     if os.path.exists(face_model):
         try:
-            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+            providers = ['CPUExecutionProvider']
+            if not force_cpu:
+                try:
+                    if 'CUDAExecutionProvider' in ort.get_available_providers():
+                        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+                except Exception:
+                    pass
+            
             face_session = ort.InferenceSession(face_model, providers=providers)
             print(f"[+] Core 1: Face Engine ready | providers: {face_session.get_providers()}")
         except Exception as e:
@@ -268,6 +293,14 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token):
                 w  = int(fw / scale)
                 h  = int(fh / scale)
                 x1, y1 = max(0, x1), max(0, y1)
+                
+                # ROI Filter Check
+                roi = cam_rois.get(cam_id)
+                if roi:
+                    bcx, bcy = (x1 + w/2) / w_orig, (y1 + h/2) / h_orig
+                    if not (roi[0] <= bcx <= roi[2] and roi[1] <= bcy <= roi[3]):
+                        continue
+
                 boxes.append([x1, y1, w, h])
                 confs.append(conf)
 
@@ -298,6 +331,8 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token):
                 last_face_times[cam_id] = time.time()
                 print(f"[FACE] {faces_found} face(s) queued | cam: {cam_id}")
 
+        except KeyboardInterrupt:
+            break
         except Exception as e:
             import traceback
             print(f"[!] Core 1 error: {e}")
@@ -331,7 +366,7 @@ class DetectionTracker:
 # Coordinate math: unscale center first, then convert to corners
 # (matching the backend object_engine.py approach)
 # ============================================================
-def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects):
+def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects, cam_rois, force_cpu=False):
     print(f"[*] Core 2 — Object Engine starting (YOLO World)")
     tracker = DetectionTracker(cooldown=15)
 
@@ -341,10 +376,11 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
         from ultralytics import YOLOWorld
         
         # Clear VRAM first
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         
         # Use FP16 for ~50% VRAM savings
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu' if force_cpu else ('cuda' if torch.cuda.is_available() else 'cpu')
         
         try:
             print(f"[*] Core 2: Loading {obj_model} on {device}...")
@@ -353,8 +389,8 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             if device == 'cuda':
                 obj_model_instance.model.half() # Use half precision (FP16) to save memory
         except Exception as e:
-            if "out of memory" in str(e).lower():
-                print(f"[WARN] Core 2: GPU OOM! Falling back to CPU...")
+            if not force_cpu and "out of memory" in str(e).lower():
+                print(f"[WARN] Core 2: GPU OOM. Falling back to CPU...")
                 obj_model_instance = YOLOWorld(obj_model)
                 obj_model_instance.to('cpu')
             else:
@@ -415,6 +451,13 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                 if w < 5 or h < 5:
                     continue
 
+                # ROI Filter Check
+                roi = cam_rois.get(cam_id)
+                if roi:
+                    bcx, bcy = (x + w/2) / w_orig, (y + h/2) / h_orig
+                    if not (roi[0] <= bcx <= roi[2] and roi[1] <= bcy <= roi[3]):
+                        continue
+
                 if label not in label_groups or conf > label_groups[label]["conf"]:
                     label_groups[label] = {
                         "bbox": [x, y, w, h],
@@ -439,6 +482,8 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                 except Exception:
                     pass
 
+        except KeyboardInterrupt:
+            break
         except Exception as e:
             import traceback
             print(f"[!] Core 2 error: {e}")
@@ -456,7 +501,8 @@ def _annotation_worker(annotation_queue, upload_queue):
     while True:
         try:
             data = annotation_queue.get(timeout=10)
-        except Exception:
+        except (mp.queues.Empty, KeyboardInterrupt):
+            if isinstance(sys.exc_info()[0], KeyboardInterrupt): break
             continue
 
         try:
@@ -500,13 +546,18 @@ def _annotation_worker(annotation_queue, upload_queue):
 # ============================================================
 # PROCESS: UPLOADER — sends to backend
 # ============================================================
-def upload_worker(server, token, upload_queue):
+def upload_worker(server, token, upload_queue, cam_rois):
     print("[*] Uploader started")
-    headers = {"Authorization": f"Bearer {token}"}
+    session = requests.Session()
+    session.headers.update({"Authorization": f"Bearer {token}"})
 
     while True:
         try:
-            dtype, img, cam_id, location, label, conf = upload_queue.get(timeout=10)
+            try:
+                dtype, img, cam_id, location, label, conf = upload_queue.get(timeout=10)
+            except (mp.queues.Empty, KeyboardInterrupt):
+                if isinstance(sys.exc_info()[0], KeyboardInterrupt): break
+                continue
             _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 70])
             img_bytes = buf.tobytes()
 
@@ -524,10 +575,15 @@ def upload_worker(server, token, upload_queue):
                     "confidence":   str(conf)
                 }
 
-            r = requests.post(url, files=files, data=data, headers=headers, timeout=15)
+            r = session.post(url, files=files, data=data, timeout=15)
             if r.status_code == 200:
                 res = r.json()
+                # Live update ROI
+                if "roi" in res:
+                    cam_rois[cam_id] = res["roi"]
+                    
                 if dtype == "face":
+
                     status = res.get("status", "stored")
                     if status == "match":
                         print(f"[!!!] FACE MATCH: {res.get('person')} | cam: {cam_id}")
@@ -544,7 +600,7 @@ def upload_worker(server, token, upload_queue):
 # ============================================================
 # PROCESS: LIVE STREAMER — sends raw frames for dashboard
 # ============================================================
-def live_stream_worker(server, token, live_queue):
+def live_stream_worker(server, token, live_queue, cam_rois):
     print("[*] Live Streamer starting")
     headers = {"Authorization": f"Bearer {token}"}
     session = requests.Session()
@@ -554,7 +610,11 @@ def live_stream_worker(server, token, live_queue):
     while True:
         try:
             # We want high FPS, so shorter timeout
-            frame, cam_id, _ = live_queue.get(timeout=2)
+            try:
+                frame, cam_id, _ = live_queue.get(timeout=2)
+            except (mp.queues.Empty, KeyboardInterrupt):
+                if isinstance(sys.exc_info()[0], KeyboardInterrupt): break
+                continue
             
             # Send at most 25 FPS to avoid spamming network
             if time.time() - last_frame_sent < 0.04:
@@ -570,10 +630,15 @@ def live_stream_worker(server, token, live_queue):
 
             try:
                 # Use very short timeout + session reuse for ultra low latency
-                session.post(url, files=files, data=data, timeout=2)
+                r = session.post(url, files=files, data=data, timeout=2)
+                if r.status_code == 200:
+                    res = r.json()
+                    if "roi" in res:
+                        cam_rois[cam_id] = res["roi"]
                 last_frame_sent = time.time()
             except Exception:
                 pass
+
                 
         except Exception:
             time.sleep(0.05)
@@ -584,6 +649,12 @@ def live_stream_worker(server, token, live_queue):
 # ============================================================
 def main():
     args = parse_args()
+    
+    if args.cpu:
+        import os
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        print("[*] Forced CPU Mode: Hiding GPU from all engines")
+        
     print("╔═══════════════════════════════════════╗")
     print("║  Sentrix-AI Two-Core Worker  v2.0     ║")
     print("╚═══════════════════════════════════════╝")
@@ -594,20 +665,27 @@ def main():
     print(f"  Objects : {'OFF' if args.no_obj else 'ON'}")
     print("")
 
+    num_cams = len(args.camera)
+
+
     token = login(args.server, args.user, args.password)
     print(f"[+] Authenticated as {args.user}")
 
     processes = []
 
+    manager = mp.Manager()
+    cam_rois = manager.dict() # Shared across processes
+
     face_queue   = mp.Queue(maxsize=8)  if not args.no_face else None
     obj_queue    = mp.Queue(maxsize=4)  if not args.no_obj  else None
-    live_queue   = mp.Queue(maxsize=1)
+    live_queue   = mp.Queue(maxsize=num_cams)
     upload_queue = mp.Queue(maxsize=40)
     annotation_queue = mp.Queue(maxsize=20) if not args.no_obj else None
 
+
     if not args.no_face:
         p = mp.Process(target=face_detector_worker,
-                       args=(args.face_model, face_queue, upload_queue, args.server, token),
+                       args=(args.face_model, face_queue, upload_queue, args.server, token, cam_rois, args.cpu),
                        daemon=True)
         p.start(); processes.append(p)
         print("[+] Core 1 (Face) started")
@@ -615,7 +693,7 @@ def main():
     if not args.no_obj:
         target_objs = [o.lower() for o in args.objects]
         p = mp.Process(target=object_detector_worker,
-                       args=(args.obj_model, obj_queue, annotation_queue, target_objs),
+                       args=(args.obj_model, obj_queue, annotation_queue, target_objs, cam_rois, args.cpu),
                        daemon=True)
         p.start(); processes.append(p)
         print("[+] Core 2 (Object) started")
@@ -627,13 +705,13 @@ def main():
         print("[+] Annotator started")
 
     p = mp.Process(target=upload_worker,
-                   args=(args.server, token, upload_queue),
+                   args=(args.server, token, upload_queue, cam_rois),
                    daemon=True)
     p.start(); processes.append(p)
     print("[+] Uploader started")
 
     p_live = mp.Process(target=live_stream_worker,
-                         args=(args.server, token, live_queue),
+                         args=(args.server, token, live_queue, cam_rois),
                          daemon=True)
     p_live.start(); processes.append(p_live)
     print("[+] Live Streamer started")
@@ -644,7 +722,7 @@ def main():
         cam_id  = args.camera_id[i] if i < len(args.camera_id) else f"cam-{i+1}"
         loc     = args.location[i]  if i < len(args.location)  else "Global Perimeter"
         p = mp.Process(target=capture_worker,
-                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue, live_queue),
+                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue, live_queue, cam_rois),
                        daemon=True)
         p.start(); processes.append(p)
         print(f"[+] Capture node {cam_id} started")

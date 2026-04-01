@@ -8,7 +8,7 @@ from ...core.face_engine import (
 )
 from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
-from ...core.worker_state import ACTIVE_WORKERS
+from ...core.worker_state import get_live_nodes
 from qdrant_client.models import VectorParams, Distance
 import sqlite3
 
@@ -29,8 +29,7 @@ async def get_stats(user=Depends(require_admin), db: sqlite3.Connection = Depend
     cur.execute("SELECT COUNT(*) FROM object_detections")
     total_objects = cur.fetchone()[0]
     
-    now = time.time()
-    live_nodes = [k for k, v in ACTIVE_WORKERS.items() if now - v < 60]
+    live_nodes = get_live_nodes()
     
     return {
         "total_sightings": total_sightings,

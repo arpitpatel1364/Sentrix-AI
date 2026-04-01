@@ -63,6 +63,15 @@ def init_db():
             )
         """)
         
+        # New: Camera Configurations (ROI)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS camera_configs (
+                id TEXT PRIMARY KEY, -- user:camera_id
+                roi TEXT,             -- JSON string [x1, y1, x2, y2]
+                location TEXT
+            )
+        """)
+        
         # Optimization: Index for person-based history lookup
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_person_id ON sightings(person_id)")
         

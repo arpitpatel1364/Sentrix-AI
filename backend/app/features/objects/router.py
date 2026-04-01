@@ -8,7 +8,7 @@ from ...core.security import require_admin, get_current_user
 from ...core.database import get_db
 from ...core.config import SNAPSHOTS_DIR
 from ...core.sse_manager import SSE_CONNECTIONS
-from ...core.worker_state import update_worker_heartbeat
+from ...core.worker_state import update_worker_heartbeat, WORKER_REGISTRY
 import sqlite3
 import json
 
@@ -75,7 +75,11 @@ async def upload_object(
                 except Exception:
                     pass
         
-        return {"status": "ok", "object_id": obj_id}
+        return {
+            "status": "ok",
+            "object_id": obj_id,
+            "roi": WORKER_REGISTRY.get(node_key, {}).get("roi")
+        }
     except Exception as e:
         print(f"[!] Backend Error in upload_object: {e}")
         # Log to a file if possible for deeper forensics

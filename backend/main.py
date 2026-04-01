@@ -1,5 +1,8 @@
 import os
 import sys
+
+# Force Backend to CPU by hiding CUDA from the environment completely
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 from pathlib import Path
 
 # Add the current directory to path so 'app' can be imported

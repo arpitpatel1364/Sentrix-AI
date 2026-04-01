@@ -1748,6 +1748,54 @@
       z-index: 5;
     }
 
+    /* ─── ROI TOOL ─── */
+    .roi-container {
+      position: relative;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 500px;
+      overflow: hidden;
+    }
+    
+    #roi-selector {
+      position: absolute;
+      border: 2px solid var(--amber);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), inset 0 0 50px rgba(245, 158, 11, 0.1);
+      z-index: 100;
+      cursor: move;
+    }
+    
+    .roi-handle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: var(--amber);
+      border: 2px solid #000;
+      border-radius: 50%;
+      z-index: 110;
+      box-shadow: 0 0 8px rgba(0,0,0,0.5);
+    }
+    
+    .roi-handle.tl { top: -7px; left: -7px; cursor: nwse-resize; }
+    .roi-handle.tr { top: -7px; right: -7px; cursor: nesw-resize; }
+    .roi-handle.bl { bottom: -7px; left: -7px; cursor: nesw-resize; }
+    .roi-handle.br { bottom: -7px; right: -7px; cursor: nwse-resize; }
+    
+    .roi-info {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: var(--amber);
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        pointer-events: none;
+        letter-spacing: 0.12em;
+        opacity: 0.8;
+    }
+
   </style>
 </head>
 
@@ -2259,6 +2307,41 @@
     </div><!-- /layout -->
   </div><!-- /app -->
 
+  <!-- ── ROI CONFIG MODAL ── -->
+  <div class="modal-overlay" id="modal-roi">
+    <div class="modal" style="max-width: 90vw; width: 1000px; min-width: 600px; padding: 0; background: #010101; overflow: hidden; border: 1px solid var(--amber-glow)">
+      <div class="sec-head" style="margin: 0; padding: 1.25rem 1.5rem; background: var(--bg2); border-bottom: 1px solid var(--border)">
+        <div>
+          <div class="sec-title" id="roi-title">ROI CONFIGURATION</div>
+          <div class="sec-sub" id="roi-id-label">// CAMERA NODE: cam-1</div>
+        </div>
+        <div class="sec-actions">
+          <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-roi')">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="roi-save-btn" style="background:var(--amber); color:#000">Save Intelligence Zone</button>
+        </div>
+      </div>
+      
+      <div class="roi-container" id="roi-container">
+        <img id="roi-stream" style="max-width: 100%; max-height: 70vh; user-select: none; -webkit-user-drag: none;">
+        <div id="roi-selector">
+          <div class="roi-handle tl" data-handle="tl"></div>
+          <div class="roi-handle tr" data-handle="tr"></div>
+          <div class="roi-handle bl" data-handle="bl"></div>
+          <div class="roi-handle br" data-handle="br"></div>
+          <div class="roi-info">DETECTION ZONE</div>
+        </div>
+      </div>
+      
+      <div style="padding: 1rem 1.5rem; background: var(--bg2); border-top: 1px solid var(--border); font-family: var(--mono); font-size: 0.65rem; color: var(--muted); display: flex; justify-content: space-between; align-items: center">
+        <div style="display: flex; gap: 1.5rem">
+           <span>// DRAG CORNERS TO DEFINE AREA</span>
+           <span style="color:var(--amber)">// ONLY OBJECTS INSIDE THIS ZONE WILL BE LOGGED</span>
+        </div>
+        <div id="roi-coords-display" style="color:var(--text)">ROI: 0, 0, 100, 100 (%)</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── MODALS ─── -->
   <!-- Add Person Modal -->
   <div class="modal-overlay" id="modal-add-person">
@@ -2509,6 +2592,140 @@
       if (id === 'live-feed' || id === 'overview') startLiveMonitoring();
       else stopLiveMonitoring();
     }
+
+    // --- ROI TOOL LOGIC ---
+    let currentRoiNodeKey = null;
+    let roiBox = { x1: 0.1, y1: 0.1, x2: 0.4, y2: 0.4 }; // Normalized 0-1
+
+    function showROI(nodeKey) {
+      currentRoiNodeKey = nodeKey;
+      const camId = nodeKey.split(':')[1] || nodeKey;
+      document.getElementById('roi-id-label').innerText = `// CAMERA NODE: ${camId}`;
+      const img = document.getElementById('roi-stream');
+      img.src = `/api/stream/${camId}`;
+
+      document.getElementById('roi-save-btn').onclick = async () => {
+          const btn = document.getElementById('roi-save-btn');
+          btn.innerText = "Saving...";
+          const fd = new FormData();
+          fd.append('node_key', currentRoiNodeKey);
+          fd.append('roi', JSON.stringify([roiBox.x1, roiBox.y1, roiBox.x2, roiBox.y2]));
+          
+          try {
+              await api('/api/worker/roi', { method: 'POST', body: fd });
+              showToast("SUCCESS", "Intelligence zone updated.", "green");
+              closeModal('modal-roi');
+          } catch (e) {
+              showToast("ERROR", "Failed to save ROI.", "red");
+          } finally {
+              btn.innerText = "Save Intelligence Zone";
+          }
+      };
+      
+      // (Ideally we store this in a global state after sync)
+      
+      openModal('modal-roi');
+      initRoiDrag();
+    }
+
+    function initRoiDrag() {
+      const container = document.getElementById('roi-container');
+      const selector = document.getElementById('roi-selector');
+      const stream = document.getElementById('roi-stream');
+      const coordsDisp = document.getElementById('roi-coords-display');
+      
+      let isDragging = false;
+      let activeHandle = null;
+      let startX, startY;
+      
+      // Current actual px dimensions of the shown image
+      function getStreamRect() {
+          return stream.getBoundingClientRect();
+      }
+
+      function updateSelector() {
+          const rect = getStreamRect();
+          const cx = rect.left - container.getBoundingClientRect().left;
+          const cy = rect.top - container.getBoundingClientRect().top;
+          
+          selector.style.left = (cx + roiBox.x1 * rect.width) + 'px';
+          selector.style.top = (cy + roiBox.y1 * rect.height) + 'px';
+          selector.style.width = ((roiBox.x2 - roiBox.x1) * rect.width) + 'px';
+          selector.style.height = ((roiBox.y2 - roiBox.y1) * rect.height) + 'px';
+          
+          coordsDisp.innerText = `ROI: ${Math.round(roiBox.x1 * 100)}%, ${Math.round(roiBox.y1 * 100)}% to ${Math.round(roiBox.x2 * 100)}%, ${Math.round(roiBox.y2 * 100)}%`;
+      }
+      
+      document.getElementById('roi-save-btn').onclick = async () => {
+          const btn = document.getElementById('roi-save-btn');
+          btn.innerText = "Saving...";
+          const fd = new FormData();
+          fd.append('camera_id', currentRoiCam);
+          fd.append('roi', JSON.stringify([roiBox.x1, roiBox.y1, roiBox.x2, roiBox.y2]));
+          
+          try {
+              await api('/api/worker/roi', { method: 'POST', body: fd });
+              showToast("ROI Configuration Saved", "Intelligence zone successfully pushed to tactical node.", "info");
+              closeModal('modal-roi');
+          } catch(e) {
+              showToast("ROI Save Failed", e.message, "error");
+          } finally {
+              btn.innerText = "Save Intelligence Zone";
+          }
+      };
+
+      selector.onmousedown = (e) => {
+          if (e.target.classList.contains('roi-handle')) {
+              activeHandle = e.target.dataset.handle;
+          } else {
+              activeHandle = 'move';
+          }
+          isDragging = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          e.preventDefault();
+      };
+
+      window.onmousemove = (e) => {
+          if (!isDragging || !currentRoiCam) return;
+          const rect = getStreamRect();
+          const dx = (e.clientX - startX) / rect.width;
+          const dy = (e.clientY - startY) / rect.height;
+          
+          if (activeHandle === 'move') {
+              const w = roiBox.x2 - roiBox.x1;
+              const h = roiBox.y2 - roiBox.y1;
+              roiBox.x1 = Math.max(0, Math.min(1 - w, roiBox.x1 + dx));
+              roiBox.y1 = Math.max(0, Math.min(1 - h, roiBox.y1 + dy));
+              roiBox.x2 = roiBox.x1 + w;
+              roiBox.y2 = roiBox.y1 + h;
+          } else if (activeHandle === 'br') {
+              roiBox.x2 = Math.max(roiBox.x1 + 0.05, Math.min(1, roiBox.x2 + dx));
+              roiBox.y2 = Math.max(roiBox.y1 + 0.05, Math.min(1, roiBox.y2 + dy));
+          } else if (activeHandle === 'tl') {
+              roiBox.x1 = Math.max(0, Math.min(roiBox.x2 - 0.05, roiBox.x1 + dx));
+              roiBox.y1 = Math.max(0, Math.min(roiBox.y2 - 0.05, roiBox.y1 + dy));
+          } else if (activeHandle === 'tr') {
+              roiBox.x2 = Math.max(roiBox.x1 + 0.05, Math.min(1, roiBox.x2 + dx));
+              roiBox.y1 = Math.max(0, Math.min(roiBox.y2 - 0.05, roiBox.y1 + dy));
+          } else if (activeHandle === 'bl') {
+              roiBox.x1 = Math.max(0, Math.min(roiBox.x2 - 0.05, roiBox.x1 + dx));
+              roiBox.y2 = Math.max(roiBox.y1 + 0.05, Math.min(1, roiBox.y2 + dy));
+          }
+          
+          startX = e.clientX;
+          startY = e.clientY;
+          updateSelector();
+      };
+
+      window.onmouseup = () => { isDragging = false; activeHandle = null; };
+      
+      // Wait for image load to position correctly
+      stream.onload = updateSelector;
+      if (stream.complete) updateSelector();
+    }
+
+
 
     // ══════════════════════════════════════════════════
     //  STATS
@@ -3325,7 +3542,10 @@
                 card.className = 'card';
                 card.dataset.camId = node.id;
                 card.style.position = 'relative';
+                card.style.cursor = 'pointer';
+                card.onclick = () => showROI(node.node_key || node.id);
                 card.innerHTML = `
+
                   <div class="card-tag object" style="position:absolute; top:10px; left:10px; z-index:10; background:rgba(0,0,0,0.6); pointer-events:none">
                     <span class="dot" style="width:6px;height:6px;background:var(--cyan);border-radius:50%;display:inline-block;margin-right:5px;box-shadow:0 0 8px var(--cyan);animation:blink 1.5s infinite"></span>
                     LIVE: ${node.id}
@@ -3350,8 +3570,9 @@
                 const box = document.createElement('div');
                 box.className = 'monitor-box';
                 box.dataset.id = node.id;
-                box.onclick = () => showPage('live-feed');
+                box.onclick = () => showROI(node.node_key || node.id);
                 box.innerHTML = `
+
                   <div class="label">${node.id}</div>
                   <div class="status"></div>
                   <img src="/api/stream/${node.id}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23000%22 width=%22100%22 height=%22100%22/></svg>'">
