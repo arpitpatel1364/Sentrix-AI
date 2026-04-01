@@ -39,23 +39,39 @@ if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
 #   - Letterbox coordinate rescaling properly accounts for padding
 # ==========================================
 
-COCO_CLASSES = [
-    "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light",
-    "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-    "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
-    "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa",
-    "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
-    "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
-    "scissors", "teddy bear", "hair drier", "toothbrush"
+# Filtered Daily Targets (Person removed as Face Engine covers it)
+TARGET_CLASSES = [
+    "phone", "coffee mug", "water bottle", "laptop", "backpack", 
+    "remote", "keyboard", "cell phone", "book","bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
+    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+    "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
+    "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
+    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop",
+    "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
+    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+    "toothbrush"
 ]
+
+# COCO_CLASSES = [
+#     "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light",
+#     "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+#     "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+#     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+#     "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+#     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa",
+#     "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
+#     "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
+#     "scissors", "teddy bear", "hair drier", "toothbrush"
+# ]
 
 
 def parse_args():
     base_dir = Path(__file__).resolve().parent
     default_face_model = base_dir / "models" / "best.onnx"
-    default_obj_model  = PROJECT_ROOT / "yolov4.onnx"
+    default_obj_model  = PROJECT_ROOT / "yolov8s-worldv2.pt"
 
     p = argparse.ArgumentParser(description="Sentrix-AI Multi-Process CCTV Worker (Two-Core)")
     p.add_argument("--server",    default="http://localhost:8000")
@@ -310,25 +326,41 @@ class DetectionTracker:
 # (matching the backend object_engine.py approach)
 # ============================================================
 def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects):
-    print(f"[*] Core 2 — Object Engine starting")
+    print(f"[*] Core 2 — Object Engine starting (YOLO World)")
     tracker = DetectionTracker(cooldown=15)
-    INPUT_SIZE = 416
 
-    obj_session = None
-    if os.path.exists(obj_model):
+    obj_model_instance = None
+    try:
+        import torch
+        from ultralytics import YOLOWorld
+        
+        # Clear VRAM first
+        torch.cuda.empty_cache()
+        
+        # Use FP16 for ~50% VRAM savings
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
         try:
-            import onnxruntime as ort
-            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-            try:
-                obj_session = ort.InferenceSession(obj_model, providers=providers)
-                print(f"[+] Core 2: Object Engine ready | providers: {obj_session.get_providers()}")
-            except Exception:
-                obj_session = ort.InferenceSession(obj_model, providers=['CPUExecutionProvider'])
-                print("[-] Core 2: Object Engine (CPU fallback)")
+            print(f"[*] Core 2: Loading {obj_model} on {device}...")
+            obj_model_instance = YOLOWorld(obj_model)
+            obj_model_instance.to(device)
+            if device == 'cuda':
+                obj_model_instance.model.half() # Use half precision (FP16) to save memory
         except Exception as e:
-            print(f"[ERR] Core 2: Could not load object model: {e}")
-    else:
-        print(f"[WARN] Core 2: Object model not found at {obj_model} — object detection disabled")
+            if "out of memory" in str(e).lower():
+                print(f"[WARN] Core 2: GPU OOM! Falling back to CPU...")
+                obj_model_instance = YOLOWorld(obj_model)
+                obj_model_instance.to('cpu')
+            else:
+                raise e
+        
+        # Set default vocabulary
+        classes = target_objects if target_objects else TARGET_CLASSES
+        obj_model_instance.set_classes(classes)
+        
+        print(f"[+] Core 2: Object Engine ready | device: {obj_model_instance.device}")
+    except Exception as e:
+        print(f"[ERR] Core 2: Could not load YOLO World model: {e}")
 
     while True:
         try:
@@ -338,81 +370,50 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             except mp.queues.Empty:
                 continue
 
-            if obj_session is None:
+            if obj_model_instance is None:
                 continue
 
             h_orig, w_orig = frame.shape[:2]
-            input_name = obj_session.get_inputs()[0].name
 
-            # ── Preprocess ── letterbox → RGB → BHWC ───────────────────────
-            padded, scale, (pad_left, pad_top) = _letterbox_square(frame, INPUT_SIZE)
-            rgb  = cv2.cvtColor(padded, cv2.COLOR_BGR2RGB)
-            blob = rgb.astype(np.float32) / 255.0
-            blob = np.expand_dims(blob, axis=0)     # HWC → BHWC
-
-            outs = obj_session.run(None, {input_name: blob})
-
-            boxes, confs, class_ids = [], [], []
-            for out in outs:
-                out = out.reshape(-1, out.shape[-1])
-                for d in out:
-                    objectness = float(d[4])
-                    if objectness < 0.3:
-                        continue
-                    scores = d[5:]
-                    cid = int(np.argmax(scores))
-                    conf = objectness * float(scores[cid])
-                    if conf < 0.4:
-                        continue
-
-                    # Coords are in 416px letterboxed space
-                    cx_416 = float(d[0])
-                    cy_416 = float(d[1])
-                    bw_416 = float(d[2])
-                    bh_416 = float(d[3])
-
-                    # Unscale center first, then convert to top-left corner
-                    cx_orig = (cx_416 - pad_left) / scale
-                    cy_orig = (cy_416 - pad_top)  / scale
-                    bw_orig = bw_416 / scale
-                    bh_orig = bh_416 / scale
-
-                    x = int(cx_orig - bw_orig / 2)
-                    y = int(cy_orig - bh_orig / 2)
-                    w = int(bw_orig)
-                    h = int(bh_orig)
-
-                    # Clamp to frame boundaries
-                    x = max(0, min(x, w_orig - 1))
-                    y = max(0, min(y, h_orig - 1))
-                    w = min(w, w_orig - x)
-                    h = min(h, h_orig - y)
-
-                    if w > 5 and h > 5:
-                        boxes.append([x, y, w, h])
-                        confs.append(conf)
-                        class_ids.append(cid)
-
-            if not boxes:
+            # Inference
+            results = obj_model_instance.predict(frame, conf=0.4, verbose=False)
+            
+            if not results:
                 continue
 
-            indices = cv2.dnn.NMSBoxes(boxes, confs, 0.4, 0.45)
-            if len(indices) == 0:
-                continue
+            res = results[0]
+            boxes = res.boxes.xywh.cpu().numpy()  # [cx, cy, w, h]
+            confs = res.boxes.conf.cpu().numpy()
+            cls_ids = res.boxes.cls.cpu().numpy().astype(int)
+            names = res.names
 
-            detected = []
-            for i in indices.flatten():
-                label = COCO_CLASSES[class_ids[i]] if class_ids[i] < len(COCO_CLASSES) else "unknown"
-                if target_objects and label not in target_objects:
+            # Process detections
+            label_groups = {}  # Best detection per label to avoid spamming the same object
+            
+            for i in range(len(boxes)):
+                label = names[cls_ids[i]]
+                conf = float(confs[i])
+                cx, cy, w, h = boxes[i]
+                
+                # Convert to x, y, w, h (top-left)
+                x = int(cx - w / 2)
+                y = int(cy - h / 2)
+                
+                # Clamp
+                x = max(0, min(x, w_orig - 1))
+                y = max(0, min(y, h_orig - 1))
+                w = int(min(w, w_orig - x))
+                h = int(min(h, h_orig - y))
+
+                if w < 5 or h < 5:
                     continue
-                detected.append({"bbox": boxes[i], "label": label, "conf": confs[i]})
 
-            # Best detection per label
-            label_groups = {}
-            for obj in detected:
-                lbl = obj["label"]
-                if lbl not in label_groups or obj["conf"] > label_groups[lbl]["conf"]:
-                    label_groups[lbl] = obj
+                if label not in label_groups or conf > label_groups[label]["conf"]:
+                    label_groups[label] = {
+                        "bbox": [x, y, w, h],
+                        "label": label,
+                        "conf": conf
+                    }
 
             for label, best_obj in label_groups.items():
                 if not tracker.should_upload(cam_id, label):
@@ -462,17 +463,21 @@ def _annotation_worker(annotation_queue, upload_queue):
             x1, y1 = x, y
             x2, y2 = min(x + w, w_orig), min(y + h, h_orig)
 
-            # Draw clean rectangle
-            color = (0, 200, 255)  # orange-ish
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+            # --- STYLING: Thin Green Box ---
+            color = (0, 255, 0)  # Pure Green (BGR)
+            thickness = 1         # "Thin"
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, thickness)
 
-            # Draw label background + text
+            # Draw label tag
             tag = f"{label.upper()} {int(conf * 100)}%"
-            (tw, th), baseline = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
-            tag_y = max(y1 - 6, th + 4)
-            cv2.rectangle(annotated, (x1, tag_y - th - 4), (x1 + tw + 6, tag_y + 2), color, -1)
-            cv2.putText(annotated, tag, (x1 + 3, tag_y - 2),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2)
+            font = cv2.FONT_HERSHEY_DUPLEX
+            font_scale = 0.45
+            (tw, th), baseline = cv2.getTextSize(tag, font, font_scale, 1)
+            
+            # Label background (filled rectangle)
+            cv2.rectangle(annotated, (x1, y1 - th - 10), (x1 + tw + 10, y1), color, -1)
+            # Label text
+            cv2.putText(annotated, tag, (x1 + 5, y1 - 5), font, font_scale, (0, 0, 0), 1, cv2.LINE_AA)
 
             # ── Crop annotated region with padding ────────────────────────
             pad_x = int(w * 0.25)

@@ -3,7 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+#manually remove
 info.txt
+*.pt
+*.onnx
 
 # C extensions
 *.so
