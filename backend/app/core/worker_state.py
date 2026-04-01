@@ -18,7 +18,16 @@ def get_live_nodes():
     # Filter only those that checked in within the last 60 seconds
     for node_key, last_seen in list(ACTIVE_WORKERS.items()):
         if now - last_seen < 60:
-            live_nodes.append({"id": node_key, "last_seen": last_seen})
+            user = "unknown"
+            node_id = node_key
+            if ":" in node_key:
+                user, node_id = node_key.split(":", 1)
+            live_nodes.append({
+                "id": node_key, 
+                "camera_id": node_id,
+                "user": user,
+                "last_seen": last_seen
+            })
         else:
             ACTIVE_WORKERS.pop(node_key, None)
     return live_nodes

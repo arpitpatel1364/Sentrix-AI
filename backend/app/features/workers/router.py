@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from typing import List
 import uuid
 import cv2
@@ -14,6 +15,7 @@ from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import update_worker_heartbeat, ACTIVE_WORKERS, get_live_nodes
 from ...core.sse_manager import SSE_CONNECTIONS, broadcast_alert
+from ...core.stream_state import update_live_frame, get_live_frame, LIVE_FRAMES
 from qdrant_client.models import PointStruct
 import sqlite3
 
@@ -129,9 +131,15 @@ async def upload_frame(
         return {"status": "stored", "matched": False}
 
 @router.get("/active-users")
-async def active_users(user=Depends(require_admin)):
-    sessions = list(SSE_CONNECTIONS.keys())
+async def active_users(user=Depends(get_current_user)):
+    from ...core.worker_state import get_live_nodes
     live_nodes = get_live_nodes()
+    
+    # Non-admins only see their own nodes
+    if user["role"] != "admin":
+        live_nodes = [n for n in live_nodes if n["user"] == user["username"]]
+        
+    sessions = list(SSE_CONNECTIONS.keys())
     return {
         "sessions": sessions,
         "nodes": live_nodes,
@@ -165,3 +173,37 @@ async def worker_offline(camera_id: str = Form(...), user=Depends(get_current_us
     remove_worker(node_key)
     print(f"[-] Worker Offline Notification: {node_key}")
     return {"status": "offline_logged"}
+
+# --- LIVE STREAMING ENDPOINTS ---
+@router.post("/upload-live")
+async def upload_live(
+    file: UploadFile = File(...),
+    camera_id: str = Form("cam-1"),
+    user=Depends(get_current_user)
+):
+    """Worker pushes raw camera frames for live streaming."""
+    node_key = f"{user['username']}:{camera_id}"
+    data = await file.read()
+    update_live_frame(node_key, data)
+    return {"ok": True}
+
+@router.get("/stream/{camera_id}", response_class=StreamingResponse)
+async def stream_camera(camera_id: str):
+    """Produces the MJPEG stream for the frontend UI."""
+    async def frame_generator():
+        while True:
+            import asyncio
+            frame = get_live_frame(camera_id)
+            if frame:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                await asyncio.sleep(0.01)  # Minimal sleep to allow other tasks without lagging the stream
+            else:
+                # No frame yet or source disconnected
+                await asyncio.sleep(0.3)
+                continue
+                
+    return StreamingResponse(
+        frame_generator(), 
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )

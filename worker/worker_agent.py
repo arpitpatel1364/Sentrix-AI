@@ -41,7 +41,7 @@ if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
 
 # Filtered Daily Targets (Person removed as Face Engine covers it)
 TARGET_CLASSES = [
-    "phone", "coffee mug", "water bottle", "laptop", "backpack", 
+    "phone","water bottle", "laptop", "backpack", 
     "remote", "keyboard", "cell phone", "book","bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
     "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
     "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
@@ -157,7 +157,7 @@ def _letterbox_square(im, size=640, color=(114, 114, 114)):
 # ============================================================
 # PROCESS: CAMERA CAPTURE — feeds both face and object queues
 # ============================================================
-def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue):
+def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, live_queue):
     print(f"[*] Capture Node started: {cam_id} ({cam_src})")
     cap = open_camera(cam_src)
     if not cap or not cap.isOpened():
@@ -195,7 +195,13 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue):
         except Exception:
             pass
 
-        time.sleep(interval)
+        try:
+            if live_queue and not live_queue.full():
+                live_queue.put_nowait((frame_copy, cam_id, location))
+        except Exception:
+            pass
+
+        time.sleep(0.03)  # High-frequency capture for live stream (~30 FPS)
 
 
 # ============================================================
@@ -392,6 +398,7 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             
             for i in range(len(boxes)):
                 label = names[cls_ids[i]]
+                if label == "person": continue # Skip person in Object Engine (handled by Face Engine)
                 conf = float(confs[i])
                 cx, cy, w, h = boxes[i]
                 
@@ -479,22 +486,10 @@ def _annotation_worker(annotation_queue, upload_queue):
             # Label text
             cv2.putText(annotated, tag, (x1 + 5, y1 - 5), font, font_scale, (0, 0, 0), 1, cv2.LINE_AA)
 
-            # ── Crop annotated region with padding ────────────────────────
-            pad_x = int(w * 0.25)
-            pad_y = int(h * 0.25)
-            crop_x1 = max(0, x1 - pad_x)
-            crop_y1 = max(0, y1 - pad_y)
-            crop_x2 = min(w_orig, x2 + pad_x)
-            crop_y2 = min(h_orig, y2 + pad_y)
-
-            crop = annotated[crop_y1:crop_y2, crop_x1:crop_x2]
-
-            if crop.size == 0:
-                continue
-
+            # --- NO CROP: Upload full annotated frame ---
             try:
                 if not upload_queue.full():
-                    upload_queue.put_nowait(("object", crop.copy(), cam_id, location, label, conf))
+                    upload_queue.put_nowait(("object", annotated.copy(), cam_id, location, label, conf))
             except Exception:
                 pass
 
@@ -547,6 +542,44 @@ def upload_worker(server, token, upload_queue):
 
 
 # ============================================================
+# PROCESS: LIVE STREAMER — sends raw frames for dashboard
+# ============================================================
+def live_stream_worker(server, token, live_queue):
+    print("[*] Live Streamer starting")
+    headers = {"Authorization": f"Bearer {token}"}
+    session = requests.Session()
+    session.headers.update(headers)
+    
+    last_frame_sent = 0
+    while True:
+        try:
+            # We want high FPS, so shorter timeout
+            frame, cam_id, _ = live_queue.get(timeout=2)
+            
+            # Send at most 25 FPS to avoid spamming network
+            if time.time() - last_frame_sent < 0.04:
+                continue
+
+            # Lower quality (40) for faster transmission, still readable
+            _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 40])
+            img_bytes = buf.tobytes()
+
+            url = f"{server}/api/upload-live"
+            files = {"file": ("live.jpg", img_bytes, "image/jpeg")}
+            data = {"camera_id": cam_id}
+
+            try:
+                # Use very short timeout + session reuse for ultra low latency
+                session.post(url, files=files, data=data, timeout=2)
+                last_frame_sent = time.time()
+            except Exception:
+                pass
+                
+        except Exception:
+            time.sleep(0.05)
+
+
+# ============================================================
 # MAIN
 # ============================================================
 def main():
@@ -568,6 +601,7 @@ def main():
 
     face_queue   = mp.Queue(maxsize=8)  if not args.no_face else None
     obj_queue    = mp.Queue(maxsize=4)  if not args.no_obj  else None
+    live_queue   = mp.Queue(maxsize=1)
     upload_queue = mp.Queue(maxsize=40)
     annotation_queue = mp.Queue(maxsize=20) if not args.no_obj else None
 
@@ -598,13 +632,19 @@ def main():
     p.start(); processes.append(p)
     print("[+] Uploader started")
 
+    p_live = mp.Process(target=live_stream_worker,
+                         args=(args.server, token, live_queue),
+                         daemon=True)
+    p_live.start(); processes.append(p_live)
+    print("[+] Live Streamer started")
+
     num_cams = len(args.camera)
     for i in range(num_cams):
         cam_src = args.camera[i]
         cam_id  = args.camera_id[i] if i < len(args.camera_id) else f"cam-{i+1}"
         loc     = args.location[i]  if i < len(args.location)  else "Global Perimeter"
         p = mp.Process(target=capture_worker,
-                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue),
+                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue, live_queue),
                        daemon=True)
         p.start(); processes.append(p)
         print(f"[+] Capture node {cam_id} started")
