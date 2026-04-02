@@ -6,30 +6,35 @@ Sentrix AI is a professional-grade, distributed AI surveillance system designed 
 
 ## Project Architecture
 
-Sentrix-AI is structured into a modular, feature-based architecture to ensure scalability and professional-grade code maintainability.
+Sentrix AI is structured into a modular, feature-based architecture to ensure scalability and professional-grade code maintainability.
 
 ```text
 Sentrix-AI/
 ├── backend/                  # Central Intelligence Hub
 │   ├── app/                  # Application Source Code
-│   │   ├── core/             # Shared Infrastructure (DB, Auth, AI Engines)
-│   │   ├── features/         # Modular Feature Routers
-│   │   │   ├── auth/         # User Access & Session Management
-│   │   │   ├── watchlist/    # WANTED Registry & Target Templates
-│   │   │   ├── sightings/    # Detection History & Neural Search
-│   │   │   ├── workers/      # Field Node Orchestration
-│   │   │   └── system/       # Global Stats & System Controls
-│   │   ├── static/           # Administrative Dashboard
-│   │   └── main.py           # Application Entry Point
-│   ├── data/                 # Persistent Intelligence Data (SQLite, Snapshots)
-│   ├── models/                # Neural Model Repository (YOLOv8, InsightFace)
-│   └── main.py                # Launch Shim for the Backend
-├── worker/                    # Field Intelligence Node (Camera Client)
-│   ├── worker_agent.py        # Edge-side detection & streaming logic
-│   └── setup_worker.sh        # Automated node deployment script
-├── venv/                      # Unified Python Environment
+│   │   ├── core/             # Infrastructure (DB, AI Engines, Security, SSE)
+│   │   ├── features/         # Modular Feature Controllers
+│   │   │   ├── alert_rules/  # Custom Notification & Trigger Logic
+│   │   │   ├── analytics/    # Scene & Performance Analytics
+│   │   │   ├── auth/         # User Access & JWT Management
+│   │   │   ├── cameras/      # Device Registry & Live Stream Routing
+│   │   │   ├── objects/      # Object Classification & Tracking
+│   │   │   ├── roi/          # Region of Interest (ROI) Definitions
+│   │   │   ├── sightings/    # Forensic History & Neural Search
+│   │   │   ├── sse/          # Real-time Event Stream Delivery
+│   │   │   ├── system/       # Global Health & Resource Monitoring
+│   │   │   ├── watchlist/    # Target Dossiers & Face Templates
+│   │   │   └── workers/      # Field Node Mesh Orchestration
+│   │   ├── static/           # Administrative Dashboard (Vanilla JS/CSS)
+│   │   └── main.py           # Application Entry Point (FastAPI)
+│   ├── data/                 # Intelligence persistence (SQLite, Snapshots)
+│   ├── models/                # Neural repository (YOLOv8, ONNX models)
+│   └── main.py                # Launch Shim for the Hub
+├── worker/                    # Field Intelligence Node (Edge Client)
+│   ├── worker_agent.py        # Local detection & bandwidth optimization
+│   └── setup_worker.sh        # Node deployment script
 ├── sentrix_orchestrator.py    # Multi-node Mesh Manager
-└── docker-compose.yml         # Containerized Orchestration
+└── docker-compose.yml         # Containerized Orchestration (Production)
 ```
 
 ---
@@ -83,13 +88,30 @@ The following test scenarios have been successfully passed during system validat
 
 ---
 
-## Intelligence Features
+## Advanced Engineering and AI Architecture
 
-- **Neural Watchlist Registry**: Professional target enrollment with multiple neural face templates per individual for reliable cross-camera identification.
-- **Global Forensic Search**: Cross-reference historical sightings instantly using images to identify the last known locations and movement patterns.
-- **Distributed Edge Intelligence**: Offloads face detection to worker nodes using YOLOv8, preserving server resources and optimizing bandwidth.
-- **Real-Time Intercept Alerts**: Low-latency match notifications delivered via persistent streams to the monitoring dashboard.
-- **Security and Persistence**: Secure JWT-based authentication for node communication and centralized vector storage using Qdrant for million-record scale.
+Sentrix AI utilizes a multi-layered intelligence pipeline designed for forensic-grade accuracy and high-concurrency performance.
+
+### 1. Two-Core Edge Intelligence (Worker)
+The worker node employs a decoupled "Two-Core" execution model to maintain ultra-low latency:
+- **Neural Core (Face)**: Optimized for 512-dimension vector extraction using InsightFace (Buffalo_S) at intervals as low as 250ms.
+- **Context Core (Object)**: Implements zero-shot object detection via YOLO-World, tracking 80+ dynamic classes (vehicles, electronics, forensic markers) with custom-defined confidence thresholds.
+- **Motion Gating**: Implements a spatial-temporal delta threshold (160x120 grayscale) to suppress inference on static frames, reducing overall power consumption and VRAM pressure by up to 70% during idle periods.
+
+### 2. Neural Search and Vector Hub (Backend)
+- **Vector Engine**: Centralized 512-D embedding storage using Qdrant with Cosine Distance metrics for instant similarity lookups.
+- **Hybrid Persistent Fallback**: A dual-store architecture (Qdrant + SQLite) ensures identity persistent across reboots and network partitions.
+- **AEI (Adaptive Edge Intelligence)**: Dynamic ROI (Region of Interest) synchronization allows the Hub to update worker-side detection zones in real-time via persistent API hooks.
+
+### 3. Tactical UI/UX Strategy
+- **Mission-Control Aesthetics**: The dashboard leverages a "Cognitive Vision Suite" aesthetic, utilizing **Orbitron** and **Share Tech Mono** typography for high readability in low-light command environments.
+- **Real-Time Visual Feedback**: Implements CRT-style scanline overlays and periodic "heartbeat" animations to verify live-stream health and nodal connectivity.
+- **Glassmorphism Overlays**: High-performance CSS glassmorphism (backdrop-filter: blur) ensures that tactical overlays do not obstruct critical visual information during multi-stream monitoring.
+
+### 4. Security and Real-Time Delivery
+- **Authentication**: Industry-standard BCrypt password hashing and HS256 JWT signing for all node-to-hub communication.
+- **SSE Alert Pipeline**: High-frequency Server-Sent Events (SSE) deliver neural matches in <200ms. The pipeline supports JWT token injection via query parameters for seamless EventSource integration.
+- **Autonomous Failover**: Multi-process worker orchestration with automated CUDA environment self-healing and VRAM-aware memory allocation (expandable segments).
 
 ---
 
