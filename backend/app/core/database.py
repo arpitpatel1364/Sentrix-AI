@@ -83,6 +83,7 @@ def init_db():
                 stream_url  TEXT DEFAULT '',
                 floor_plan_x REAL DEFAULT 50.0,
                 floor_plan_y REAL DEFAULT 50.0,
+                roi          TEXT DEFAULT NULL,
                 added_by    TEXT,
                 added_at    TEXT
             )
@@ -123,7 +124,13 @@ def init_db():
             )
         """)
 
-        # Indexes for performance
+        # Migration: Ensure 'roi' column exists in 'cameras' table
+        try:
+            cur.execute("ALTER TABLE cameras ADD COLUMN roi TEXT DEFAULT NULL")
+            print("[DB] Migrated: added 'roi' column to 'cameras' table")
+        except sqlite3.OperationalError:
+            pass # Column already exists
+            
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_person_id ON sightings(person_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_camera ON sightings(camera_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_ts ON sightings(timestamp)")

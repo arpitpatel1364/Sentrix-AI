@@ -21,17 +21,13 @@ def update_worker_heartbeat(node_key: str):
         location = "Unknown Location"
         with get_db_conn() as db:
             cur = db.cursor()
-            cur.execute("SELECT roi, location FROM camera_configs WHERE id = ?", (node_key,))
+            # Fetch ROI and Location from cameras table
+            camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
+            cur.execute("SELECT roi, location FROM cameras WHERE camera_id = ?", (camera_id,))
             res = cur.fetchone()
             if res:
                 roi = json.loads(res["roi"]) if res["roi"] else None
                 location = res["location"] or location
-
-            camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
-            cur.execute("SELECT location FROM cameras WHERE camera_id = ?", (camera_id,))
-            cam = cur.fetchone()
-            if cam and cam["location"]:
-                location = cam["location"]
 
         WORKER_REGISTRY[node_key] = {
             "last_seen": 0.0,
@@ -56,13 +52,14 @@ def set_worker_roi(node_key: str, roi: list | None):
     if node_key not in WORKER_REGISTRY:
         WORKER_REGISTRY[node_key] = {"last_seen": 0.0, "roi": None, "location": ""}
 
+    camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
     WORKER_REGISTRY[node_key]["roi"] = roi
     roi_str = json.dumps(roi) if roi is not None else None
 
     with get_db_conn() as db:
         db.execute(
-            "INSERT OR REPLACE INTO camera_configs (id, roi) VALUES (?, ?)",
-            (node_key, roi_str),
+            "UPDATE cameras SET roi = ? WHERE camera_id = ?",
+            (roi_str, camera_id),
         )
 
 

@@ -158,7 +158,12 @@ def is_in_roi(bbox, roi, im_w, im_h):
     
     bx, by, bw, bh = bbox
     cx, cy = (bx + bw/2) / im_w, (by + bh/2) / im_h
-    return (roi[0] <= cx <= roi[2]) and (roi[1] <= cy <= roi[3])
+    
+    x1, y1, x2, y2 = roi
+    mx1, mx2 = min(x1, x2), max(x1, x2)
+    my1, my2 = min(y1, y2), max(y1, y2)
+    
+    return (mx1 <= cx <= mx2) and (my1 <= cy <= my2)
 
 
 # ============================================================
@@ -258,8 +263,22 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
                 continue
 
             h_orig, w_orig = frame.shape[:2]
+            const_roi = cam_rois.get(cam_id)
+            
+            # ROI Optimized Crop
+            crop_frame = frame
+            off_x, off_y = 0, 0
+            if const_roi and len(const_roi) == 4:
+                x1_n, y1_n, x2_n, y2_n = const_roi
+                if x1_n > 0.01 or y1_n > 0.01 or x2_n < 0.99 or y2_n < 0.99:
+                    off_x, off_y = int(x1_n * w_orig), int(y1_n * h_orig)
+                    ex, ey = int(x2_n * w_orig), int(y2_n * h_orig)
+                    crop_frame = frame[off_y:ey, off_x:ex]
+                    if crop_frame.size == 0:
+                        crop_frame = frame
+                        off_x, off_y = 0, 0
 
-            img, scale, (pad_left, pad_top) = _letterbox_square(frame, 640)
+            img, scale, (pad_left, pad_top) = _letterbox_square(crop_frame, 640)
             rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             blob = rgb.astype(np.float32) / 255.0
             blob = np.transpose(blob, (2, 0, 1))   # HWC → CHW
@@ -267,9 +286,8 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
 
             input_name = face_session.get_inputs()[0].name
             outputs = face_session.run(None, {input_name: blob})
-            raw_out = outputs[0]   # (1, 5, 8400) or (1, 84, 8400)
+            raw_out = outputs[0]
 
-            # Transpose if needed: (1, 5, 8400) → (8400, 5)
             if raw_out.shape[1] < raw_out.shape[2]:
                 out = raw_out[0].T
             else:
@@ -278,21 +296,19 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
             boxes, confs = [], []
             for row in out:
                 conf = float(row[4]) if len(row) > 4 else 0
-                if conf < 0.4:
-                    continue
+                if conf < 0.4: continue
                 cx, cy, fw, fh = row[0:4]
-                # Undo letterbox
-                x1 = int((cx - fw / 2 - pad_left) / scale)
-                y1 = int((cy - fh / 2 - pad_top)  / scale)
-                w  = int(fw / scale)
-                h  = int(fh / scale)
-                x1, y1 = max(0, x1), max(0, y1)
                 
-                # ROI Filter
-                if not is_in_roi([x1, y1, w, h], cam_rois.get(cam_id), w_orig, h_orig):
-                    continue
-
-                boxes.append([x1, y1, w, h])
+                # Undo letterbox (local to crop)
+                lx = int((cx - fw / 2 - pad_left) / scale)
+                ly = int((cy - fh / 2 - pad_top)  / scale)
+                lw = int(fw / scale)
+                lh = int(fh / scale)
+                
+                # Translate back to Full Frame
+                fx, fy = max(0, off_x + lx), max(0, off_y + ly)
+                
+                boxes.append([fx, fy, lw, lh])
                 confs.append(conf)
 
             faces_found = 0
@@ -406,48 +422,55 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                 continue
 
             h_orig, w_orig = frame.shape[:2]
+            const_roi = cam_rois.get(cam_id)
 
-            # Inference
-            results = obj_model_instance.predict(frame, conf=0.4, verbose=False)
+            # ROI Optimized Crop
+            crop_frame = frame
+            off_x, off_y = 0, 0
+            if const_roi and len(const_roi) == 4:
+                x1_n, y1_n, x2_n, y2_n = const_roi
+                if x1_n > 0.01 or y1_n > 0.01 or x2_n < 0.99 or y2_n < 0.99:
+                    off_x, off_y = int(x1_n * w_orig), int(y1_n * h_orig)
+                    ex, ey = int(x2_n * w_orig), int(y2_n * h_orig)
+                    crop_frame = frame[off_y:ey, off_x:ex]
+                    if crop_frame.size == 0:
+                        crop_frame = frame
+                        off_x, off_y = 0, 0
+
+            # Inference on Crop
+            results = obj_model_instance.predict(crop_frame, conf=0.4, verbose=False)
             
-            if not results:
-                continue
+            if not results: continue
 
             res = results[0]
-            boxes = res.boxes.xywh.cpu().numpy()  # [cx, cy, w, h]
+            boxes = res.boxes.xywh.cpu().numpy()  # [cx, cy, w, h] (relative to crop)
             confs = res.boxes.conf.cpu().numpy()
             cls_ids = res.boxes.cls.cpu().numpy().astype(int)
             names = res.names
 
-            # Process detections
-            label_groups = {}  # Best detection per label to avoid spamming the same object
-            
+            label_groups = {}
             for i in range(len(boxes)):
                 label = names[cls_ids[i]]
-                if label == "person": continue # Skip person in Object Engine (handled by Face Engine)
+                if label == "person": continue
                 conf = float(confs[i])
                 cx, cy, w, h = boxes[i]
                 
-                # Convert to x, y, w, h (top-left)
-                x = int(cx - w / 2)
-                y = int(cy - h / 2)
+                # Convert to full-frame pixels
+                fx = int(off_x + (cx - w/2))
+                fy = int(off_y + (cy - h/2))
+                fw, fh = int(w), int(h)
                 
-                # Clamp
-                x = max(0, min(x, w_orig - 1))
-                y = max(0, min(y, h_orig - 1))
-                w = int(min(w, w_orig - x))
-                h = int(min(h, h_orig - y))
+                # Clamp to full frame
+                fx = max(0, min(fx, w_orig - 1))
+                fy = max(0, min(fy, h_orig - 1))
+                fw = int(min(fw, w_orig - fx))
+                fh = int(min(fh, h_orig - fy))
 
-                if w < 5 or h < 5:
-                    continue
-
-                # ROI Filter
-                if not is_in_roi([x, y, w, h], cam_rois.get(cam_id), w_orig, h_orig):
-                    continue
+                if fw < 5 or fh < 5: continue
 
                 if label not in label_groups or conf > label_groups[label]["conf"]:
                     label_groups[label] = {
-                        "bbox": [x, y, w, h],
+                        "bbox": [fx, fy, fw, fh],
                         "label": label,
                         "conf": conf
                     }
@@ -566,8 +589,9 @@ def upload_worker(server, token, upload_queue, cam_rois):
             if r.status_code == 200:
                 res = r.json()
                 # Live update ROI
-                if "roi" in res:
+                if "roi" in res and res["roi"] != cam_rois.get(cam_id):
                     cam_rois[cam_id] = res["roi"]
+                    print(f"[*] ROI SYNC: {cam_id} zone updated")
                     
                 if dtype == "face":
 
@@ -620,8 +644,9 @@ def live_stream_worker(server, token, live_queue, cam_rois):
                 r = session.post(url, files=files, data=data, timeout=2)
                 if r.status_code == 200:
                     res = r.json()
-                    if "roi" in res:
+                    if "roi" in res and res["roi"] != cam_rois.get(cam_id):
                         cam_rois[cam_id] = res["roi"]
+                        print(f"[*] ROI SYNC (Live): {cam_id} zone updated")
                 last_frame_sent = time.time()
             except Exception:
                 pass
@@ -640,9 +665,12 @@ def config_sync_worker(server, token, cam_rois):
         try:
             r = requests.get(url, headers=headers, timeout=10)
             if r.status_code == 200:
-                rois = r.json()
+                data = r.json()
+                rois = data.get("rois", {})
                 for cam_id, roi in rois.items():
-                    cam_rois[cam_id] = roi
+                    if roi != cam_rois.get(cam_id):
+                        cam_rois[cam_id] = roi
+                        print(f"[*] ROI SYNC (Live): {cam_id} zone updated")
             time.sleep(15) # Sync every 15 seconds
         except Exception as e:
             # print(f"[WARN] Config Sync error: {e}")

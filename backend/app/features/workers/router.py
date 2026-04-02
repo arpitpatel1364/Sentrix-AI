@@ -14,7 +14,7 @@ from ...core.face_engine import (
 )
 from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
-from ...core.worker_state import update_worker_heartbeat, get_live_nodes, set_worker_roi
+from ...core.worker_state import update_worker_heartbeat, get_live_nodes
 from ...core.sse_manager import SSE_CONNECTIONS, broadcast_alert
 from ...core.stream_state import update_live_frame, get_live_frame, LIVE_FRAMES
 from qdrant_client.models import PointStruct
@@ -169,53 +169,8 @@ async def active_users(user=Depends(get_current_user)):
         "count": len(live_nodes)
     }
 
-@router.post("/worker/roi")
-async def save_roi(
-    node_key: str = Form(None),
-    camera_id: str = Form(None),
-    roi: str = Form(...), # "[x1, y1, x2, y2]" or ""
-    user=Depends(get_current_user)
-):
-    """Save ROI coordinates (normalized 0.0 - 1.0)."""
-    # If node_key not provided, build it (admin likely uses node_key)
-    if not node_key:
-        if not camera_id:
-            raise HTTPException(status_code=400, detail="Either node_key or camera_id required")
-        node_key = f"{user['username']}:{camera_id}"
-    
-    # Permission check: Only admins or the owner of the node can set ROI
-    target_user = node_key.split(":")[0]
-    if user["role"] != "admin" and user["username"] != target_user:
-        raise HTTPException(status_code=403, detail="Not authorized to set ROI for this node")
 
-    import json
-    try:
-        if not roi or roi == 'null':
-            set_worker_roi(node_key, None)
-            return {"status": "ok", "message": "ROI cleared"}
-            
-        roi_list = json.loads(roi)
-        if len(roi_list) != 4:
-            raise ValueError("ROI must have 4 coordinates")
-            
-        set_worker_roi(node_key, roi_list)
-        return {"status": "ok", "message": "ROI saved", "roi": roi_list}
-    except Exception as e:
-        print(f"[!] ROI Save error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/worker/rois")
-async def get_worker_rois(user=Depends(get_current_user)):
-    """Returns local camera IDs and their assigned ROIs for the current worker."""
-    from ...core.worker_state import WORKER_REGISTRY
-    res = {}
-    prefix = f"{user['username']}:"
-    for node_key, info in WORKER_REGISTRY.items():
-        if node_key.startswith(prefix):
-            cam_id = node_key[len(prefix):]
-            res[cam_id] = info.get("roi")
-    return res
+# ROI endpoints moved to app.features.roi
 
 
 @router.get("/worker/stats")

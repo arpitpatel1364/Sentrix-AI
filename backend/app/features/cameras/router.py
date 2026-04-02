@@ -23,17 +23,18 @@ async def list_cameras(user=Depends(require_admin), db: sqlite3.Connection = Dep
     cur = db.cursor()
     cur.execute("""
         SELECT id, camera_id, name, location, description, stream_url,
-               floor_plan_x, floor_plan_y, added_by, added_at
+               floor_plan_x, floor_plan_y, roi, added_by, added_at
         FROM cameras ORDER BY added_at DESC
     """)
     cameras = [dict(r) for r in cur.fetchall()]
 
     live_nodes = get_live_nodes()
-    live_ids = {n["camera_id"] for n in live_nodes}
+    id_to_key = {n["camera_id"]: n["id"] for n in live_nodes} # node_key is in "id"
 
-    # Attach live status
+    # Attach live status and node_key
     for cam in cameras:
-        cam["online"] = cam["camera_id"] in live_ids
+        cam["online"] = cam["camera_id"] in id_to_key
+        cam["node_key"] = id_to_key.get(cam["camera_id"])
 
         # Attach latest sighting for this camera
         cur.execute("""
@@ -44,10 +45,8 @@ async def list_cameras(user=Depends(require_admin), db: sqlite3.Connection = Dep
         last = cur.fetchone()
         cam["last_seen"] = dict(last) if last else None
 
-        # Attach ROI from camera_configs
-        cur.execute("SELECT roi FROM camera_configs WHERE id LIKE ?", (f"%:{cam['camera_id']}",))
-        roi_row = cur.fetchone()
-        cam["roi"] = json.loads(roi_row["roi"]) if roi_row and roi_row["roi"] else None
+        # ROI is already in cam["roi"] from the main SELECT, just need to parse it
+        cam["roi"] = json.loads(cam["roi"]) if cam.get("roi") else None
 
         # Count detections today
         today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -124,7 +123,6 @@ async def delete_camera(camera_id: str, user=Depends(require_admin),
         raise HTTPException(status_code=404, detail="Camera not found")
 
     db.execute("DELETE FROM cameras WHERE camera_id = ?", (camera_id,))
-    db.execute("DELETE FROM camera_configs WHERE id LIKE ?", (f"%:{camera_id}",))
     db.commit()
     return {"ok": True}
 

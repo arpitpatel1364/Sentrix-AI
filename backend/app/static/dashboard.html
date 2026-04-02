@@ -1768,47 +1768,115 @@
       align-items: center;
       min-height: 500px;
       overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
     
     #roi-selector {
       position: absolute;
-      border: 3px solid var(--amber);
-      background: rgba(245, 158, 11, 0.05);
-      box-shadow: 0 0 25px rgba(245, 158, 11, 0.3), inset 0 0 100px rgba(245, 158, 11, 0.1);
+      border: 1px solid #ccff00;
+      background: rgba(204, 255, 0, 0.03);
+      box-shadow: 0 0 30px rgba(204, 255, 0, 0.1), inset 0 0 50px rgba(204, 255, 0, 0.05);
       cursor: move;
       z-index: 100;
       box-sizing: border-box;
       display: none;
+      backdrop-filter: brightness(1.1) contrast(1.05);
     }
+
+    #roi-selector::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: 
+        linear-gradient(rgba(204, 255, 0, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(204, 255, 0, 0.1) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      opacity: 0.3;
+    }
+
+    /* Brackets for corners */
+    #roi-selector::after {
+      content: "";
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      border: 2px solid transparent;
+      border-image: radial-gradient(circle at center, transparent 80%, #ccff00 90%) 1;
+      pointer-events: none;
+    }
+
+    .roi-bracket {
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      border: 2px solid #ccff00;
+      pointer-events: none;
+    }
+    .roi-bracket.tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
+    .roi-bracket.tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; }
+    .roi-bracket.bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; }
+    .roi-bracket.br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
     
     .roi-handle {
       position: absolute;
-      width: 14px;
-      height: 14px;
-      background: var(--amber);
+      width: 10px;
+      height: 10px;
+      background: #ccff00;
       border: 2px solid #000;
       border-radius: 50%;
       z-index: 110;
-      box-shadow: 0 0 8px rgba(0,0,0,0.5);
+      box-shadow: 0 0 10px rgba(204, 255, 0, 0.5);
+      transition: transform 0.2s, background 0.2s;
     }
+    .roi-handle:hover { transform: scale(1.4); background: #fff; }
     
-    .roi-handle.tl { top: -7px; left: -7px; cursor: nwse-resize; }
-    .roi-handle.tr { top: -7px; right: -7px; cursor: nesw-resize; }
-    .roi-handle.bl { bottom: -7px; left: -7px; cursor: nesw-resize; }
-    .roi-handle.br { bottom: -7px; right: -7px; cursor: nwse-resize; }
+    .roi-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+    .roi-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+    .roi-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+    .roi-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+    /* Outside overlays */
+    .roi-overlay {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: grayscale(0.5) blur(1px);
+      z-index: 50;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
     
     .roi-info {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: var(--amber);
+        bottom: 10px;
+        left: 10px;
+        color: #ccff00;
         font-family: var(--mono);
         font-size: 0.6rem;
         pointer-events: none;
         letter-spacing: 0.12em;
-        opacity: 0.8;
+        background: rgba(0,0,0,0.6);
+        padding: 2px 6px;
+        border-radius: 3px;
+        border-left: 2px solid #ccff00;
+        text-transform: uppercase;
     }
+
+    .roi-crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 30px;
+      height: 30px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    .roi-crosshair::before, .roi-crosshair::after {
+      content: ""; position: absolute; background: #ccff00;
+    }
+    .roi-crosshair::before { top: 14px; left: 0; width: 30px; height: 1px; }
+    .roi-crosshair::after { left: 14px; top: 0; width: 1px; height: 30px; }
+
 
   
     /* ─── ANALYTICS HEATMAP ─── */
@@ -2530,21 +2598,38 @@
   <!-- ── ROI CONFIG MODAL ── -->
   <div class="modal-overlay" id="modal-roi">
     <div class="modal" style="max-width: 90vw; width: 1000px; min-width: 600px; padding: 0; background: #010101; overflow: hidden; border: 1px solid var(--amber-glow)">
-      <div class="sec-head" style="margin: 0; padding: 1.25rem 1.5rem; background: var(--bg2); border-bottom: 1px solid var(--border)">
-        <div>
-          <div class="sec-title" id="roi-title">ROI CONFIGURATION</div>
-          <div class="sec-sub" id="roi-id-label">// CAMERA NODE: cam-1</div>
+      <div class="sec-head" style="margin: 0; padding: 1.25rem 1.5rem; background: #080808; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="width: 40px; height: 40px; border: 1px solid var(--cyan); display: flex; align-items: center; justify-content: center; background: rgba(0,255,255,0.05); border-radius: 4px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+          </div>
+          <div>
+            <div class="sec-title" id="roi-title" style="font-size: 1.1rem; letter-spacing: 0.1em; color: var(--text)">ROI CONFIGURATION</div>
+            <div class="sec-sub" id="roi-id-label" style="color: var(--muted); font-size: 0.7rem; font-family: var(--mono)">// CAMERA NODE: cam-1</div>
+          </div>
         </div>
-        <div class="sec-actions">
-          <button class="btn btn-ghost btn-sm" onclick="resetROI()">⟲ Restore Full Frame</button>
-          <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-roi')">Cancel</button>
-          <button class="btn btn-primary btn-sm" id="roi-save-btn" style="background:var(--amber); color:#000">Save Intelligence Zone</button>
+        <div class="sec-actions" style="display: flex; gap: 0.75rem;">
+          <button class="btn btn-ghost btn-sm" onclick="resetROI()" style="border-color: rgba(255,255,255,0.1); margin-right: 1.5rem;">⟲ Restore Full Frame</button>
+          <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-roi')">Discard Changes</button>
+          <button class="btn btn-primary btn-sm" id="roi-save-btn" style="background: var(--cyan); color: #000; border: none; font-weight: 700; padding: 0.5rem 1.5rem; box-shadow: 0 0 15px rgba(0,255,255,0.2);">ACTIVATE ZONE</button>
         </div>
       </div>
       
       <div class="roi-container" id="roi-container">
-        <img id="roi-stream" style="max-width: 100%; max-height: 70vh; user-select: none; -webkit-user-drag: none;">
+        <div id="roi-overlay-top" class="roi-overlay"></div>
+        <div id="roi-overlay-bottom" class="roi-overlay"></div>
+        <div id="roi-overlay-left" class="roi-overlay"></div>
+        <div id="roi-overlay-right" class="roi-overlay"></div>
+
+        <img id="roi-stream" style="width: 100%; min-width: 640px; min-height: 360px; max-width: 100%; max-height: 75vh; user-select: none; -webkit-user-drag: none; background: #000; display: block;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22640%22 height=%22360%22><rect fill=%22%23000%22 width=%22640%22 height=%22360%22/><text x=%22320%22 y=%22190%22 text-anchor=%22middle%22 fill=%22%23333%22 font-family=%22monospace%22 font-size=%20%2220%22>STREAM SOURCE OFFLINE</text></svg>'">
+        
         <div id="roi-selector">
+          <div class="roi-bracket tl"></div>
+          <div class="roi-bracket tr"></div>
+          <div class="roi-bracket bl"></div>
+          <div class="roi-bracket br"></div>
+          <div class="roi-crosshair"></div>
+          
           <div class="roi-handle tl" data-handle="tl"></div>
           <div class="roi-handle tr" data-handle="tr"></div>
           <div class="roi-handle bl" data-handle="bl"></div>
@@ -2867,6 +2952,7 @@
     const API = '';
     let DOSSIER_PERSON_ID = null;
     let ACTIVE_ALERTS = {};
+    let ACTIVE_PAGE = 'overview';
 
     // ── NEW FEATURES STATE ──────────────────────────────────────────────
     let ALL_CAMERAS = [];
@@ -2953,6 +3039,7 @@
     // ══════════════════════════════════════════════════
     function bootstrap() {
       loadStats(); loadSightings(); loadObjects();
+      loadCameras(); // Always load cameras to sync ROI registry early
       connectSSE();
       setInterval(loadStats, 30000);
       setInterval(loadWorkers, 20000);
@@ -3009,6 +3096,7 @@
       const t = pageTitles[id] || [id.toUpperCase(), ''];
       document.getElementById('topbar-title').textContent = t[0];
       document.getElementById('topbar-sub').textContent = t[1];
+      ACTIVE_PAGE = id;
 
       // Reset badges when visiting
       if (id === 'sightings') { newSightings = 0; updateBadge('badge-sightings', 0) }
@@ -3034,30 +3122,61 @@
     };
 
     function showROI(nodeKey) {
-        const camId = nodeKey.split(':')[1] || nodeKey;
-        roiState.cid = camId;
+        // Preparing IDs: nodeKey might be "user:cam-1" (full) or just "cam-1" (base)
+        const camId = nodeKey.includes(':') ? nodeKey.split(':')[1] : nodeKey;
+        let fullKey = nodeKey;
         
-        // Load existing ROI
+        // Reconstruct full key if we only have the base camera_id
         const cam = ALL_CAMERAS.find(c => c.camera_id === camId);
+        const owner = cam ? (cam.added_by || cam.user || (ME ? ME.username : null)) : null;
+        
+        // Safety: If somehow ALL_CAMERAS is empty (unlikely with bootstrap fix), retry soon or use fallback
+        if (!cam && ALL_CAMERAS.length === 0) {
+            console.log("[ROI] Registry empty, loading cameras...");
+            loadCameras().then(() => showROI(nodeKey));
+            return;
+        }
+
+        if (owner && !nodeKey.includes(':')) {
+            fullKey = `${owner}:${camId}`;
+        }
+        
+        roiState.cid = fullKey; // Store the full node key
+        
+        // Initial setup
+        document.getElementById('roi-id-label').innerText = `// NODE: ${fullKey}`;
+        const img = document.getElementById('roi-stream');
+        img.src = ''; // Clear to force reload
+        img.src = `/api/stream/${fullKey}`;
+
+        // Reset Box State
         if (cam && cam.roi) {
             try {
                 const r = typeof cam.roi === 'string' ? JSON.parse(cam.roi) : cam.roi;
                 if (Array.isArray(r) && r.length === 4) {
                     roiState.box = { x1: r[0], y1: r[1], x2: r[2], y2: r[3] };
                 }
-            } catch(e) { console.warn("ROI Parse Error", e) }
+            } catch(e) { 
+                roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 }; 
+            }
         } else {
             roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
         }
 
-        document.getElementById('roi-id-label').innerText = `// NODE: ${camId}`;
-        const img = document.getElementById('roi-stream');
-        img.src = `/api/stream/${camId}`;
+        // Wait for image dimensions to be ready before drawing box
+        img.onload = () => {
+            initRoiInteraction();
+            if (window._updateRoiUI) window._updateRoiUI();
+        };
+        
+        // Safety fallback if already loaded or taking too long
+        if (img.complete) {
+            initRoiInteraction();
+            if (window._updateRoiUI) window._updateRoiUI();
+        }
 
         document.getElementById('roi-save-btn').onclick = saveROISettings;
-        
         openModal('modal-roi');
-        initRoiInteraction();
     }
 
     function initRoiInteraction() {
@@ -3085,18 +3204,39 @@
             selector.style.width = `${Math.max(20, w)}px`;
             selector.style.height = `${Math.max(20, h)}px`;
 
+            // Overlays (Darken outside)
+            const ot = document.getElementById('roi-overlay-top');
+            const ob = document.getElementById('roi-overlay-bottom');
+            const ol = document.getElementById('roi-overlay-left');
+            const or = document.getElementById('roi-overlay-right');
+
+            ot.style.left = `${offX}px`; ot.style.top = `${offY}px`; ot.style.width = `${rect.width}px`; ot.style.height = `${y - offY}px`;
+            ob.style.left = `${offX}px`; ob.style.top = `${y + h}px`; ob.style.width = `${rect.width}px`; ob.style.height = `${rect.height - (y - offY + h)}px`;
+            ol.style.left = `${offX}px`; ol.style.top = `${y}px`; ol.style.width = `${x - offX}px`; ol.style.height = `${h}px`;
+            or.style.left = `${x + w}px`; or.style.top = `${y}px`; or.style.width = `${rect.width - (x - offX + w)}px`; or.style.height = `${h}px`;
+
             const p = (v) => Math.round(v * 100);
-            display.innerText = `ROI: ${p(roiState.box.x1)}, ${p(roiState.box.y1)}, ${p(roiState.box.x2)}, ${p(roiState.box.y2)} (%)`;
+            display.innerHTML = `ZONE: <span style="color:var(--amber)">X ${p(roiState.box.x1)}%</span> · <span style="color:var(--amber)">Y ${p(roiState.box.y1)}%</span> · <span style="color:var(--cyan)">W ${p(roiState.box.x2 - roiState.box.x1)}%</span> · <span style="color:var(--cyan)">H ${p(roiState.box.y2 - roiState.box.y1)}%</span>`;
 
             // Tactical Styling
-            const isFull = (roiState.box.x1 <= 0.04 && roiState.box.y1 <= 0.04 && roiState.box.x2 >= 0.96 && roiState.box.y2 >= 0.96);
+            const isFull = (roiState.box.x1 <= 0.05 && roiState.box.y1 <= 0.05 && roiState.box.x2 >= 0.95 && roiState.box.y2 >= 0.95);
             const label = document.getElementById('roi-inner-label');
-            const color = isFull ? 'var(--cyan)' : 'var(--amber)';
-            label.innerText = isFull ? "TACTICAL FULL FRAME" : "LOCAL DETECTION ZONE";
+            const color = isFull ? 'var(--cyan)' : '#ccff00';
+            label.innerText = isFull ? "FULL FRAME MONITORING" : "ACTIVE INTELLIGENCE ZONE";
             label.style.color = color;
+            label.style.borderColor = color;
             selector.style.borderColor = color;
-            selector.style.boxShadow = `0 0 30px ${color}44, inset 0 0 60px ${color}11`;
-            selector.querySelectorAll('.roi-handle').forEach(h => h.style.background = color);
+            selector.style.boxShadow = `0 0 40px ${color}22, inset 0 0 60px ${color}11`;
+            
+            selector.querySelectorAll('.roi-handle, .roi-bracket, .roi-crosshair::before, .roi-crosshair::after').forEach(el => {
+                if (el.classList.contains('roi-handle') || el.classList.contains('roi-bracket')) {
+                   el.style.borderColor = color;
+                   if (el.classList.contains('roi-handle')) el.style.background = color;
+                }
+            });
+            // Update crosshair separately as it uses pseudo-elements or needs direct style
+            const ch = selector.querySelector('.roi-crosshair');
+            if (ch) ch.style.opacity = isFull ? '0.2' : '0.6';
         };
 
         // Attach listeners once
@@ -3149,20 +3289,38 @@
     async function saveROISettings() {
         const btn = document.getElementById('roi-save-btn');
         const old = btn.innerText;
-        btn.innerText = "SYNCHRONIZING...";
-        btn.disabled = true;
+        const cid = roiState.cid;
+        const box = [roiState.box.x1, roiState.box.y1, roiState.box.x2, roiState.box.y2];
+
+        // Optimistic UI Update
+        closeModal('modal-roi');
+        toast('Synchronizing Zone Over the Air...', 'amber');
+        
+        // Update local state immediately so UI feels fast
+        const camId = cid.includes(':') ? cid.split(':')[1] : cid;
+        const localCam = ALL_CAMERAS.find(c => c.camera_id === camId);
+        if (localCam) {
+            localCam.roi = box; // Store as raw array for direct comparison later
+            loadCameras(); // Force grid refresh if on camera page
+        }
 
         const fd = new FormData();
-        fd.append('camera_id', roiState.cid);
-        fd.append('roi', JSON.stringify([roiState.box.x1, roiState.box.y1, roiState.box.x2, roiState.box.y2]));
+        if (cid.includes(':')) {
+            fd.append('node_key', cid);
+        } else {
+            fd.append('camera_id', cid);
+        }
+        fd.append('roi', JSON.stringify(box));
 
         try {
-            await api('/api/worker/roi', { method: 'POST', body: fd });
-            toast('Intelligence Zone Updated Successfully', 'green');
+            await api('/api/roi/save', { method: 'POST', body: fd });
+            toast('Intelligence Zone Sync Completed', 'green');
+            // Background refresh to catch any other changes
             loadCameras();
-            closeModal('modal-roi');
-        } catch(e) { toast('Error: ' + e.message, 'red'); }
-        finally { btn.innerText = old; btn.disabled = false; }
+        } catch(e) { 
+            toast('Sync Failed: ' + e.message, 'red'); 
+            // Re-open if failed? Maybe better to just tell the user.
+        }
     }
 
     function resetROI() {
@@ -4176,11 +4334,25 @@
             </span>
           </div>
 
+          <div class="camera-preview-box">
+             ${online 
+               ? `<img class="camera-preview-img" src="/api/stream/${esc(c.node_key || (c.added_by + ':' + c.camera_id))}" alt="LIVE">` 
+               : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.7rem;text-transform:uppercase">No Live Stream Source</div>`
+             }
+             <div class="status-overlay">${online ? 'SIGNAL REC: OK' : 'NO SIGNAL'}</div>
+             <div class="scanline"></div>
+          </div>
+
           <div style="display:flex;flex-direction:column;gap:0.4rem;font-size:0.82rem;margin-bottom:1rem">
             ${c.location ? `<div class="result-item"><span class="result-label">Location</span><span style="color:var(--text)">${esc(c.location)}</span></div>` : ''}
             ${c.description ? `<div class="result-item"><span class="result-label">Note</span><span style="color:var(--muted)">${esc(c.description)}</span></div>` : ''}
             <div class="result-item"><span class="result-label">Today</span><span style="color:var(--amber);font-family:var(--mono)">${c.detections_today} detections</span></div>
-            <div class="result-item"><span class="result-label">ROI</span><span style="font-family:var(--mono);font-size:0.75rem;color:${c.roi ? 'var(--cyan)' : 'var(--muted)'}">${c.roi ? 'ACTIVE' : 'FULL FRAME'}</span></div>
+            <div class="result-item">
+              <span class="result-label">ROI</span>
+              <span style="font-family:var(--mono);font-size:0.75rem;color:${(c.roi && (c.roi[0] > 0.05 || c.roi[1] > 0.05)) ? 'var(--cyan)' : 'var(--muted)'}">
+                ${(c.roi && (c.roi[0] > 0.05 || c.roi[1] > 0.05)) ? 'ACTIVE ZONE' : 'FULL FRAME'}
+              </span>
+            </div>
             <div class="result-item"><span class="result-label">Status</span><span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">${lastSeen}</span></div>
           </div>
 
