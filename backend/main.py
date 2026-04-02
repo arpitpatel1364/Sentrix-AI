@@ -1,12 +1,29 @@
 import os
 import sys
+from pathlib import Path
 
 # Force Backend to CPU by hiding CUDA from the environment completely
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-from pathlib import Path
+
+# --- CUDA SELF-HEALING ENVIRONMENT (Mirroring Worker Logic) ---
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
+LIBS_PATH = str(PROJECT_ROOT / "libs")
+
+if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
+    os.environ["LD_LIBRARY_PATH"] = LIBS_PATH + ":" + os.environ.get("LD_LIBRARY_PATH", "")
+    try:
+        if sys.platform.startswith('linux'):
+            # Optimization for low-VRAM systems
+            if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+                os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+            # Re-exec to apply LD_LIBRARY_PATH
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+    except Exception:
+        pass
 
 # Add the current directory to path so 'app' can be imported
-sys.path.append(str(Path(__file__).resolve().parent))
+sys.path.append(str(BASE_DIR))
 
 # Check for virtual environment
 if not hasattr(sys, 'real_prefix') and sys.base_prefix == sys.prefix:

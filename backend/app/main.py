@@ -21,6 +21,10 @@ from app.features.system.router import router as system_router
 from app.features.sse.router import router as sse_router
 from app.features.objects.router import router as objects_router
 from app.features.analysis.router import router as analysis_router
+from app.features.cameras.router import router as cameras_router
+from app.features.analytics.router import router as analytics_router
+from app.features.alert_rules.router import router as alert_rules_router
+from app.features.notifications.router import router as notifications_router
 
 async def lifespan(app: FastAPI):
     # Initialize Core
@@ -55,6 +59,10 @@ app.include_router(system_router)
 app.include_router(sse_router)
 app.include_router(objects_router)
 app.include_router(analysis_router)
+app.include_router(cameras_router)
+app.include_router(analytics_router)
+app.include_router(alert_rules_router)
+app.include_router(notifications_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():

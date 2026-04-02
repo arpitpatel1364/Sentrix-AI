@@ -5,6 +5,7 @@ uvicorn[standard]==0.29.0
 python-multipart==0.0.9
 sse-starlette==1.8.2
 requests==2.31.0
+aiohttp==3.9.5
 
 # --- AUTH & SECURITY ---
 bcrypt==4.1.3

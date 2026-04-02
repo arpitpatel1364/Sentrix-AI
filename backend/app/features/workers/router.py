@@ -122,6 +122,14 @@ async def upload_frame(
             "timestamp": ts,
             "snapshot": f"/api/snapshots/{filename}",
         })
+        # ── Alert Rules Engine ───────────────────────────────────────────
+        from ...features.alert_rules.router import evaluate_rules
+        await evaluate_rules({
+            "type": "face", "camera_id": camera_id, "matched": True,
+            "confidence": result["confidence"],
+            "person_name": result["person"]["name"],
+            "timestamp": ts,
+        }, db)
         return {
             "status": "match",
             "person": result["person"]["name"],
@@ -195,6 +203,19 @@ async def save_roi(
     except Exception as e:
         print(f"[!] ROI Save error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/worker/rois")
+async def get_worker_rois(user=Depends(get_current_user)):
+    """Returns local camera IDs and their assigned ROIs for the current worker."""
+    from ...core.worker_state import WORKER_REGISTRY
+    res = {}
+    prefix = f"{user['username']}:"
+    for node_key, info in WORKER_REGISTRY.items():
+        if node_key.startswith(prefix):
+            cam_id = node_key[len(prefix):]
+            res[cam_id] = info.get("roi")
+    return res
 
 
 @router.get("/worker/stats")

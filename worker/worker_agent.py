@@ -58,18 +58,6 @@ TARGET_CLASSES = [
     "toothbrush"
 ]
 
-# COCO_CLASSES = [
-#     "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light",
-#     "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-#     "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-#     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
-#     "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-#     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa",
-#     "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
-#     "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
-#     "scissors", "teddy bear", "hair drier", "toothbrush"
-# ]
-
 
 def parse_args():
     base_dir = Path(__file__).resolve().parent
@@ -158,6 +146,21 @@ def _letterbox_square(im, size=640, color=(114, 114, 114)):
     return im, scale, (pl, pt)
 
 
+def is_in_roi(bbox, roi, im_w, im_h):
+    """
+    Check if the center of a bounding box [x, y, w, h] 
+    is within the normalized ROI [x1, y1, x2, y2].
+    Defaults to a 3% tactical safety margin if no ROI is specified.
+    """
+    if not roi: 
+        # Tactical Default baseline
+        roi = [0.03, 0.03, 0.97, 0.97]
+    
+    bx, by, bw, bh = bbox
+    cx, cy = (bx + bw/2) / im_w, (by + bh/2) / im_h
+    return (roi[0] <= cx <= roi[2]) and (roi[1] <= cy <= roi[3])
+
+
 # ============================================================
 # PROCESS: CAMERA CAPTURE — feeds both face and object queues
 # ============================================================
@@ -170,15 +173,6 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
 
     prev_gray = None
     
-    # ROI check: [x1, y1, w, h] in absolute coords, roi in normalized [rx1, ry1, rx2, ry2]
-    def is_in_roi(bbox, roi, im_h, im_w):
-        if not roi: return True
-        bx, by, bw, bh = bbox
-        # Check center of bounding box
-        cx, cy = (bx + bw/2) / im_w, (by + bh/2) / im_h
-        return (roi[0] <= cx <= roi[2]) and (roi[1] <= cy <= roi[3])
-
-
     while True:
         try:
             ret, frame = cap.read()
@@ -294,12 +288,9 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
                 h  = int(fh / scale)
                 x1, y1 = max(0, x1), max(0, y1)
                 
-                # ROI Filter Check
-                roi = cam_rois.get(cam_id)
-                if roi:
-                    bcx, bcy = (x1 + w/2) / w_orig, (y1 + h/2) / h_orig
-                    if not (roi[0] <= bcx <= roi[2] and roi[1] <= bcy <= roi[3]):
-                        continue
+                # ROI Filter
+                if not is_in_roi([x1, y1, w, h], cam_rois.get(cam_id), w_orig, h_orig):
+                    continue
 
                 boxes.append([x1, y1, w, h])
                 confs.append(conf)
@@ -386,8 +377,7 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             print(f"[*] Core 2: Loading {obj_model} on {device}...")
             obj_model_instance = YOLOWorld(obj_model)
             obj_model_instance.to(device)
-            if device == 'cuda':
-                obj_model_instance.model.half() # Use half precision (FP16) to save memory
+            # Note: ultralytics will auto-manage fp16 if supported/requested during predict
         except Exception as e:
             if not force_cpu and "out of memory" in str(e).lower():
                 print(f"[WARN] Core 2: GPU OOM. Falling back to CPU...")
@@ -451,12 +441,9 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                 if w < 5 or h < 5:
                     continue
 
-                # ROI Filter Check
-                roi = cam_rois.get(cam_id)
-                if roi:
-                    bcx, bcy = (x + w/2) / w_orig, (y + h/2) / h_orig
-                    if not (roi[0] <= bcx <= roi[2] and roi[1] <= bcy <= roi[3]):
-                        continue
+                # ROI Filter
+                if not is_in_roi([x, y, w, h], cam_rois.get(cam_id), w_orig, h_orig):
+                    continue
 
                 if label not in label_groups or conf > label_groups[label]["conf"]:
                     label_groups[label] = {
@@ -644,6 +631,24 @@ def live_stream_worker(server, token, live_queue, cam_rois):
             time.sleep(0.05)
 
 
+def config_sync_worker(server, token, cam_rois):
+    """Periodically fetches all assigned ROIs for this worker's nodes."""
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"{server}/api/worker/rois"
+    
+    while True:
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                rois = r.json()
+                for cam_id, roi in rois.items():
+                    cam_rois[cam_id] = roi
+            time.sleep(15) # Sync every 15 seconds
+        except Exception as e:
+            # print(f"[WARN] Config Sync error: {e}")
+            time.sleep(10)
+
+
 # ============================================================
 # MAIN
 # ============================================================
@@ -715,6 +720,12 @@ def main():
                          daemon=True)
     p_live.start(); processes.append(p_live)
     print("[+] Live Streamer started")
+
+    p_sync = mp.Process(target=config_sync_worker,
+                         args=(args.server, token, cam_rois),
+                         daemon=True)
+    p_sync.start(); processes.append(p_sync)
+    print("[+] Config Syncer started")
 
     num_cams = len(args.camera)
     for i in range(num_cams):

@@ -54,7 +54,15 @@ def init_face_engines():
                 providers=providers
             )
             FACE_APP.prepare(ctx_id=0, det_size=(160, 160))
-            print(f"InsightFace model loaded (buffalo_s, {providers[0]})")
+            
+            # Get actual providers used by the underlying ONNX sessions
+            actual_providers = []
+            for model in FACE_APP.models.values():
+                if hasattr(model, 'session'):
+                    actual_providers.extend(model.session.get_providers())
+            
+            p_report = list(set(actual_providers)) if actual_providers else providers
+            print(f"InsightFace model loaded (buffalo_s, providers: {p_report})")
         except Exception as e:
             print(f"Could not load InsightFace: {e}")
 

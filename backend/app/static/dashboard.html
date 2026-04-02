@@ -18,13 +18,13 @@
       --surface: rgba(17, 19, 26, 0.85);
       --border: rgba(255, 255, 255, 0.05);
       --border2: rgba(255, 255, 255, 0.1);
-      --amber: #3b82f6;
-      /* Sapphire Blue accent */
-      --amber-dim: rgba(59, 130, 246, 0.1);
-      --amber-glow: rgba(59, 130, 246, 0.2);
-      --cyan: #10b981;
-      /* Precise Green for status */
-      --cyan-dim: rgba(16, 185, 129, 0.1);
+      --amber: #f59e0b;
+      /* Tactical Amber */
+      --amber-dim: rgba(245, 158, 11, 0.1);
+      --amber-glow: rgba(245, 158, 11, 0.2);
+      --cyan: #22d3ee;
+      /* Tactical Cyan */
+      --cyan-dim: rgba(34, 211, 238, 0.1);
       --red: #ef4444;
       --red-dim: rgba(239, 68, 68, 0.1);
       --green: #10b981;
@@ -162,16 +162,22 @@
 
     @keyframes blink {
 
-      0%,
-      100% {
-        opacity: 1;
-        transform: scale(1)
-      }
-
       50% {
         opacity: 0.4;
         transform: scale(0.7)
       }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    .shake {
+      animation: shake 0.4s ease-in-out;
+      border-color: var(--red) !important;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.2) !important;
     }
 
     .field {
@@ -242,11 +248,16 @@
 
     #login-err {
       color: var(--red);
-      font-size: 0.8rem;
+      background: var(--red-dim);
+      border: 1px solid var(--red);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
       text-align: center;
-      margin-top: 0.75rem;
+      margin-top: 1.25rem;
       display: none;
-      font-family: var(--mono)
+      font-family: var(--mono);
+      text-shadow: 0 0 8px var(--red);
     }
 
     /* ─── APP LAYOUT ─── */
@@ -1761,10 +1772,13 @@
     
     #roi-selector {
       position: absolute;
-      border: 2px solid var(--amber);
-      box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), inset 0 0 50px rgba(245, 158, 11, 0.1);
-      z-index: 100;
+      border: 3px solid var(--amber);
+      background: rgba(245, 158, 11, 0.05);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.3), inset 0 0 100px rgba(245, 158, 11, 0.1);
       cursor: move;
+      z-index: 100;
+      box-sizing: border-box;
+      display: none;
     }
     
     .roi-handle {
@@ -1796,6 +1810,23 @@
         opacity: 0.8;
     }
 
+  
+    /* ─── ANALYTICS HEATMAP ─── */
+    #hourly-heatmap > div { transition: transform .15s; }
+    #hourly-heatmap > div:hover { transform: scaleY(1.15); }
+
+    /* ─── CAMERA CARDS ─── */
+    #cameras-grid .panel { transition: border-color .2s, box-shadow .2s; }
+    #cameras-grid .panel:hover { border-color: var(--border2); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+    /* ─── MAP ─── */
+    .map-pin { cursor: pointer; }
+    .map-pin:hover { opacity: 0.85; }
+
+    /* ─── ALERT RULES ─── */
+    #rules-list .panel { transition: border-color .2s; }
+    #rules-list .panel:hover { border-color: var(--border2); }
+
   </style>
 </head>
 
@@ -1807,7 +1838,7 @@
       <div class="login-logo">
         <div class="wordmark" style="letter-spacing:0.35em;font-weight:900"><span class="login-corner"></span>SENTRIX AI
         </div>
-        <div class="tagline">COGNITIVE VISION SUITE // v3.2</div>
+        <div class="tagline">COGNITIVE VISION SUITE // v4.0</div>
       </div>
       <div class="field">
         <label>Operator ID</label>
@@ -1903,14 +1934,31 @@
             Frame Analysis
           </div>
 
+          <div class="nav-item" onclick="showPage('analytics',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="3" height="18"/><rect x="11" y="8" width="3" height="13"/><rect x="4" y="13" width="3" height="8"/></svg>
+            Analytics
+          </div>
+
           <div class="nav-section">// ADMIN</div>
+          <div class="nav-item" onclick="showPage('cameras',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            Camera Management
+          </div>
+          <div class="nav-item" onclick="showPage('map',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            Live Map
+          </div>
+          <div class="nav-item" onclick="showPage('alert-rules',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Alert Rules
+          </div>
           <div class="nav-item" onclick="showPage('workers',this)">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
-            Camera Nodes
+            Worker Nodes
           </div>
           <div class="nav-item" onclick="showPage('users',this)">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2262,6 +2310,11 @@
                   </div>
                 </div>
               </div>
+              <div class="panel" style="margin-top:1rem">
+                <div class="panel-title">▷ NOTIFICATION SETTINGS</div>
+                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Configure SMTP email and webhook dispatch for alert rule notifications.</p>
+                <button class="btn btn-primary btn-sm" onclick="openNotifConfig()">⚙ Configure Email / Webhooks</button>
+              </div>
               <div>
                 <div class="panel" style="border-color:rgba(244,63,94,0.2)">
                   <div class="panel-title" style="color:var(--red)">⚠ DANGER ZONE</div>
@@ -2302,6 +2355,173 @@
             </div>
           </div>
 
+
+          <!-- ══ ANALYTICS PAGE ══ -->
+          <div class="page" id="page-analytics">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">ANALYTICS</div>
+                <div class="sec-sub">// DETECTION TRENDS &amp; INTELLIGENCE METRICS</div>
+              </div>
+              <div class="sec-actions">
+                <select class="form-input" id="analytics-days" onchange="loadAnalytics()" style="width:140px;padding:0.5rem 0.75rem;font-size:0.8rem">
+                  <option value="1">Last 24h</option>
+                  <option value="7" selected>Last 7 Days</option>
+                  <option value="14">Last 14 Days</option>
+                  <option value="30">Last 30 Days</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Stat strip -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem" id="analytics-stats-strip">
+              <div class="panel" style="padding:1rem">
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">TOTAL FACES</div>
+                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--amber);margin-top:0.35rem" id="a-total-faces">—</div>
+              </div>
+              <div class="panel" style="padding:1rem">
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">WANTED MATCHES</div>
+                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--red);margin-top:0.35rem" id="a-total-matches">—</div>
+              </div>
+              <div class="panel" style="padding:1rem">
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">OBJECTS LOGGED</div>
+                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--cyan);margin-top:0.35rem" id="a-total-objects">—</div>
+              </div>
+              <div class="panel" style="padding:1rem">
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">MATCH RATE</div>
+                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--purple);margin-top:0.35rem" id="a-match-rate">—</div>
+              </div>
+            </div>
+
+            <div class="two-col">
+              <!-- Detection trend chart -->
+              <div class="panel">
+                <div class="panel-title">▷ DAILY DETECTION TREND</div>
+                <div style="position:relative;height:180px;margin-top:1rem">
+                  <canvas id="chart-daily" style="width:100%;height:100%"></canvas>
+                </div>
+              </div>
+              <!-- Hourly heatmap -->
+              <div class="panel">
+                <div class="panel-title">▷ HOURLY ACTIVITY HEATMAP</div>
+                <div id="hourly-heatmap" style="margin-top:1rem;display:grid;grid-template-columns:repeat(12,1fr);gap:3px"></div>
+                <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--muted)">
+                  <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="two-col" style="margin-top:1rem">
+              <!-- Per-camera breakdown -->
+              <div class="panel">
+                <div class="panel-title">▷ PER-CAMERA BREAKDOWN</div>
+                <div id="analytics-cameras" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+              </div>
+              <!-- Top objects -->
+              <div class="panel">
+                <div class="panel-title">▷ TOP DETECTED OBJECTS</div>
+                <div id="analytics-objects" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+              </div>
+            </div>
+
+            <!-- Watchlist hit leaders -->
+            <div class="panel" style="margin-top:1rem">
+              <div class="panel-title">▷ MOST SIGHTED WANTED PERSONS</div>
+              <div id="analytics-watchlist-hits" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+            </div>
+          </div>
+
+          <!-- ══ CAMERA MANAGEMENT PAGE ══ -->
+          <div class="page" id="page-cameras">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">CAMERA MANAGEMENT</div>
+                <div class="sec-sub">// REGISTER, CONFIGURE &amp; MONITOR CAMERA NODES</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-primary btn-sm" onclick="openAddCamera()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Register Camera
+                </button>
+              </div>
+            </div>
+            <div id="cameras-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem"></div>
+            <div id="cameras-empty" style="display:none;padding:3rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:0.8rem">
+              NO CAMERAS REGISTERED — Click "Register Camera" to add your first node
+            </div>
+          </div>
+
+          <!-- ══ LIVE MAP PAGE ══ -->
+          <div class="page" id="page-map">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">LIVE MAP</div>
+                <div class="sec-sub">// CAMERA POSITIONS &amp; REAL-TIME STATUS</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-ghost btn-sm" id="map-edit-btn" onclick="toggleMapEdit()">✎ Edit Positions</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 300px;gap:1rem;height:calc(100vh - 200px)">
+              <div class="panel" style="padding:0;overflow:hidden;position:relative" id="map-container">
+                <div id="map-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;color:var(--muted)">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/></svg>
+                  <div style="font-family:var(--mono);font-size:0.7rem;letter-spacing:0.1em">FLOOR PLAN MAP</div>
+                  <div style="font-size:0.75rem;text-align:center;max-width:300px">Drop a floor plan image here or use the grid layout below</div>
+                  <input type="file" id="floorplan-upload" accept="image/*" style="display:none" onchange="loadFloorplan(this)">
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('floorplan-upload').click()">Upload Floor Plan</button>
+                </div>
+                <canvas id="map-canvas" style="width:100%;height:100%;display:none;cursor:default"></canvas>
+                <svg id="map-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+              </div>
+              <!-- Camera status sidebar -->
+              <div style="display:flex;flex-direction:column;gap:0.75rem;overflow-y:auto">
+                <div class="panel" style="padding:0.75rem">
+                  <div class="panel-title" style="margin-bottom:0.75rem">▷ CAMERA STATUS</div>
+                  <div id="map-camera-list" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+                </div>
+                <div class="panel" style="padding:0.75rem">
+                  <div class="panel-title" style="margin-bottom:0.75rem">▷ LIVE SUMMARY</div>
+                  <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.82rem">
+                    <div class="result-item"><span class="result-label">Online</span><span id="map-stat-online" style="color:var(--green);font-family:var(--mono)">0</span></div>
+                    <div class="result-item"><span class="result-label">Offline</span><span id="map-stat-offline" style="color:var(--red);font-family:var(--mono)">0</span></div>
+                    <div class="result-item"><span class="result-label">Alerts Today</span><span id="map-stat-alerts" style="color:var(--amber);font-family:var(--mono)">0</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ ALERT RULES PAGE ══ -->
+          <div class="page" id="page-alert-rules">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">ALERT RULES ENGINE</div>
+                <div class="sec-sub">// CONFIGURE AUTOMATED DETECTION TRIGGERS</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-primary btn-sm" onclick="openAddRule()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  New Rule
+                </button>
+              </div>
+            </div>
+
+            <!-- Rule type legend -->
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem">
+              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.2)">WANTED MATCH</span>
+              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(59,130,246,0.12);color:var(--amber);border:1px solid rgba(59,130,246,0.2)">ANY FACE</span>
+              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(16,185,129,0.12);color:var(--cyan);border:1px solid rgba(16,185,129,0.2)">OBJECT DETECTED</span>
+              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(139,92,246,0.12);color:var(--purple);border:1px solid rgba(139,92,246,0.2)">HIGH CONFIDENCE</span>
+            </div>
+
+            <div id="rules-list" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+            <div id="rules-empty" style="display:none;padding:3rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:0.8rem">
+              NO RULES DEFINED — Click "New Rule" to create your first alert trigger
+            </div>
+          </div>
+
+
         </div><!-- /pages -->
       </div><!-- /main-area -->
     </div><!-- /layout -->
@@ -2316,6 +2536,7 @@
           <div class="sec-sub" id="roi-id-label">// CAMERA NODE: cam-1</div>
         </div>
         <div class="sec-actions">
+          <button class="btn btn-ghost btn-sm" onclick="resetROI()">⟲ Restore Full Frame</button>
           <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-roi')">Cancel</button>
           <button class="btn btn-primary btn-sm" id="roi-save-btn" style="background:var(--amber); color:#000">Save Intelligence Zone</button>
         </div>
@@ -2328,7 +2549,7 @@
           <div class="roi-handle tr" data-handle="tr"></div>
           <div class="roi-handle bl" data-handle="bl"></div>
           <div class="roi-handle br" data-handle="br"></div>
-          <div class="roi-info">DETECTION ZONE</div>
+          <div class="roi-info" id="roi-inner-label">DETECTION ZONE</div>
         </div>
       </div>
       
@@ -2338,6 +2559,25 @@
            <span style="color:var(--amber)">// ONLY OBJECTS INSIDE THIS ZONE WILL BE LOGGED</span>
         </div>
         <div id="roi-coords-display" style="color:var(--text)">ROI: 0, 0, 100, 100 (%)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TACTICAL FULLSCREEN FEED ── -->
+  <div class="modal-overlay" id="modal-tactical-fullscreen">
+    <div class="modal" style="max-width: 95vw; width: 1200px; padding: 0; background: #000; overflow: hidden; border: 1px solid var(--cyan)">
+      <div class="sec-head" style="margin: 0; padding: 1rem 1.25rem; background: var(--bg2); border-bottom: 1px solid var(--border)">
+        <div>
+          <div class="sec-title" id="tactical-stream-title" style="color:var(--cyan); font-size: 0.9rem">LIVE TACTICAL FEED</div>
+          <div class="sec-sub" id="tactical-stream-subtitle" style="font-size: 0.6rem">// CHANNEL: cam-1</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="closeFullScreenStream()">✕ Close</button>
+      </div>
+      <div style="width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; position: relative">
+        <div class="sb-status" style="position: absolute; top: 15px; left: 15px; z-index: 10; background: rgba(0,0,0,0.5)">
+           <div class="dot" style="background:var(--cyan)"></div> TACTICAL LINK ACTIVE
+        </div>
+        <img id="tactical-stream-img" style="max-width: 100%; max-height: 82vh; display: block">
       </div>
     </div>
   </div>
@@ -2458,7 +2698,161 @@
     </div>
   </div>
 
-  <!-- Toast Container -->
+
+  <!-- ADD CAMERA MODAL -->
+  <div class="modal-overlay" id="modal-add-camera">
+    <div class="modal" style="max-width:520px">
+      <button class="modal-close" onclick="closeModal('modal-add-camera')">✕</button>
+      <div class="modal-title">REGISTER CAMERA NODE</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Camera ID <span style="color:var(--red)">*</span></label>
+          <input type="text" class="form-input" id="ac-id" placeholder="cam-1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Display Name <span style="color:var(--red)">*</span></label>
+          <input type="text" class="form-input" id="ac-name" placeholder="Front Entrance">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location / Zone</label>
+        <input type="text" class="form-input" id="ac-location" placeholder="Building A - Floor 1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input type="text" class="form-input" id="ac-desc" placeholder="Covers main entrance door">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stream URL (optional)</label>
+        <input type="text" class="form-input" id="ac-stream" placeholder="rtsp://192.168.1.100/stream">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="addCamera()" id="ac-btn">Register Camera</button>
+      <div id="ac-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
+    </div>
+  </div>
+
+  <!-- EDIT CAMERA MODAL -->
+  <div class="modal-overlay" id="modal-edit-camera">
+    <div class="modal" style="max-width:520px">
+      <button class="modal-close" onclick="closeModal('modal-edit-camera')">✕</button>
+      <div class="modal-title">EDIT CAMERA NODE</div>
+      <input type="hidden" id="ec-id">
+      <div class="form-group">
+        <label class="form-label">Display Name</label>
+        <input type="text" class="form-input" id="ec-name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location / Zone</label>
+        <input type="text" class="form-input" id="ec-location">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input type="text" class="form-input" id="ec-desc">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stream URL</label>
+        <input type="text" class="form-input" id="ec-stream">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveCamera()" id="ec-btn">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- ADD ALERT RULE MODAL -->
+  <div class="modal-overlay" id="modal-add-rule">
+    <div class="modal" style="max-width:560px">
+      <button class="modal-close" onclick="closeModal('modal-add-rule')">✕</button>
+      <div class="modal-title">CREATE ALERT RULE</div>
+      <div class="form-group">
+        <label class="form-label">Rule Name <span style="color:var(--red)">*</span></label>
+        <input type="text" class="form-input" id="ar-name" placeholder="e.g. Wanted Person Alert">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Trigger Type <span style="color:var(--red)">*</span></label>
+          <select class="form-input" id="ar-type" onchange="onRuleTypeChange()">
+            <option value="wanted_match">Wanted Match</option>
+            <option value="any_face">Any Face Detected</option>
+            <option value="object_detected">Object Detected</option>
+            <option value="high_confidence">High Confidence Match</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Camera Scope</label>
+          <select class="form-input" id="ar-camera">
+            <option value="">All Cameras</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Conditional fields -->
+      <div id="ar-obj-field" style="display:none" class="form-group">
+        <label class="form-label">Object Label (leave blank for any)</label>
+        <input type="text" class="form-input" id="ar-obj-label" placeholder="e.g. knife, backpack">
+      </div>
+      <div id="ar-conf-field" style="display:none" class="form-group">
+        <label class="form-label">Minimum Confidence (%)</label>
+        <input type="number" class="form-input" id="ar-min-conf" value="90" min="50" max="100">
+      </div>
+
+      <div class="panel-title" style="margin:1rem 0 0.75rem">▷ NOTIFICATION ACTIONS</div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem">
+          <input type="checkbox" id="ar-act-popup" checked> Dashboard Popup
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem">
+          <input type="checkbox" id="ar-act-email"> Email Alert
+        </label>
+      </div>
+      <div id="ar-webhook-group" class="form-group">
+        <label class="form-label">Webhook URL (optional)</label>
+        <input type="text" class="form-input" id="ar-webhook" placeholder="https://hooks.slack.com/…">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveRule()" id="ar-btn">Create Rule</button>
+      <div id="ar-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION CONFIG MODAL -->
+  <div class="modal-overlay" id="modal-notif-config">
+    <div class="modal" style="max-width:500px">
+      <button class="modal-close" onclick="closeModal('modal-notif-config')">✕</button>
+      <div class="modal-title">EMAIL / NOTIFICATION SETTINGS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">SMTP Host</label>
+          <input type="text" class="form-input" id="nc-host" placeholder="smtp.gmail.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SMTP Port</label>
+          <input type="number" class="form-input" id="nc-port" placeholder="587" value="587">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">SMTP Username</label>
+        <input type="text" class="form-input" id="nc-user" placeholder="you@gmail.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">SMTP Password / App Password</label>
+        <input type="password" class="form-input" id="nc-pass" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label class="form-label">From Address</label>
+        <input type="text" class="form-input" id="nc-from" placeholder="sentrix@yourdomain.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Recipients (comma-separated)</label>
+        <input type="text" class="form-input" id="nc-to" placeholder="security@company.com, admin@company.com">
+      </div>
+      <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+        <button class="btn btn-ghost" style="flex:1" onclick="testEmail()">Send Test Email</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveNotifConfig()" id="nc-btn">Save Config</button>
+      </div>
+      <div id="nc-msg" style="font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
+    </div>
+  </div>
+
+
+    <!-- Toast Container -->
   <div id="toasts"></div>
 
   <script>
@@ -2473,6 +2867,31 @@
     const API = '';
     let DOSSIER_PERSON_ID = null;
     let ACTIVE_ALERTS = {};
+
+    // ── NEW FEATURES STATE ──────────────────────────────────────────────
+    let ALL_CAMERAS = [];
+    let ALL_RULES= [];
+    let MAP_EDIT_MODE = false;
+    let FLOORPLAN_IMG = null;
+    let MAP_CAMERAS = [];
+    let DRAG_CAM = null;
+
+    const PAGE_META = {
+      'overview':    ['OVERVIEW',             '// TACTICAL OVERVIEW'],
+      'live-feed':   ['LIVE MONITOR',         '// DIRECT NEURAL LINK TO CAMERA NODES'],
+      'sightings':   ['FACE SIGHTINGS',       '// BIOMETRIC DETECTION HISTORY'],
+      'objects':     ['OBJECT DETECTIONS',    '// IDENTIFIED ITEMS & ASSETS'],
+      'analytics':   ['ANALYTICS',            '// DETECTION TRENDS & INTELLIGENCE METRICS'],
+      'watchlist':   ['INTELLIGENCE ARCHIVE', '// NEURAL WATCHLIST REGISTRY'],
+      'search':      ['BIOMETRIC LOOKUP',     '// GLOBAL FORENSIC FACE SEARCH'],
+      'analysis':    ['FRAME ANALYSIS',       '// AI-POWERED SNAPSHOT INSPECTION'],
+      'cameras':     ['CAMERA MANAGEMENT',    '// REGISTER & CONFIGURE CAMERA NODES'],
+      'map':         ['LIVE MAP',             '// CAMERA POSITIONS & REAL-TIME STATUS'],
+      'alert-rules': ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
+      'workers':     ['WORKER NODES',         '// ACTIVE FIELD INTELLIGENCE NODES'],
+      'users':       ['USER ACCOUNTS',        '// OPERATOR IDENTITY MANAGEMENT'],
+      'system':      ['SYSTEM CONTROL',       '// CONFIGURATION & MAINTENANCE'],
+    };
 
     // ══════════════════════════════════════════════════
     //  CLOCK
@@ -2507,7 +2926,13 @@
         document.getElementById('app').style.display = 'block';
         bootstrap();
       } catch (e) {
-        err.style.display = 'block'; err.textContent = '⚠ ' + e.message;
+        const box = document.querySelector('.login-box');
+        box.classList.remove('shake');
+        void box.offsetWidth; // trigger reflow
+        box.classList.add('shake');
+        
+        err.style.display = 'block'; 
+        err.innerHTML = `<span style="font-weight:900">ACCESS DENIED</span><br>${e.message.toUpperCase()}`;
       } finally {
         btn.textContent = '▶ AUTHENTICATE'; btn.disabled = false;
       }
@@ -2553,16 +2978,20 @@
     //  NAVIGATION
     // ══════════════════════════════════════════════════
     const pageTitles = {
-      overview: ['OVERVIEW', '// TACTICAL DASHBOARD'],
-      sightings: ['FACE SIGHTINGS', '// BIOMETRIC ACTIVITY LOG'],
-      objects: ['OBJECT DETECTIONS', '// ITEM RECOGNITION LOG'],
-      watchlist: ['WATCHLIST', '// PERSON-OF-INTEREST REGISTRY'],
-      search: ['FACE SEARCH', '// BIOMETRIC REVERSE LOOKUP'],
-      analysis: ['SNAPSHOT ANALYSIS', '// MULTI-MODEL INFERENCE'],
-      workers: ['CAMERA NODES', '// WORKER REGISTRY'],
-      users: ['USER ACCOUNTS', '// OPERATOR REGISTRY'],
-      system: ['SYSTEM CONTROL', '// MAINTENANCE'],
-      'live-feed': ['TACTICAL LIVE STREAM', '// DIRECT NEURAL LINK'],
+      overview:      ['OVERVIEW',             '// TACTICAL DASHBOARD'],
+      sightings:     ['FACE SIGHTINGS',       '// BIOMETRIC ACTIVITY LOG'],
+      objects:       ['OBJECT DETECTIONS',    '// ITEM RECOGNITION LOG'],
+      analytics:     ['ANALYTICS',            '// DETECTION TRENDS & INTELLIGENCE METRICS'],
+      watchlist:     ['INTELLIGENCE ARCHIVE', '// PERSON-OF-INTEREST REGISTRY'],
+      search:        ['BIOMETRIC LOOKUP',     '// GLOBAL FORENSIC FACE SEARCH'],
+      analysis:      ['FRAME ANALYSIS',       '// AI-POWERED SNAPSHOT INSPECTION'],
+      cameras:       ['CAMERA MANAGEMENT',    '// REGISTER & CONFIGURE CAMERA NODES'],
+      map:           ['LIVE MAP',             '// CAMERA POSITIONS & REAL-TIME STATUS'],
+      'alert-rules': ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
+      workers:       ['WORKER NODES',         '// ACTIVE FIELD INTELLIGENCE NODES'],
+      users:         ['USER ACCOUNTS',        '// OPERATOR REGISTRY'],
+      system:        ['SYSTEM CONTROL',       '// CONFIGURATION & MAINTENANCE'],
+      'live-feed':   ['TACTICAL LIVE STREAM', '// DIRECT NEURAL LINK'],
     };
 
     function showPage(id, navEl) {
@@ -2586,144 +3015,166 @@
       if (id === 'objects') { newObjects = 0; updateBadge('badge-objects', 0) }
 
       // Lazy-load page data
-      const loaders = { watchlist: loadWatchlist, workers: loadWorkers, users: loadUsers, system: loadSystem };
+      const loaders = { watchlist: loadWatchlist, workers: loadWorkers, users: loadUsers, system: loadSystem, analytics: loadAnalytics, cameras: loadCameras, map: loadMap, 'alert-rules': () => { loadRules(); if(!ALL_CAMERAS.length) loadCameras(); } };
       if (loaders[id]) loaders[id]();
 
       if (id === 'live-feed' || id === 'overview') startLiveMonitoring();
       else stopLiveMonitoring();
     }
 
-    // --- ROI TOOL LOGIC ---
-    let currentRoiNodeKey = null;
-    let roiBox = { x1: 0.1, y1: 0.1, x2: 0.4, y2: 0.4 }; // Normalized 0-1
+    // ══════════════════════════════════════════════════
+    //  ROI CONFIGURATION FEATURE (REWRITTEN)
+    // ══════════════════════════════════════════════════
+    let roiState = {
+        cid: null,
+        box: { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 },
+        active: false,
+        mode: null, // 'move', 'tl', 'tr', 'bl', 'br'
+        start: { x: 0, y: 0, b: {} }
+    };
 
     function showROI(nodeKey) {
-      currentRoiNodeKey = nodeKey;
-      const camId = nodeKey.split(':')[1] || nodeKey;
-      document.getElementById('roi-id-label').innerText = `// CAMERA NODE: ${camId}`;
-      const img = document.getElementById('roi-stream');
-      img.src = `/api/stream/${camId}`;
+        const camId = nodeKey.split(':')[1] || nodeKey;
+        roiState.cid = camId;
+        
+        // Load existing ROI
+        const cam = ALL_CAMERAS.find(c => c.camera_id === camId);
+        if (cam && cam.roi) {
+            try {
+                const r = typeof cam.roi === 'string' ? JSON.parse(cam.roi) : cam.roi;
+                if (Array.isArray(r) && r.length === 4) {
+                    roiState.box = { x1: r[0], y1: r[1], x2: r[2], y2: r[3] };
+                }
+            } catch(e) { console.warn("ROI Parse Error", e) }
+        } else {
+            roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
+        }
 
-      document.getElementById('roi-save-btn').onclick = async () => {
-          const btn = document.getElementById('roi-save-btn');
-          btn.innerText = "Saving...";
-          const fd = new FormData();
-          fd.append('node_key', currentRoiNodeKey);
-          fd.append('roi', JSON.stringify([roiBox.x1, roiBox.y1, roiBox.x2, roiBox.y2]));
-          
-          try {
-              await api('/api/worker/roi', { method: 'POST', body: fd });
-              showToast("SUCCESS", "Intelligence zone updated.", "green");
-              closeModal('modal-roi');
-          } catch (e) {
-              showToast("ERROR", "Failed to save ROI.", "red");
-          } finally {
-              btn.innerText = "Save Intelligence Zone";
-          }
-      };
-      
-      // (Ideally we store this in a global state after sync)
-      
-      openModal('modal-roi');
-      initRoiDrag();
+        document.getElementById('roi-id-label').innerText = `// NODE: ${camId}`;
+        const img = document.getElementById('roi-stream');
+        img.src = `/api/stream/${camId}`;
+
+        document.getElementById('roi-save-btn').onclick = saveROISettings;
+        
+        openModal('modal-roi');
+        initRoiInteraction();
     }
 
-    function initRoiDrag() {
-      const container = document.getElementById('roi-container');
-      const selector = document.getElementById('roi-selector');
-      const stream = document.getElementById('roi-stream');
-      const coordsDisp = document.getElementById('roi-coords-display');
-      
-      let isDragging = false;
-      let activeHandle = null;
-      let startX, startY;
-      
-      // Current actual px dimensions of the shown image
-      function getStreamRect() {
-          return stream.getBoundingClientRect();
-      }
+    function initRoiInteraction() {
+        const container = document.getElementById('roi-container');
+        const selector = document.getElementById('roi-selector');
+        const stream = document.getElementById('roi-stream');
+        const display = document.getElementById('roi-coords-display');
 
-      function updateSelector() {
-          const rect = getStreamRect();
-          const cx = rect.left - container.getBoundingClientRect().left;
-          const cy = rect.top - container.getBoundingClientRect().top;
-          
-          selector.style.left = (cx + roiBox.x1 * rect.width) + 'px';
-          selector.style.top = (cy + roiBox.y1 * rect.height) + 'px';
-          selector.style.width = ((roiBox.x2 - roiBox.x1) * rect.width) + 'px';
-          selector.style.height = ((roiBox.y2 - roiBox.y1) * rect.height) + 'px';
-          
-          coordsDisp.innerText = `ROI: ${Math.round(roiBox.x1 * 100)}%, ${Math.round(roiBox.y1 * 100)}% to ${Math.round(roiBox.x2 * 100)}%, ${Math.round(roiBox.y2 * 100)}%`;
-      }
-      
-      document.getElementById('roi-save-btn').onclick = async () => {
-          const btn = document.getElementById('roi-save-btn');
-          btn.innerText = "Saving...";
-          const fd = new FormData();
-          fd.append('camera_id', currentRoiCam);
-          fd.append('roi', JSON.stringify([roiBox.x1, roiBox.y1, roiBox.x2, roiBox.y2]));
-          
-          try {
-              await api('/api/worker/roi', { method: 'POST', body: fd });
-              showToast("ROI Configuration Saved", "Intelligence zone successfully pushed to tactical node.", "info");
-              closeModal('modal-roi');
-          } catch(e) {
-              showToast("ROI Save Failed", e.message, "error");
-          } finally {
-              btn.innerText = "Save Intelligence Zone";
-          }
-      };
+        const updateUI = () => {
+            const rect = stream.getBoundingClientRect();
+            const parent = container.getBoundingClientRect();
+            if (!rect.width || !rect.height) { selector.style.display = 'none'; return; }
 
-      selector.onmousedown = (e) => {
-          if (e.target.classList.contains('roi-handle')) {
-              activeHandle = e.target.dataset.handle;
-          } else {
-              activeHandle = 'move';
-          }
-          isDragging = true;
-          startX = e.clientX;
-          startY = e.clientY;
-          e.preventDefault();
-      };
+            selector.style.display = 'block';
+            const offX = rect.left - parent.left;
+            const offY = rect.top - parent.top;
 
-      window.onmousemove = (e) => {
-          if (!isDragging || !currentRoiCam) return;
-          const rect = getStreamRect();
-          const dx = (e.clientX - startX) / rect.width;
-          const dy = (e.clientY - startY) / rect.height;
-          
-          if (activeHandle === 'move') {
-              const w = roiBox.x2 - roiBox.x1;
-              const h = roiBox.y2 - roiBox.y1;
-              roiBox.x1 = Math.max(0, Math.min(1 - w, roiBox.x1 + dx));
-              roiBox.y1 = Math.max(0, Math.min(1 - h, roiBox.y1 + dy));
-              roiBox.x2 = roiBox.x1 + w;
-              roiBox.y2 = roiBox.y1 + h;
-          } else if (activeHandle === 'br') {
-              roiBox.x2 = Math.max(roiBox.x1 + 0.05, Math.min(1, roiBox.x2 + dx));
-              roiBox.y2 = Math.max(roiBox.y1 + 0.05, Math.min(1, roiBox.y2 + dy));
-          } else if (activeHandle === 'tl') {
-              roiBox.x1 = Math.max(0, Math.min(roiBox.x2 - 0.05, roiBox.x1 + dx));
-              roiBox.y1 = Math.max(0, Math.min(roiBox.y2 - 0.05, roiBox.y1 + dy));
-          } else if (activeHandle === 'tr') {
-              roiBox.x2 = Math.max(roiBox.x1 + 0.05, Math.min(1, roiBox.x2 + dx));
-              roiBox.y1 = Math.max(0, Math.min(roiBox.y2 - 0.05, roiBox.y1 + dy));
-          } else if (activeHandle === 'bl') {
-              roiBox.x1 = Math.max(0, Math.min(roiBox.x2 - 0.05, roiBox.x1 + dx));
-              roiBox.y2 = Math.max(roiBox.y1 + 0.05, Math.min(1, roiBox.y2 + dy));
-          }
-          
-          startX = e.clientX;
-          startY = e.clientY;
-          updateSelector();
-      };
+            const x = offX + roiState.box.x1 * rect.width;
+            const y = offY + roiState.box.y1 * rect.height;
+            const w = (roiState.box.x2 - roiState.box.x1) * rect.width;
+            const h = (roiState.box.y2 - roiState.box.y1) * rect.height;
 
-      window.onmouseup = () => { isDragging = false; activeHandle = null; };
-      
-      // Wait for image load to position correctly
-      stream.onload = updateSelector;
-      if (stream.complete) updateSelector();
+            selector.style.left = `${x}px`;
+            selector.style.top = `${y}px`;
+            selector.style.width = `${Math.max(20, w)}px`;
+            selector.style.height = `${Math.max(20, h)}px`;
+
+            const p = (v) => Math.round(v * 100);
+            display.innerText = `ROI: ${p(roiState.box.x1)}, ${p(roiState.box.y1)}, ${p(roiState.box.x2)}, ${p(roiState.box.y2)} (%)`;
+
+            // Tactical Styling
+            const isFull = (roiState.box.x1 <= 0.04 && roiState.box.y1 <= 0.04 && roiState.box.x2 >= 0.96 && roiState.box.y2 >= 0.96);
+            const label = document.getElementById('roi-inner-label');
+            const color = isFull ? 'var(--cyan)' : 'var(--amber)';
+            label.innerText = isFull ? "TACTICAL FULL FRAME" : "LOCAL DETECTION ZONE";
+            label.style.color = color;
+            selector.style.borderColor = color;
+            selector.style.boxShadow = `0 0 30px ${color}44, inset 0 0 60px ${color}11`;
+            selector.querySelectorAll('.roi-handle').forEach(h => h.style.background = color);
+        };
+
+        // Attach listeners once
+        if (!selector.dataset.init) {
+            selector.dataset.init = "true";
+            
+            selector.addEventListener('mousedown', (e) => {
+                roiState.active = true;
+                roiState.mode = e.target.dataset.handle || 'move';
+                roiState.start = { x: e.clientX, y: e.clientY, b: { ...roiState.box } };
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!roiState.active) return;
+                const rect = stream.getBoundingClientRect();
+                const dx = (e.clientX - roiState.start.x) / rect.width;
+                const dy = (e.clientY - roiState.start.y) / rect.height;
+                const b = roiState.start.b;
+
+                if (roiState.mode === 'move') {
+                    const w = b.x2 - b.x1, h = b.y2 - b.y1;
+                    roiState.box.x1 = Math.max(0, Math.min(1 - w, b.x1 + dx));
+                    roiState.box.y1 = Math.max(0, Math.min(1 - h, b.y1 + dy));
+                    roiState.box.x2 = roiState.box.x1 + w;
+                    roiState.box.y2 = roiState.box.y1 + h;
+                } else {
+                    if (roiState.mode.includes('t')) roiState.box.y1 = Math.max(0, Math.min(b.y2 - 0.05, b.y1 + dy));
+                    if (roiState.mode.includes('b')) roiState.box.y2 = Math.max(b.y1 + 0.05, Math.min(1, b.y2 + dy));
+                    if (roiState.mode.includes('l')) roiState.box.x1 = Math.max(0, Math.min(b.x2 - 0.05, b.x1 + dx));
+                    if (roiState.mode.includes('r')) roiState.box.x2 = Math.max(b.x1 + 0.05, Math.min(1, b.x2 + dx));
+                }
+                updateUI();
+            });
+
+            window.addEventListener('mouseup', () => { roiState.active = false; });
+            
+            const obs = new ResizeObserver(updateUI);
+            obs.observe(stream);
+            obs.observe(container);
+        }
+
+        stream.onload = updateUI;
+        if (stream.complete) updateUI();
+        setTimeout(updateUI, 100);
+        setTimeout(updateUI, 500);
+        window._updateRoiUI = updateUI;
     }
+
+    async function saveROISettings() {
+        const btn = document.getElementById('roi-save-btn');
+        const old = btn.innerText;
+        btn.innerText = "SYNCHRONIZING...";
+        btn.disabled = true;
+
+        const fd = new FormData();
+        fd.append('camera_id', roiState.cid);
+        fd.append('roi', JSON.stringify([roiState.box.x1, roiState.box.y1, roiState.box.x2, roiState.box.y2]));
+
+        try {
+            await api('/api/worker/roi', { method: 'POST', body: fd });
+            toast('Intelligence Zone Updated Successfully', 'green');
+            loadCameras();
+            closeModal('modal-roi');
+        } catch(e) { toast('Error: ' + e.message, 'red'); }
+        finally { btn.innerText = old; btn.disabled = false; }
+    }
+
+    function resetROI() {
+        roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
+        if (window._updateRoiUI) window._updateRoiUI();
+    }
+
+    function closeFullScreenStream() {
+      document.getElementById('tactical-stream-img').src = "";
+      closeModal('modal-tactical-fullscreen');
+    }
+
 
 
 
@@ -3354,6 +3805,14 @@
       m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open') })
     });
 
+    function showFullScreenStream(nodeId) {
+      const modal = document.getElementById('modal-tactical-fullscreen');
+      const img = document.getElementById('tactical-stream-img');
+      img.src = `/api/stream/${nodeId}`;
+      document.getElementById('tactical-stream-subtitle').textContent = `// CHANNEL: ${nodeId}`;
+      modal.classList.add('open');
+    }
+
     // ══════════════════════════════════════════════════
     //  UTILITIES
     // ══════════════════════════════════════════════════
@@ -3375,67 +3834,7 @@
       return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
     function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s }
-    /* ─── LIVE MONITORING LOGIC ─── */
-    // let liveInterval = null;
-    // async function startLiveMonitoring() {
-    //   const grid = document.getElementById('live-grid');
-    //   const empty = document.getElementById('no-streams');
 
-    //   async function refreshStreams() {
-    //     try {
-    //       const res = await apiFetch('/api/active-users');
-    //       const data = await res.json();
-
-    //       if (!data.nodes || data.nodes.length === 0) {
-    //         grid.innerHTML = '';
-    //         empty.style.display = 'block';
-    //         return;
-    //       }
-
-    //       empty.style.display = 'none';
-
-    //       // Update grid
-    //       const activeCams = data.nodes.map(n => n.id);
-
-    //       // Remove stale
-    //       Array.from(grid.children).forEach(card => {
-    //         if (!activeCams.includes(card.dataset.camId)) card.remove();
-    //       });
-
-    //       // Add missing
-    //       data.nodes.forEach(node => {
-    //         if (!grid.querySelector(`[data-cam-id="${node.id}"]`)) {
-    //           const card = document.createElement('div');
-    //           card.className = 'card';
-    //           card.dataset.camId = node.id;
-    //           card.innerHTML = `
-    //         <div class="sb-status" style="margin:10px; position:absolute; top:5px; left:5px; z-index:10; background:rgba(0,0,0,0.5)">
-    //           <div class="dot"></div> LIVE: ${node.id}
-    //         </div>
-    //         <img src="/api/stream/${node.id}" style="width:100%; height:auto; display:block; background:#000" onerror="this.src='https://via.placeholder.com/640x480?text=STREAM_LOST'">
-    //         <div class="card-body">
-    //           <div class="card-meta">CHANNEL AUTH: ${node.user}</div>
-    //         </div>
-    //       `;
-    //           grid.appendChild(card);
-    //         }
-    //       });
-
-    //     } catch (e) {
-    //       console.error("Stream sync error:", e);
-    //     }
-    //   }
-
-    //   refreshStreams();
-    //   liveInterval = setInterval(refreshStreams, 5000);
-    // }
-
-    // function stopLiveMonitoring() {
-    //   if (liveInterval) clearInterval(liveInterval);
-    //   liveInterval = null;
-    //   // Disconnect MJPEG streams by clearing the grid
-    //   document.getElementById('live-grid').innerHTML = '';
-    // }
     // ══════════════════════════════════════════════════
     //  MINI MONITOR
     // ══════════════════════════════════════════════════
@@ -3515,7 +3914,6 @@
           const data = await api('/api/active-users');
           const nodes = data.nodes || [];
 
-          // Handle Overview Matrix visibility
           if (overviewMatrix) {
             overviewMatrix.style.display = nodes.length > 0 ? 'grid' : 'none';
           }
@@ -3528,10 +3926,8 @@
           }
 
           if (empty) empty.style.display = 'none';
-
           const activeIds = nodes.map(n => n.id);
 
-          // Update Main Live Grid (if exists/visible)
           if (grid) {
             Array.from(grid.children).forEach(el => {
               if (!activeIds.includes(el.dataset.camId)) el.remove();
@@ -3543,16 +3939,16 @@
                 card.dataset.camId = node.id;
                 card.style.position = 'relative';
                 card.style.cursor = 'pointer';
-                card.onclick = () => showROI(node.node_key || node.id);
+                card.onclick = () => showFullScreenStream(node.id);
                 card.innerHTML = `
-
                   <div class="card-tag object" style="position:absolute; top:10px; left:10px; z-index:10; background:rgba(0,0,0,0.6); pointer-events:none">
                     <span class="dot" style="width:6px;height:6px;background:var(--cyan);border-radius:50%;display:inline-block;margin-right:5px;box-shadow:0 0 8px var(--cyan);animation:blink 1.5s infinite"></span>
                     LIVE: ${node.id}
                   </div>
                   <img src="/api/stream/${node.id}" style="width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#000" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23000%22 width=%22100%22 height=%22100%22/></svg>'">
-                  <div class="card-body">
-                    <div class="card-meta">CHANNEL: ${node.id} | AUTH: ${node.user}</div>
+                  <div class="card-body" style="display:flex; justify-content:space-between; align-items:center">
+                    <div class="card-meta" style="font-family:var(--mono); font-size:0.65rem">CHANNEL: ${node.id}</div>
+                    <button class="btn btn-ghost btn-sm" style="font-size:0.6rem; padding: 2px 8px; border-color: rgba(255,255,255,0.1)" onclick="event.stopPropagation(); showROI('${node.id}')">⊞ ROI</button>
                   </div>
                 `;
                 grid.appendChild(card);
@@ -3560,7 +3956,6 @@
             });
           }
 
-          // Update Overview Matrix (if exists/visible)
           if (overviewMatrix) {
             Array.from(overviewMatrix.children).forEach(el => {
               if (!activeIds.includes(el.dataset.id)) el.remove();
@@ -3570,18 +3965,17 @@
                 const box = document.createElement('div');
                 box.className = 'monitor-box';
                 box.dataset.id = node.id;
-                box.onclick = () => showROI(node.node_key || node.id);
+                box.style.cursor = 'pointer';
+                box.onclick = () => showFullScreenStream(node.id);
                 box.innerHTML = `
-
-                  <div class="label">${node.id}</div>
-                  <div class="status"></div>
+                  <div class="label" style="text-transform: uppercase; font-size: 0.55rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.7)">${node.id}</div>
+                  <div class="status" style="border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan)"></div>
                   <img src="/api/stream/${node.id}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23000%22 width=%22100%22 height=%22100%22/></svg>'">
                 `;
                 overviewMatrix.appendChild(box);
               }
             });
           }
-
         } catch (e) {
           console.warn("Live sync error:", e);
         }
@@ -3599,6 +3993,657 @@
       if (grid) grid.innerHTML = '';
       if (overviewMatrix) overviewMatrix.innerHTML = '';
     }
+
+    // ══════════════════════════════════════════════════
+    //  ANALYTICS
+    // ══════════════════════════════════════════════════
+    let analyticsChart = null;
+
+    async function loadAnalytics() {
+      const days = document.getElementById('analytics-days').value;
+      const [overview, hourly, perCam, topObj, hits] = await Promise.all([
+        api(`/api/analytics/overview?days=${days}`),
+        api(`/api/analytics/hourly?days=${days}`),
+        api(`/api/analytics/per-camera?days=${days}`),
+        api(`/api/analytics/top-objects?days=${days}`),
+        api(`/api/analytics/watchlist-hits?days=${days}`),
+      ]);
+
+      // Stats strip
+      const totalFaces   = overview.reduce((s,d) => s + d.faces,   0);
+      const totalMatches = overview.reduce((s,d) => s + d.matches, 0);
+      const totalObjects = overview.reduce((s,d) => s + d.objects, 0);
+      document.getElementById('a-total-faces').textContent   = totalFaces.toLocaleString();
+      document.getElementById('a-total-matches').textContent = totalMatches.toLocaleString();
+      document.getElementById('a-total-objects').textContent = totalObjects.toLocaleString();
+      document.getElementById('a-match-rate').textContent    = totalFaces > 0
+        ? (totalMatches/totalFaces*100).toFixed(1)+'%' : '0%';
+
+      // Daily chart (canvas bars)
+      renderDailyChart(overview);
+
+      // Hourly heatmap
+      renderHeatmap(hourly);
+
+      // Per-camera table
+      const camEl = document.getElementById('analytics-cameras');
+      const maxCamVal = Math.max(1, ...perCam.map(c => c.faces + c.objects));
+      camEl.innerHTML = perCam.slice(0,8).map(c => {
+        const pct = ((c.faces + c.objects) / maxCamVal * 100).toFixed(1);
+        return `<div>
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px">
+            <span style="font-family:var(--mono);color:var(--text)">${esc(c.camera_id)}</span>
+            <span style="color:var(--muted)">${c.faces}F / ${c.objects}O / <span style="color:var(--red)">${c.matches}M</span></span>
+          </div>
+          <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--amber),var(--cyan));border-radius:2px;transition:width 0.6s"></div>
+          </div></div>`;
+      }).join('') || '<div style="color:var(--muted);font-size:0.8rem">No data</div>';
+
+      // Top objects
+      const objEl = document.getElementById('analytics-objects');
+      const maxObjVal = Math.max(1, ...(topObj.map(o => o.count)));
+      objEl.innerHTML = topObj.slice(0,8).map(o => {
+        const pct = (o.count / maxObjVal * 100).toFixed(1);
+        return `<div>
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px">
+            <span style="font-family:var(--mono);color:var(--text);text-transform:capitalize">${esc(o.object_label)}</span>
+            <span style="color:var(--muted)">${o.count}</span>
+          </div>
+          <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--cyan);border-radius:2px;transition:width 0.6s"></div>
+          </div></div>`;
+      }).join('') || '<div style="color:var(--muted);font-size:0.8rem">No data</div>';
+
+      // Watchlist hits
+      const wlEl = document.getElementById('analytics-watchlist-hits');
+      wlEl.innerHTML = hits.length ? hits.map((h,i) => `
+        <div class="result-item">
+          <span style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);width:20px">#${i+1}</span>
+          <span style="flex:1;font-size:0.85rem">${esc(h.person_name)}</span>
+          <span style="font-family:var(--mono);font-size:0.75rem;color:var(--red)">${h.hits} hits</span>
+          <span style="font-family:var(--mono);font-size:0.75rem;color:var(--muted);margin-left:1rem">${h.avg_conf.toFixed(1)}% avg</span>
+        </div>`).join('')
+        : '<div style="color:var(--muted);font-size:0.8rem">No wanted matches in this period</div>';
+    }
+
+    function renderDailyChart(data) {
+      const canvas = document.getElementById('chart-daily');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.offsetWidth || 400;
+      const H = canvas.offsetHeight || 180;
+      canvas.width = W; canvas.height = H;
+      ctx.clearRect(0, 0, W, H);
+
+      if (!data.length) return;
+      const maxVal = Math.max(1, ...data.map(d => d.faces + d.objects));
+      const barW = (W - 40) / data.length;
+      const padL = 32, padB = 28, padT = 10;
+      const chartH = H - padB - padT;
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + (chartH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      // Bars
+      data.forEach((d, i) => {
+        const faceH = (d.faces / maxVal) * chartH;
+        const objH  = (d.objects / maxVal) * chartH;
+        const matchH= (d.matches / maxVal) * chartH;
+        const x = padL + i * barW + barW * 0.1;
+        const bw = barW * 0.8;
+
+        // Objects (cyan, back)
+        ctx.fillStyle = 'rgba(16,185,129,0.4)';
+        ctx.fillRect(x, padT + chartH - objH, bw, objH);
+        // Faces (blue)
+        ctx.fillStyle = 'rgba(59,130,246,0.7)';
+        ctx.fillRect(x, padT + chartH - faceH, bw, faceH);
+        // Matches (red overlay)
+        if (d.matches > 0) {
+          ctx.fillStyle = 'rgba(239,68,68,0.9)';
+          ctx.fillRect(x, padT + chartH - matchH, bw, matchH);
+        }
+
+        // Label
+        if (data.length <= 14) {
+          ctx.fillStyle = 'rgba(148,163,184,0.6)';
+          ctx.font = '9px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(d.date.slice(5), x + bw/2, H - 6);
+        }
+      });
+
+      // Legend
+      const legend = [['Faces','rgba(59,130,246,0.7)'],['Objects','rgba(16,185,129,0.4)'],['Matches','rgba(239,68,68,0.9)']];
+      legend.forEach(([label, color], i) => {
+        ctx.fillStyle = color;
+        ctx.fillRect(padL + i * 90, 0, 10, 8);
+        ctx.fillStyle = 'rgba(148,163,184,0.8)';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, padL + i * 90 + 14, 8);
+      });
+    }
+
+    function renderHeatmap(hourly) {
+      const el = document.getElementById('hourly-heatmap');
+      const maxCount = Math.max(1, ...hourly.map(h => h.count));
+      el.innerHTML = hourly.map(h => {
+        const intensity = h.count / maxCount;
+        const bg = intensity < 0.01
+          ? 'rgba(255,255,255,0.04)'
+          : `rgba(59,130,246,${(0.15 + intensity * 0.85).toFixed(2)})`;
+        return `<div title="${h.hour}: ${h.count} detections"
+          style="height:32px;border-radius:3px;background:${bg};cursor:default;transition:background 0.3s;position:relative"
+          onmouseover="this.style.outline='1px solid rgba(59,130,246,0.6)'"
+          onmouseout="this.style.outline='none'">
+        </div>`;
+      }).join('');
+    }
+
+    // ══════════════════════════════════════════════════
+    async function loadCameras() {
+      const cameras = await api('/api/cameras');
+      ALL_CAMERAS = cameras;
+      const grid = document.getElementById('cameras-grid');
+      const empty = document.getElementById('cameras-empty');
+
+      if (!cameras.length) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      grid.innerHTML = cameras.map(c => {
+        const online = c.online;
+        const lastSeen = c.last_seen ? `Last: ${fmtTs(c.last_seen.timestamp)}` : 'Never active';
+        return `<div class="panel" style="padding:1.25rem;position:relative">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
+            <div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);letter-spacing:0.1em;margin-bottom:0.25rem">CAMERA NODE</div>
+              <div style="font-weight:600;font-size:1rem">${esc(c.name)}</div>
+              <div style="font-family:var(--mono);font-size:0.7rem;color:var(--amber);margin-top:0.2rem">${esc(c.camera_id)}</div>
+            </div>
+            <span class="badge ${online ? 'online' : ''}" style="flex-shrink:0;${online ? '' : 'background:rgba(239,68,68,0.1);color:var(--red);border-color:rgba(239,68,68,0.2)'}">
+              <span style="width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;background:${online ? 'var(--green)' : 'var(--red)'}"></span>
+              ${online ? 'ONLINE' : 'OFFLINE'}
+            </span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:0.4rem;font-size:0.82rem;margin-bottom:1rem">
+            ${c.location ? `<div class="result-item"><span class="result-label">Location</span><span style="color:var(--text)">${esc(c.location)}</span></div>` : ''}
+            ${c.description ? `<div class="result-item"><span class="result-label">Note</span><span style="color:var(--muted)">${esc(c.description)}</span></div>` : ''}
+            <div class="result-item"><span class="result-label">Today</span><span style="color:var(--amber);font-family:var(--mono)">${c.detections_today} detections</span></div>
+            <div class="result-item"><span class="result-label">ROI</span><span style="font-family:var(--mono);font-size:0.75rem;color:${c.roi ? 'var(--cyan)' : 'var(--muted)'}">${c.roi ? 'ACTIVE' : 'FULL FRAME'}</span></div>
+            <div class="result-item"><span class="result-label">Status</span><span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">${lastSeen}</span></div>
+          </div>
+
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="openEditCamera('${esc(c.camera_id)}')">✎ Edit</button>
+            <button class="btn btn-ghost btn-sm" onclick="showROI('${esc(c.camera_id)}')">⊞ ROI</button>
+            ${online ? `<button class="btn btn-ghost btn-sm" onclick="showPage('live-feed')">▶ Live</button>` : ''}
+            <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="deleteCamera('${esc(c.camera_id)}','${esc(c.name)}')">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Also update map camera list
+      updateMapCameraList(cameras);
+    }
+
+    function openAddCamera() { openModal('modal-add-camera'); }
+
+    async function addCamera() {
+      const btn = document.getElementById('ac-btn');
+      btn.disabled = true; btn.textContent = 'Registering…';
+      const err = document.getElementById('ac-err');
+      err.style.display = 'none';
+
+      try {
+        await api('/api/cameras', {
+          method: 'POST',
+          body: JSON.stringify({
+            camera_id:   document.getElementById('ac-id').value.trim(),
+            name:        document.getElementById('ac-name').value.trim(),
+            location:    document.getElementById('ac-location').value.trim(),
+            description: document.getElementById('ac-desc').value.trim(),
+            stream_url:  document.getElementById('ac-stream').value.trim(),
+          })
+        });
+        closeModal('modal-add-camera');
+        toast('Camera registered', 'green');
+        loadCameras();
+        // Clear fields
+        ['ac-id','ac-name','ac-location','ac-desc','ac-stream'].forEach(id => document.getElementById(id).value='');
+      } catch(e) {
+        err.textContent = e.message || 'Failed to register camera';
+        err.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Register Camera';
+      }
+    }
+
+    function openEditCamera(cameraId) {
+      const cam = ALL_CAMERAS.find(c => c.camera_id === cameraId);
+      if (!cam) return;
+      document.getElementById('ec-id').value     = cameraId;
+      document.getElementById('ec-name').value   = cam.name || '';
+      document.getElementById('ec-location').value = cam.location || '';
+      document.getElementById('ec-desc').value   = cam.description || '';
+      document.getElementById('ec-stream').value = cam.stream_url || '';
+      openModal('modal-edit-camera');
+    }
+
+    async function saveCamera() {
+      const btn = document.getElementById('ec-btn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const cameraId = document.getElementById('ec-id').value;
+      try {
+        await api(`/api/cameras/${cameraId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name:        document.getElementById('ec-name').value.trim(),
+            location:    document.getElementById('ec-location').value.trim(),
+            description: document.getElementById('ec-desc').value.trim(),
+            stream_url:  document.getElementById('ec-stream').value.trim(),
+          })
+        });
+        closeModal('modal-edit-camera');
+        toast('Camera updated', 'green');
+        loadCameras();
+      } catch(e) { toast(e.message||'Update failed','red'); }
+      finally { btn.disabled=false; btn.textContent='Save Changes'; }
+    }
+
+    async function deleteCamera(cameraId, name) {
+      if (!confirm(`Delete camera "${name}" (${cameraId})? This cannot be undone.`)) return;
+      try {
+        await api(`/api/cameras/${cameraId}`, { method: 'DELETE' });
+        toast('Camera removed', 'amber');
+        loadCameras();
+      } catch(e) { toast(e.message||'Delete failed','red'); }
+    }
+
+    // ══════════════════════════════════════════════════
+    //  LIVE MAP
+    // ══════════════════════════════════════════════════
+
+    function updateMapCameraList(cameras) {
+      MAP_CAMERAS = cameras;
+      const el = document.getElementById('map-camera-list');
+      if (!el) return;
+      el.innerHTML = cameras.map(c => `
+        <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${c.online ? 'var(--green)' : 'var(--red)'}"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:0.82rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</div>
+            <div style="font-family:var(--mono);font-size:0.65rem;color:var(--muted)">${esc(c.camera_id)}</div>
+          </div>
+          <div style="font-size:0.7rem;color:${c.online ? 'var(--green)' : 'var(--muted)'}">
+            ${c.online ? 'ON' : 'OFF'}
+          </div>
+        </div>`).join('') || '<div style="color:var(--muted);font-size:0.8rem">No cameras registered</div>';
+
+      const online = cameras.filter(c => c.online).length;
+      const offline = cameras.length - online;
+      document.getElementById('map-stat-online').textContent = online;
+      document.getElementById('map-stat-offline').textContent = offline;
+      renderMapPins(cameras);
+    }
+
+    async function loadMap() {
+      const cameras = await api('/api/cameras');
+      updateMapCameraList(cameras);
+    }
+
+    function loadFloorplan(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          FLOORPLAN_IMG = img;
+          const canvas = document.getElementById('map-canvas');
+          const container = document.getElementById('map-container');
+          canvas.width  = container.offsetWidth  || 800;
+          canvas.height = container.offsetHeight || 500;
+          canvas.style.display = 'block';
+          document.getElementById('map-placeholder').style.display = 'none';
+          drawFloorplan();
+          renderMapPins(MAP_CAMERAS);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function drawFloorplan() {
+      if (!FLOORPLAN_IMG) return;
+      const canvas = document.getElementById('map-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(FLOORPLAN_IMG, 0, 0, canvas.width, canvas.height);
+    }
+
+    function renderMapPins(cameras) {
+      const svg = document.getElementById('map-svg');
+      const container = document.getElementById('map-container');
+      const W = container.offsetWidth  || 800;
+      const H = container.offsetHeight || 500;
+
+      svg.innerHTML = cameras.map(c => {
+        const x = ((c.floor_plan_x || 50) / 100) * W;
+        const y = ((c.floor_plan_y || 50) / 100) * H;
+        const color = c.online ? '#10b981' : '#ef4444';
+        const pulse = c.online ? `<circle cx="${x}" cy="${y}" r="14" fill="${color}" fill-opacity="0.15"><animate attributeName="r" from="10" to="22" dur="2s" repeatCount="indefinite"/><animate attributeName="fill-opacity" from="0.3" to="0" dur="2s" repeatCount="indefinite"/></circle>` : '';
+        const editAttr = MAP_EDIT_MODE ? `style="pointer-events:all;cursor:grab" data-cam="${esc(c.camera_id)}"` : '';
+        return `<g class="map-pin" ${editAttr} onclick="onMapPinClick('${esc(c.camera_id)}')">
+          ${pulse}
+          <circle cx="${x}" cy="${y}" r="10" fill="${color}" fill-opacity="0.9" stroke="rgba(0,0,0,0.5)" stroke-width="1.5"/>
+          <text x="${x}" y="${y+4}" text-anchor="middle" fill="white" font-size="9" font-family="monospace">📷</text>
+          <rect x="${x+12}" y="${y-16}" width="${c.name.length*6.5+12}" height="18" rx="3" fill="rgba(0,0,0,0.75)" stroke="${color}" stroke-width="0.5"/>
+          <text x="${x+18}" y="${y-4}" fill="white" font-size="9" font-family="monospace">${esc(c.name)}</text>
+        </g>`;
+      }).join('');
+    }
+
+    function onMapPinClick(cameraId) {
+      if (MAP_EDIT_MODE) return;
+      const cam = MAP_CAMERAS.find(c => c.camera_id === cameraId);
+      if (!cam) return;
+      toast(`${cam.name} — ${cam.online ? 'ONLINE' : 'OFFLINE'}`, cam.online ? 'green' : 'red');
+    }
+
+    function toggleMapEdit() {
+      MAP_EDIT_MODE = !MAP_EDIT_MODE;
+      const btn = document.getElementById('map-edit-btn');
+      const svg = document.getElementById('map-svg');
+      btn.textContent = MAP_EDIT_MODE ? '✓ Done Editing' : '✎ Edit Positions';
+      btn.style.background = MAP_EDIT_MODE ? 'rgba(59,130,246,0.15)' : '';
+      svg.style.pointerEvents = MAP_EDIT_MODE ? 'all' : 'none';
+
+      if (MAP_EDIT_MODE) {
+        svg.addEventListener('mousedown', onMapDragStart);
+        svg.addEventListener('mousemove', onMapDragMove);
+        svg.addEventListener('mouseup', onMapDragEnd);
+      } else {
+        svg.removeEventListener('mousedown', onMapDragStart);
+        svg.removeEventListener('mousemove', onMapDragMove);
+        svg.removeEventListener('mouseup', onMapDragEnd);
+        DRAG_CAM = null;
+      }
+    }
+
+    function onMapDragStart(e) {
+      const pin = e.target.closest('.map-pin');
+      if (!pin) return;
+      DRAG_CAM = pin.dataset.cam;
+      e.preventDefault();
+    }
+
+    function onMapDragMove(e) {
+      if (!DRAG_CAM) return;
+      const svg = document.getElementById('map-svg');
+      const rect = svg.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width  * 100).toFixed(1);
+      const y = ((e.clientY - rect.top)  / rect.height * 100).toFixed(1);
+      const cam = MAP_CAMERAS.find(c => c.camera_id === DRAG_CAM);
+      if (cam) { cam.floor_plan_x = parseFloat(x); cam.floor_plan_y = parseFloat(y); }
+      renderMapPins(MAP_CAMERAS);
+    }
+
+    async function onMapDragEnd() {
+      if (!DRAG_CAM) return;
+      const cam = MAP_CAMERAS.find(c => c.camera_id === DRAG_CAM);
+      if (cam) {
+        try {
+          await api(`/api/cameras/${DRAG_CAM}/position`, {
+            method: 'PUT',
+            body: JSON.stringify({ x: cam.floor_plan_x, y: cam.floor_plan_y })
+          });
+        } catch(e) {}
+      }
+      DRAG_CAM = null;
+    }
+
+    // ══════════════════════════════════════════════════
+    //  ALERT RULES
+    // ══════════════════════════════════════════════════
+
+
+    async function loadRules() {
+      ALL_RULES = await api('/api/alert-rules');
+      const listEl = document.getElementById('rules-list');
+      const emptyEl = document.getElementById('rules-empty');
+
+      if (!ALL_RULES.length) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+      emptyEl.style.display = 'none';
+
+      const typeColors = {
+        wanted_match:     ['var(--red)',    'rgba(239,68,68,0.1)',   'rgba(239,68,68,0.2)'],
+        any_face:         ['var(--amber)',  'rgba(59,130,246,0.1)',  'rgba(59,130,246,0.2)'],
+        object_detected:  ['var(--cyan)',   'rgba(16,185,129,0.1)',  'rgba(16,185,129,0.2)'],
+        high_confidence:  ['var(--purple)', 'rgba(139,92,246,0.1)',  'rgba(139,92,246,0.2)'],
+      };
+      const typeLabels = {
+        wanted_match: 'WANTED MATCH', any_face: 'ANY FACE',
+        object_detected: 'OBJECT DETECTED', high_confidence: 'HIGH CONFIDENCE'
+      };
+
+      listEl.innerHTML = ALL_RULES.map(r => {
+        const [tc, bgc, bc] = typeColors[r.rule_type] || ['var(--muted)','rgba(255,255,255,0.05)','var(--border)'];
+        const condStr = r.conditions.object_label
+          ? ` → ${r.conditions.object_label}`
+          : r.conditions.min_confidence
+          ? ` ≥ ${r.conditions.min_confidence}%`
+          : '';
+        const acts = [];
+        if (r.actions.email) acts.push('📧 Email');
+        if (r.actions.webhook_url) acts.push('🔗 Webhook');
+        if (r.actions.popup !== false) acts.push('🔔 Popup');
+
+        return `<div class="panel" style="padding:1rem;display:flex;align-items:center;gap:1rem;border-color:${r.enabled ? bc : 'var(--border)'}">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.4rem">
+              <span style="font-weight:600;font-size:0.9rem">${esc(r.name)}</span>
+              <span style="font-family:var(--mono);font-size:0.6rem;padding:0.2rem 0.6rem;border-radius:12px;background:${bgc};color:${tc};border:1px solid ${bc}">
+                ${typeLabels[r.rule_type] || r.rule_type}${condStr}
+              </span>
+              ${r.camera_id ? `<span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted)">CAM: ${esc(r.camera_id)}</span>` : '<span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted)">ALL CAMERAS</span>'}
+            </div>
+            <div style="font-size:0.75rem;color:var(--muted)">${acts.join(' · ') || 'No actions configured'}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">
+            <button class="btn btn-ghost btn-sm" onclick="toggleRule('${r.id}')" style="${r.enabled ? 'color:var(--green)' : 'color:var(--muted)'}">
+              ${r.enabled ? '● ON' : '○ OFF'}
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteRule('${r.id}','${esc(r.name)}')">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function openAddRule() {
+      // Populate camera dropdown
+      const sel = document.getElementById('ar-camera');
+      sel.innerHTML = '<option value="">All Cameras</option>' +
+        ALL_CAMERAS.map(c => `<option value="${esc(c.camera_id)}">${esc(c.name)} (${esc(c.camera_id)})</option>`).join('');
+      onRuleTypeChange();
+      openModal('modal-add-rule');
+    }
+
+    function onRuleTypeChange() {
+      const type = document.getElementById('ar-type').value;
+      document.getElementById('ar-obj-field').style.display  = type === 'object_detected'  ? '' : 'none';
+      document.getElementById('ar-conf-field').style.display = type === 'high_confidence'  ? '' : 'none';
+    }
+
+    async function saveRule() {
+      const btn = document.getElementById('ar-btn');
+      btn.disabled = true; btn.textContent = 'Creating…';
+      const err = document.getElementById('ar-err');
+      err.style.display = 'none';
+      const type = document.getElementById('ar-type').value;
+
+      const conditions = {};
+      if (type === 'object_detected') {
+        const lbl = document.getElementById('ar-obj-label').value.trim();
+        if (lbl) conditions.object_label = lbl;
+      }
+      if (type === 'high_confidence') {
+        conditions.min_confidence = parseFloat(document.getElementById('ar-min-conf').value) || 90;
+      }
+
+      const actions = {};
+      if (document.getElementById('ar-act-popup').checked) actions.popup = true;
+      if (document.getElementById('ar-act-email').checked) actions.email = true;
+      const wh = document.getElementById('ar-webhook').value.trim();
+      if (wh) actions.webhook_url = wh;
+
+      try {
+        await api('/api/alert-rules', {
+          method: 'POST',
+          body: JSON.stringify({
+            name:      document.getElementById('ar-name').value.trim(),
+            rule_type: type,
+            camera_id: document.getElementById('ar-camera').value,
+            conditions,
+            actions,
+          })
+        });
+        closeModal('modal-add-rule');
+        toast('Alert rule created', 'green');
+        loadRules();
+        document.getElementById('ar-name').value = '';
+        document.getElementById('ar-webhook').value = '';
+      } catch(e) {
+        err.textContent = e.message || 'Failed to create rule';
+        err.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Rule';
+      }
+    }
+
+    async function toggleRule(ruleId) {
+      try {
+        await api(`/api/alert-rules/${ruleId}/toggle`, { method: 'PATCH' });
+        loadRules();
+      } catch(e) { toast(e.message||'Toggle failed','red'); }
+    }
+
+    async function deleteRule(ruleId, name) {
+      if (!confirm(`Delete rule "${name}"?`)) return;
+      try {
+        await api(`/api/alert-rules/${ruleId}`, { method: 'DELETE' });
+        toast('Rule deleted', 'amber');
+        loadRules();
+      } catch(e) { toast(e.message||'Delete failed','red'); }
+    }
+
+    // ══════════════════════════════════════════════════
+    //  NOTIFICATIONS
+    // ══════════════════════════════════════════════════
+    async function openNotifConfig() {
+      try {
+        const cfg = await api('/api/notifications/config');
+        document.getElementById('nc-host').value = cfg.smtp_host || '';
+        document.getElementById('nc-port').value = cfg.smtp_port || '587';
+        document.getElementById('nc-user').value = cfg.smtp_user || '';
+        document.getElementById('nc-pass').value = ''; // never pre-fill password
+        document.getElementById('nc-from').value = cfg.smtp_from || '';
+        document.getElementById('nc-to').value   = cfg.smtp_to   || '';
+      } catch(e) {}
+      openModal('modal-notif-config');
+    }
+
+    async function saveNotifConfig() {
+      const btn = document.getElementById('nc-btn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const msg = document.getElementById('nc-msg');
+      msg.style.display = 'none';
+      const body = {
+        smtp_host: document.getElementById('nc-host').value.trim(),
+        smtp_port: document.getElementById('nc-port').value.trim(),
+        smtp_user: document.getElementById('nc-user').value.trim(),
+        smtp_from: document.getElementById('nc-from').value.trim(),
+        smtp_to:   document.getElementById('nc-to').value.trim(),
+      };
+      const pass = document.getElementById('nc-pass').value;
+      if (pass) body.smtp_password = pass;
+
+      try {
+        await api('/api/notifications/config', { method:'POST', body: JSON.stringify(body) });
+        msg.textContent = '✅ Config saved';
+        msg.style.color = 'var(--green)';
+        msg.style.display = 'block';
+      } catch(e) {
+        msg.textContent = '✗ ' + (e.message||'Save failed');
+        msg.style.color = 'var(--red)';
+        msg.style.display = 'block';
+      } finally { btn.disabled=false; btn.textContent='Save Config'; }
+    }
+
+    async function testEmail() {
+      const msg = document.getElementById('nc-msg');
+      msg.textContent = 'Sending test email…';
+      msg.style.color = 'var(--muted)';
+      msg.style.display = 'block';
+      try {
+        await api('/api/notifications/test-email', { method:'POST' });
+        msg.textContent = '✅ Test email sent!';
+        msg.style.color = 'var(--green)';
+      } catch(e) {
+        msg.textContent = '✗ ' + (e.message||'Send failed — check SMTP config');
+        msg.style.color = 'var(--red)';
+      }
+    }
+
+    async function syncMiniMonitor() {
+      const grid = document.getElementById('mm-grid');
+      if (!grid) return;
+      try {
+        const data = await api('/api/active-users');
+        const activeIds = data.nodes.map(n => n.id);
+        // Remove stale
+        Array.from(grid.children).forEach(el => {
+          if (!activeIds.includes(el.dataset.id)) el.remove();
+        });
+        // Add new
+        data.nodes.forEach(node => {
+          if (!grid.querySelector(`[data-id="${node.id}"]`)) {
+            const div = document.createElement('div');
+            div.className = 'mm-cam';
+            div.dataset.id = node.id;
+            div.innerHTML = `
+              <div class="mm-cam-label">${node.id}</div>
+              <img src="/api/stream/${node.id}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23000%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23333%22 font-size=%2210%22>LOST</text></svg>'">
+            `;
+            grid.appendChild(div);
+          }
+        });
+      } catch (e) { console.warn('[mm-sync]', e) }
+    }
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+      showPage('overview');
+      setInterval(loadStats, 30000);
+      setInterval(loadCameras, 60000);
+      setInterval(syncMiniMonitor, 10000); // Mini-monitor sync
+      syncMiniMonitor();
+    });
+
   </script>
   <!-- MINI MONITOR WINDOW -->
   <div id="mini-monitor" class="mini-monitor">
@@ -3615,7 +4660,5 @@
       <!-- Streams dynamically injected -->
     </div>
   </div>
-
 </body>
-
 </html>

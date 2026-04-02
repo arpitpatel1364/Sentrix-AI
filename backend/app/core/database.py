@@ -63,7 +63,7 @@ def init_db():
             )
         """)
         
-        # New: Camera Configurations (ROI)
+        # Camera Configurations (ROI)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS camera_configs (
                 id TEXT PRIMARY KEY, -- user:camera_id
@@ -71,9 +71,64 @@ def init_db():
                 location TEXT
             )
         """)
-        
-        # Optimization: Index for person-based history lookup
+
+        # Camera Registry — full camera management
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS cameras (
+                id          TEXT PRIMARY KEY,
+                camera_id   TEXT UNIQUE NOT NULL,
+                name        TEXT NOT NULL,
+                location    TEXT DEFAULT '',
+                description TEXT DEFAULT '',
+                stream_url  TEXT DEFAULT '',
+                floor_plan_x REAL DEFAULT 50.0,
+                floor_plan_y REAL DEFAULT 50.0,
+                added_by    TEXT,
+                added_at    TEXT
+            )
+        """)
+
+        # Alert Rules Engine
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS alert_rules (
+                id         TEXT PRIMARY KEY,
+                name       TEXT NOT NULL,
+                rule_type  TEXT NOT NULL,
+                camera_id  TEXT DEFAULT '',
+                conditions TEXT DEFAULT '{}',
+                actions    TEXT DEFAULT '{}',
+                enabled    INTEGER DEFAULT 1,
+                created_at TEXT
+            )
+        """)
+
+        # Notification Config (key-value store)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS notification_config (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+
+        # Notification Dispatch Log
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS notification_log (
+                id        TEXT PRIMARY KEY,
+                channel   TEXT,
+                recipient TEXT,
+                subject   TEXT,
+                status    TEXT,
+                error     TEXT,
+                sent_at   TEXT
+            )
+        """)
+
+        # Indexes for performance
         cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_person_id ON sightings(person_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_camera ON sightings(camera_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sightings_ts ON sightings(timestamp)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_objects_camera ON object_detections(camera_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_objects_ts ON object_detections(timestamp)")
         
         conn.commit()
 
