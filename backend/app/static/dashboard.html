@@ -1891,9 +1891,61 @@
     .map-pin { cursor: pointer; }
     .map-pin:hover { opacity: 0.85; }
 
-    /* ─── ALERT RULES ─── */
-    #rules-list .panel { transition: border-color .2s; }
-    #rules-list .panel:hover { border-color: var(--border2); }
+    /* ─── CAMERA PREVIEWS ─── */
+    .camera-preview-box {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #0a0b0e;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    .camera-preview-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: saturate(1.1) contrast(1.05);
+    }
+
+    .status-overlay {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      color: var(--text);
+      letter-spacing: 0.1em;
+      pointer-events: none;
+      z-index: 10;
+      border-left: 2px solid var(--cyan);
+      text-transform: uppercase;
+    }
+
+    .scanline {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.06);
+      z-index: 15;
+      pointer-events: none;
+      animation: scanlineAnim 4s linear infinite;
+    }
+
+    @keyframes scanlineAnim {
+      0% { top: 0; }
+      100% { top: 100%; }
+    }
 
   </style>
 </head>
@@ -2382,6 +2434,75 @@
                 <div class="panel-title">▷ NOTIFICATION SETTINGS</div>
                 <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Configure SMTP email and webhook dispatch for alert rule notifications.</p>
                 <button class="btn btn-primary btn-sm" onclick="openNotifConfig()">⚙ Configure Email / Webhooks</button>
+              </div>
+              <div class="panel" style="margin-top:1rem">
+                <div class="panel-title">▷ STORAGE CLEANUP</div>
+                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Remove old snapshots and biometric records to optimize storage space.</p>
+                <div style="display:flex;flex-direction:column;gap:0.75rem">
+                    <div class="field">
+                        <label>Retention Period</label>
+                        <select class="form-input" id="cleanup-range" style="width:100%; height: 38px; background: #0a0c12; border: 1px solid var(--border2); color: var(--text); padding: 0 0.75rem; border-radius: 8px; font-family: var(--mono); font-size: 0.85rem;">
+                            <option value="1h">Older than 1 Hour</option>
+                            <option value="24h">Older than 24 Hours</option>
+                            <option value="7d">Older than 7 Days</option>
+                            <option value="30d">Older than 30 Days</option>
+                            <option value="90d">Older than 90 Days</option>
+                            <option value="1y">Older than 1 Year</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Biometric ID (Optional)</label>
+                        <input type="text" id="cleanup-person-id" placeholder="Person ID for targeted deletion" style="padding: 0.6rem 0.75rem;">
+                    </div>
+                    <div class="field">
+                        <label>Target Type</label>
+                        <select class="form-input" id="cleanup-target" style="width:100%; height: 38px; background: #0a0c12; border: 1px solid var(--border2); color: var(--text); padding: 0 0.75rem; border-radius: 8px; font-family: var(--mono); font-size: 0.85rem;">
+                            <option value="all">All Records</option>
+                            <option value="sightings">Biometric Sightings Only</option>
+                            <option value="objects">Object Detections Only</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="runCleanup()" style="margin-top:0.5rem">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                        Clean Up System
+                    </button>
+                </div>
+              </div>
+              <div class="panel" style="margin-top:1rem; border-color: var(--cyan-dim); position: relative; overflow: hidden;">
+                <div style="position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, var(--cyan), transparent); opacity:0.5"></div>
+                <div class="panel-title" style="color:var(--cyan); letter-spacing: 0.15em;">▷ BIOMETRIC DISCOVERY & PURGE</div>
+                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6">Surgically remove all historical records of a specific subject by providing face references.</p>
+                
+                <div id="biometric-step-1" style="display:flex;flex-direction:column;gap:0.75rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border)">
+                    <div class="field">
+                        <label>Face Photo References</label>
+                        <input type="file" id="biometric-purge-files" multiple accept="image/*" class="form-input" style="padding: 0.4rem;">
+                    </div>
+                    <button class="btn btn-outline btn-sm" id="btn-biometric-search" onclick="runBiometricSearch()" style="color:var(--cyan); border-color:var(--cyan-dim)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                        Search Matches
+                    </button>
+                </div>
+
+                <div id="biometric-step-2" style="display:none; margin-top:1.25rem">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem">
+                        <span style="font-family:var(--mono); font-size:0.7rem; color:var(--text)" id="biometric-match-count">0 MATCHES FOUND</span>
+                        <button class="btn btn-ghost btn-sm" onclick="resetBiometricPurge()" style="font-size:0.6rem">↺ Restart</button>
+                    </div>
+                    
+                    <div id="biometric-preview-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:10px; max-height:300px; overflow-y:auto; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid var(--border2); margin-bottom:1.25rem">
+                        <!-- Preview thumbnails here -->
+                    </div>
+
+                    <p style="font-size:0.7rem; color:var(--muted); margin-bottom:0.75rem">// CLICK '✖' TO EXCLUDE PHOTOS YOU WANT TO KEEP</p>
+                    
+                    <button class="btn btn-danger btn-sm" id="btn-biometric-purge" onclick="commitBiometricPurge()" style="width:100%">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Confirm Purge <span id="biometric-purge-count">0</span> Records
+                    </button>
+                </div>
+
+                <div id="biometric-purge-status" style="font-family:var(--mono); font-size:0.65rem; color:var(--muted); margin-top:0.75rem; display:none"></div>
               </div>
               <div>
                 <div class="panel" style="border-color:rgba(244,63,94,0.2)">
@@ -3557,15 +3678,47 @@
         return;
       }
       res.innerHTML = d.matches.map(m => `
-    <div class="result-item" style="gap:1rem;flex-wrap:wrap">
+    <div class="result-item" style="gap:1rem;flex-wrap:nowrap; align-items:center" id="search-res-${m.id}">
       <img src="${m.snapshot}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:0.82rem">${fmtTs(m.timestamp)}</div>
-        <div class="td-mono">${esc(m.camera_id || '—')} · ${esc(m.location || '—')}</div>
+        <div class="td-mono" style="font-size:0.65rem; color:var(--muted)">${esc(m.camera_id || '—')} · ${esc(m.location || '—')}</div>
       </div>
-      <span class="badge ${m.matched ? 'match' : 'unknown'}" style="flex-shrink:0">${Math.round(m.confidence)}%</span>
+      <div style="display:flex; align-items:center; gap:0.75rem">
+        <span class="badge ${m.matched ? 'match' : 'unknown'}" style="flex-shrink:0">${Math.round(m.confidence)}%</span>
+        <button class="btn btn-ghost btn-sm" onclick="deleteSightingFromSearch('${m.id}', event)" title="Permanently Shred Sighting" style="color:var(--red); padding:4px; opacity:0.6">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
     </div>
   `).join('');
+    }
+
+    async function deleteSightingFromSearch(id, e) {
+      if (e) e.stopPropagation();
+      if (!confirm('PERMANENT SHRED ORDER: Are you sure you want to delete this sighting record and snapshot?')) return;
+      
+      const el = document.getElementById(`search-res-${id}`);
+      el.style.opacity = '0.5';
+      el.style.pointerEvents = 'none';
+
+      try {
+        await api('/api/system/cleanup/biometric/purge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([id])
+        });
+        
+        el.style.transform = 'translateX(20px)';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+        toast('Sighting shredded successfully', 'cyan');
+        loadStats();
+      } catch (err) {
+        el.style.opacity = '1';
+        el.style.pointerEvents = 'all';
+        toast('Failed to shred sighting: ' + err.message, 'red');
+      }
     }
 
     // ══════════════════════════════════════════════════
@@ -3723,6 +3876,140 @@
         document.getElementById('sys-sessions').textContent = d.sessions?.length || 0;
         document.getElementById('sys-nodes').textContent = d.nodes?.length || 0;
       } catch (e) { }
+    }
+    
+    async function runCleanup() {
+        const range = document.getElementById('cleanup-range').value;
+        const personId = document.getElementById('cleanup-person-id').value;
+        const target = document.getElementById('cleanup-target').value;
+        
+        const confirmMsg = `Are you sure you want to delete ${target === 'all' ? 'all' : target} records older than ${range}${personId ? ' for person ' + personId : ''}? This action is irreversible.`;
+        if (!confirm(confirmMsg)) return;
+        
+        try {
+            let url = `/api/system/cleanup?time_range=${range}&target=${target}`;
+            if (personId) url += `&person_id=${encodeURIComponent(personId)}`;
+            
+            const res = await api(url, { method: 'POST' });
+            toast(`Cleanup Success: Removed ${res.details.files_removed} files`, 'green');
+            loadStats();
+        } catch (e) {
+            toast('Cleanup failed: ' + e.message, 'red');
+        }
+    }
+    
+    let BIOMETRIC_MATCHES = [];
+
+    async function runBiometricSearch() {
+        const files = document.getElementById('biometric-purge-files').files;
+        if (!files || files.length === 0) {
+            toast('Please select at least one face photo', 'red');
+            return;
+        }
+
+        const btn = document.getElementById('btn-biometric-search');
+        const statusMsg = document.getElementById('biometric-purge-status');
+        
+        btn.disabled = true;
+        btn.innerHTML = `Searching…`;
+        statusMsg.style.display = 'block';
+        statusMsg.textContent = 'Analyzing biometrics…';
+
+        const fd = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            fd.append('files', files[i]);
+        }
+
+        try {
+            const res = await api('/api/system/cleanup/biometric/search', {
+                method: 'POST',
+                body: fd
+            }, true);
+
+            BIOMETRIC_MATCHES = res.matches || [];
+            if (BIOMETRIC_MATCHES.length === 0) {
+                toast('No matching sightings found', 'muted');
+                statusMsg.textContent = 'No matches found.';
+                btn.disabled = false;
+                btn.innerHTML = `Search Matches`;
+                return;
+            }
+
+            renderBiometricPreview();
+            document.getElementById('biometric-step-1').style.display = 'none';
+            document.getElementById('biometric-step-2').style.display = 'block';
+            statusMsg.style.display = 'none';
+        } catch (e) {
+            toast('Discovery failed: ' + e.message, 'red');
+            statusMsg.textContent = '❌ Error: ' + e.message;
+            statusMsg.style.color = 'var(--red)';
+            btn.disabled = false;
+            btn.innerHTML = `Search Matches`;
+        }
+    }
+
+    function renderBiometricPreview() {
+        const grid = document.getElementById('biometric-preview-grid');
+        const countTxt = document.getElementById('biometric-match-count');
+        const purgeCount = document.getElementById('biometric-purge-count');
+        
+        countTxt.innerHTML = `<span style="color:var(--cyan)">${BIOMETRIC_MATCHES.length}</span> TARGETS IDENTIFIED`;
+        purgeCount.textContent = BIOMETRIC_MATCHES.length;
+        
+        grid.innerHTML = BIOMETRIC_MATCHES.map(m => `
+            <div class="biometric-card" style="position:relative; aspect-ratio:1/1; background:var(--bg3); border-radius:8px; overflow:hidden; border:1px solid var(--border2); transition: all 0.2s">
+                <img src="${m.snapshot}" style="width:100%; height:100%; object-fit:cover; opacity: 0.8">
+                <div onclick="excludeBiometricSighting('${m.id}')" style="position:absolute; top:4px; right:4px; width:22px; height:22px; background:var(--bg2); color:var(--red); display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:12px; cursor:pointer; border:1px solid var(--red-dim); box-shadow: 0 2px 8px rgba(0,0,0,0.5); z-index:10" title="Exclude from purge">✕</div>
+                <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 6px 4px; display:flex; flex-direction:column; gap:2px">
+                    <div style="font-family:var(--mono); font-size:7px; color:var(--muted); text-transform:uppercase">${m.camera_id}</div>
+                    <div style="font-family:var(--mono); font-size:9px; color:var(--cyan); font-weight:700">${m.confidence}% MATCH</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function excludeBiometricSighting(id) {
+        BIOMETRIC_MATCHES = BIOMETRIC_MATCHES.filter(m => m.id !== id);
+        if (BIOMETRIC_MATCHES.length === 0) {
+            resetBiometricPurge();
+            return;
+        }
+        renderBiometricPreview();
+    }
+
+    function resetBiometricPurge() {
+        BIOMETRIC_MATCHES = [];
+        document.getElementById('biometric-step-1').style.display = 'flex';
+        document.getElementById('biometric-step-2').style.display = 'none';
+        document.getElementById('btn-biometric-search').disabled = false;
+        document.getElementById('btn-biometric-search').innerHTML = `Search Matches`;
+        document.getElementById('biometric-purge-files').value = '';
+    }
+
+    async function commitBiometricPurge() {
+        const ids = BIOMETRIC_MATCHES.map(m => m.id);
+        const confirmMsg = `Are you sure you want to permanently delete these ${ids.length} verified records?`;
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById('btn-biometric-purge');
+        btn.disabled = true;
+        btn.innerHTML = `Purging…`;
+
+        try {
+            const res = await api('/api/system/cleanup/biometric/purge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ids)
+            });
+
+            toast(`Purge Success: Removed ${res.details.purged} records`, 'cyan');
+            resetBiometricPurge();
+            loadStats();
+        } catch (e) {
+            toast('Purge failed: ' + e.message, 'red');
+            btn.disabled = false;
+            btn.innerHTML = `Confirm Purge ${ids.length} Records`;
+        }
     }
     function confirmReset() { document.getElementById('reset-confirm').value = ''; openModal('modal-confirm-reset') }
     async function doReset() {

@@ -26,6 +26,7 @@ from app.features.analytics.router import router as analytics_router
 from app.features.alert_rules.router import router as alert_rules_router
 from app.features.notifications.router import router as notifications_router
 from app.features.roi.router import router as roi_router
+from app.features.system.cleanup import router as cleanup_router
 
 async def lifespan(app: FastAPI):
     # Initialize Core
@@ -65,6 +66,7 @@ app.include_router(analytics_router)
 app.include_router(roi_router)
 app.include_router(alert_rules_router)
 app.include_router(notifications_router)
+app.include_router(cleanup_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():

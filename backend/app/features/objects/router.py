@@ -32,6 +32,7 @@ async def upload_object(
             if confidence > 1: confidence /= 100.0
 
         # Register node heartbeat so it shows as active
+        camera_id = camera_id.strip().rstrip(".").strip() # Sanitize paths
         node_key = f"{user['username']}:{camera_id}"
         update_worker_heartbeat(node_key)
 
@@ -42,7 +43,11 @@ async def upload_object(
         cam_dir = SNAPSHOTS_DIR / camera_id
         cam_dir.mkdir(parents=True, exist_ok=True)
         
-        filename = f"obj_{obj_id}.jpg"
+        # Systematic Filename Generation
+        now_str = time.strftime("%Y%m%d_%H%M%S")
+        safe_label = object_label.replace(" ", "_").lower()
+        short_uuid = obj_id[:8]
+        filename = f"obj_{now_str}_{safe_label}_{camera_id}_{short_uuid}.jpg"
         file_path = cam_dir / filename
         content = await file.read()
         if not content:

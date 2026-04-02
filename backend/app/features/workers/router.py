@@ -51,6 +51,7 @@ async def upload_frame(
     user=Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db)
 ):
+    camera_id = camera_id.strip().rstrip(".").strip() # Sanitize paths
     node_key = f"{user['username']}:{camera_id}"
     update_worker_heartbeat(node_key)
     
@@ -70,11 +71,16 @@ async def upload_frame(
     sighting_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
     
+    # Systematic Filename Generation
+    now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = (result["person"]["name"] if result else "unknown").replace(" ", "_").lower()
+    short_uuid = sighting_id[:8]
+    snap_filename = f"sight_{now_str}_{safe_name}_{camera_id}_{short_uuid}.jpg"
+    
     cam_dir = SNAPSHOTS_DIR / camera_id
     cam_dir.mkdir(parents=True, exist_ok=True)
-    snap_filename = f"{sighting_id}.jpg"
-    filename = f"{camera_id}/{snap_filename}"   # DB path: cam-1/uuid.jpg
-    snapshot_path = cam_dir / snap_filename     # File path: SNAPSHOTS_DIR/cam-1/uuid.jpg
+    filename = f"{camera_id}/{snap_filename}"   # DB path: cam-1/sight_...jpg
+    snapshot_path = cam_dir / snap_filename     # File path: SNAPSHOTS_DIR/cam-1/sight_...jpg
     cv2.imwrite(str(snapshot_path), img, [cv2.IMWRITE_JPEG_QUALITY, 70])
 
     sighting = {
