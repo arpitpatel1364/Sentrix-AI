@@ -16,7 +16,7 @@ def update_worker_heartbeat(node_key: str):
     """
     from .database import get_db_conn
 
-    if node_key not in WORKER_REGISTRY:
+    if node_key not in WORKER_REGISTRY or WORKER_REGISTRY[node_key].get("roi") is None:
         roi = None
         location = "Unknown Location"
         with get_db_conn() as db:
@@ -29,11 +29,18 @@ def update_worker_heartbeat(node_key: str):
                 roi = json.loads(res["roi"]) if res["roi"] else None
                 location = res["location"] or location
 
-        WORKER_REGISTRY[node_key] = {
-            "last_seen": 0.0,
-            "roi": roi,
-            "location": location,
-        }
+        if node_key not in WORKER_REGISTRY:
+            WORKER_REGISTRY[node_key] = {
+                "last_seen": 0.0,
+                "roi": roi,
+                "location": location,
+            }
+        else:
+            # Update missing ROI/Location for existing key
+            if WORKER_REGISTRY[node_key].get("roi") is None:
+                WORKER_REGISTRY[node_key]["roi"] = roi
+            if not WORKER_REGISTRY[node_key].get("location"):
+                WORKER_REGISTRY[node_key]["location"] = location
 
     WORKER_REGISTRY[node_key]["last_seen"] = time.time()
 

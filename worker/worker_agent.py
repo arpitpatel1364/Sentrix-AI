@@ -150,11 +150,11 @@ def is_in_roi(bbox, roi, im_w, im_h):
     """
     Check if the center of a bounding box [x, y, w, h] 
     is within the normalized ROI [x1, y1, x2, y2].
-    Defaults to a 3% tactical safety margin if no ROI is specified.
+    Defaults to full-frame (0.0 to 1.0) if no ROI is specified.
     """
     if not roi: 
-        # Tactical Default baseline
-        roi = [0.03, 0.03, 0.97, 0.97]
+        # Default to full frame
+        roi = [0.0, 0.0, 1.0, 1.0]
     
     bx, by, bw, bh = bbox
     cx, cy = (bx + bw/2) / im_w, (by + bh/2) / im_h
@@ -270,7 +270,7 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
             off_x, off_y = 0, 0
             if const_roi and len(const_roi) == 4:
                 x1_n, y1_n, x2_n, y2_n = const_roi
-                if x1_n > 0.01 or y1_n > 0.01 or x2_n < 0.99 or y2_n < 0.99:
+                if x1_n > 0.005 or y1_n > 0.005 or x2_n < 0.995 or y2_n < 0.995:
                     off_x, off_y = int(x1_n * w_orig), int(y1_n * h_orig)
                     ex, ey = int(x2_n * w_orig), int(y2_n * h_orig)
                     crop_frame = frame[off_y:ey, off_x:ex]
@@ -429,7 +429,7 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             off_x, off_y = 0, 0
             if const_roi and len(const_roi) == 4:
                 x1_n, y1_n, x2_n, y2_n = const_roi
-                if x1_n > 0.01 or y1_n > 0.01 or x2_n < 0.99 or y2_n < 0.99:
+                if x1_n > 0.005 or y1_n > 0.005 or x2_n < 0.995 or y2_n < 0.995:
                     off_x, off_y = int(x1_n * w_orig), int(y1_n * h_orig)
                     ex, ey = int(x2_n * w_orig), int(y2_n * h_orig)
                     crop_frame = frame[off_y:ey, off_x:ex]

@@ -46,13 +46,23 @@ def get_node_roi(node_key: str) -> Optional[List[float]]:
     # Fallback to DB
     from ...core.database import get_db_conn
     camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
+    
+    roi = None
     with get_db_conn() as db:
         cur = db.cursor()
         cur.execute("SELECT roi FROM cameras WHERE camera_id = ?", (camera_id,))
         row = cur.fetchone()
         if row and row["roi"]:
-            return json.loads(row["roi"])
-    return None
+            roi = json.loads(row["roi"])
+    
+    # Update local state if found
+    if roi is not None:
+        if state:
+            state["roi"] = roi
+        else:
+            WORKER_REGISTRY[node_key] = {"last_seen": 0.0, "roi": roi, "location": ""}
+            
+    return roi
 
 def get_all_rois_for_user(username: str) -> dict:
     """Returns all camera ROIs for a specific user from the primary DB registry."""
