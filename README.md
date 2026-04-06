@@ -115,6 +115,93 @@ The worker node employs a decoupled "Two-Core" execution model to maintain ultra
 
 ---
 
+## Behind-the-Scenes Architecture & Data Flow
+
+To understand the speed of Sentrix AI, here is the internal request lifecycle and the progression of data through the system pipeline.
+
+### 1. Processing Progression Flow (Form)
+This ASCII state diagram maps the internal state progression of a single camera frame as it is analyzed by the dual-core mesh intelligence.
+
+```text
++-----------------------+
+|    CAMERA (RTSP)      |
+|  Raw Stream Capture   |
++-----------------------+
+            |
+            v
++-----------------------+
+|     WORKER AGENT      |
+|  (Motion Threshold)   |
++-----------------------+
+            |
+            +---------------------------------------+
+            |                                       |
+            v                                       v
++-----------------------+               +-----------------------+
+|     CORE 1: FACE      |               |    CORE 2: OBJECT     |
+|  - Crop Faces         |               |  - YOLO Inference     |
+|  - 512-D Embeddings   |               |  - Box Generation     |
++-----------------------+               +-----------------------+
+            |                                       |
+            +-------------------+-------------------+
+                                |
+                                v
+                    +-----------------------+
+                    | METADATA AGGREGATION  |
+                    | (Prepare JSON Payload)|
+                    +-----------------------+
+                                |
+                                v
+                    +-----------------------+
+                    |    TRANSMIT TO HUB    |
+                    |  (HTTP POST /upload)  |
+                    +-----------------------+
+```
+
+### 2. Hub Data Resolution & Request Architecture
+Once the Worker transmits the data, the Hub processes the payload and pushes real-time alerts.
+
+```text
+                    +-----------------------+
+                    | CENTRAL HUB (API)     |
+                    | (Receives Payload)    |
+                    +-----------------------+
+                                |
+                +---------------+---------------+
+                |                               |
+                v                               v
++-------------------------------+   +-----------------------+
+|          QDRANT DB            |   |       SQLITE DB       |
+|  - Search Vector Store        |   |  - Save Metadata      |
+|  - Check Cosine Similarity    |   |  - Log Known/Unknown  |
++-------------------------------+   +-----------------------+
+                |
+                v
++-------------------------------+
+|      MATCH RESOLUTION         |
+|  Is similarity > threshold?   |
++-------------------------------+
+                |
+          +-----+-----+
+          |           |
+        (Yes)        (No)
+          |           |
+          v           v
++----------------+ +----------------+
+|  TRIGGER ALERT | | ARCHIVE ONLY   |
+| (SSE Pipeline) | | (No UI Alert)  |
++----------------+ +----------------+
+          |
+          v
++-----------------------+
+|  TACTICAL DASHBOARD   |
+|  - Live Feed Update   |
+|  - Flash UI Prompt    |
++-----------------------+
+```
+
+---
+
 ## Default Credentials
 
 | Identity | Username | Password |
