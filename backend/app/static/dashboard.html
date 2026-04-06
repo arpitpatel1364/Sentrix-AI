@@ -18,23 +18,23 @@
       --surface: rgba(17, 19, 26, 0.85);
       --border: rgba(255, 255, 255, 0.05);
       --border2: rgba(255, 255, 255, 0.1);
-      --amber: #f59e0b;
+      --amber: #7ca6ff;
       /* Tactical Amber */
-      --amber-dim: rgba(245, 158, 11, 0.1);
-      --amber-glow: rgba(245, 158, 11, 0.2);
+      --amber-dim: rgba(11, 140, 245, 0.1);
+      --amber-glow: rgba(31, 170, 250, 0.712);
       --cyan: #22d3ee;
       /* Tactical Cyan */
       --cyan-dim: rgba(34, 211, 238, 0.1);
-      --red: #ef4444;
-      --red-dim: rgba(239, 68, 68, 0.1);
+      --red: hsla(0, 100%, 63%, 0.507);
+      --red-dim: rgba(71, 68, 239, 0.377);
       --green: #10b981;
       --green-dim: rgba(16, 185, 129, 0.1);
       --purple: #8b5cf6;
       --text: #f1f5f9;
       --muted: #94a3b8;
-      --mono: 'Share Tech Mono', monospace;
-      --sans: 'DM Sans', sans-serif;
-      --display: 'Orbitron', sans-serif;
+      --mono: 'Google Sans ', monospace;
+      --sans: 'Google Sans', sans-serif;
+      --display: 'Google Sans', sans-serif;
       --sidebar-w: 260px;
     }
 
@@ -169,9 +169,26 @@
     }
 
     @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-      20%, 40%, 60%, 80% { transform: translateX(5px); }
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      10%,
+      30%,
+      50%,
+      70%,
+      90% {
+        transform: translateX(-5px);
+      }
+
+      20%,
+      40%,
+      60%,
+      80% {
+        transform: translateX(5px);
+      }
     }
 
     .shake {
@@ -399,7 +416,7 @@
     .nav-item.active {
       background: var(--amber-dim);
       color: var(--amber);
-      border: 1px solid rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(11, 132, 245, 0.2);
     }
 
     .nav-item.active::before {
@@ -926,7 +943,7 @@
     .badge.admin {
       background: var(--amber-dim);
       color: var(--amber);
-      border: 1px solid rgba(245, 158, 11, 0.2)
+      border: 1px solid rgba(11, 218, 245, 0.2)
     }
 
     .badge.worker {
@@ -1163,10 +1180,10 @@
 
     .toast.alert-sight {
       border-color: var(--amber);
-      box-shadow: 0 0 30px rgba(245, 158, 11, 0.1), 0 16px 40px rgba(0, 0, 0, 0.6);
-      border-top: 1px solid rgba(245, 158, 11, 0.15);
-      border-right: 1px solid rgba(245, 158, 11, 0.08);
-      border-bottom: 1px solid rgba(245, 158, 11, 0.08);
+      box-shadow: 0 0 30px rgba(11, 210, 245, 0.1), 0 16px 40px rgba(0, 0, 0, 0.6);
+      border-top: 1px solid rgba(11, 210, 245, 0.15);
+      border-right: 1px solid rgba(11, 245, 175, 0.08);
+      border-bottom: 1px solid rgba(11, 229, 245, 0.08);
     }
 
     .toast-type {
@@ -1556,7 +1573,7 @@
       position: absolute;
       top: 5px;
       right: 5px;
-      background: rgba(244, 63, 94, 0.8);
+      background: rgba(107, 225, 255, 0.8);
       color: #fff;
       width: 20px;
       height: 20px;
@@ -1581,6 +1598,7 @@
       color: var(--muted);
       text-align: center;
     }
+
     /* ─── MINI MONITOR ─── */
     .mini-monitor {
       position: fixed;
@@ -1703,7 +1721,7 @@
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: 12px;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
     }
 
     .monitor-box {
@@ -1713,7 +1731,7 @@
       border-radius: 8px;
       overflow: hidden;
       border: 1px solid var(--border2);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
       transition: all 0.2s;
       cursor: pointer;
     }
@@ -1722,7 +1740,7 @@
       border-color: var(--amber);
       transform: scale(1.02);
       z-index: 10;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     }
 
     .monitor-box img {
@@ -1735,7 +1753,7 @@
       position: absolute;
       top: 6px;
       left: 6px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.6);
       padding: 2px 6px;
       border-radius: 4px;
       font-family: var(--mono);
@@ -1770,7 +1788,7 @@
       overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
-    
+
     #roi-selector {
       position: absolute;
       border: 1px solid #ccff00;
@@ -1786,8 +1804,11 @@
     #roi-selector::before {
       content: "";
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-image: 
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
         linear-gradient(rgba(204, 255, 0, 0.1) 1px, transparent 1px),
         linear-gradient(90deg, rgba(204, 255, 0, 0.1) 1px, transparent 1px);
       background-size: 20px 20px;
@@ -1799,7 +1820,10 @@
     #roi-selector::after {
       content: "";
       position: absolute;
-      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
       border: 2px solid transparent;
       border-image: radial-gradient(circle at center, transparent 80%, #ccff00 90%) 1;
       pointer-events: none;
@@ -1812,11 +1836,35 @@
       border: 2px solid #ccff00;
       pointer-events: none;
     }
-    .roi-bracket.tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
-    .roi-bracket.tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; }
-    .roi-bracket.bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; }
-    .roi-bracket.br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
-    
+
+    .roi-bracket.tl {
+      top: -2px;
+      left: -2px;
+      border-right: 0;
+      border-bottom: 0;
+    }
+
+    .roi-bracket.tr {
+      top: -2px;
+      right: -2px;
+      border-left: 0;
+      border-bottom: 0;
+    }
+
+    .roi-bracket.bl {
+      bottom: -2px;
+      left: -2px;
+      border-right: 0;
+      border-top: 0;
+    }
+
+    .roi-bracket.br {
+      bottom: -2px;
+      right: -2px;
+      border-left: 0;
+      border-top: 0;
+    }
+
     .roi-handle {
       position: absolute;
       width: 10px;
@@ -1825,15 +1873,38 @@
       border: 2px solid #000;
       border-radius: 50%;
       z-index: 110;
-      box-shadow: 0 0 10px rgba(204, 255, 0, 0.5);
+      box-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
       transition: transform 0.2s, background 0.2s;
     }
-    .roi-handle:hover { transform: scale(1.4); background: #fff; }
-    
-    .roi-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
-    .roi-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
-    .roi-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
-    .roi-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+    .roi-handle:hover {
+      transform: scale(1.4);
+      background: #fff;
+    }
+
+    .roi-handle.tl {
+      top: -5px;
+      left: -5px;
+      cursor: nwse-resize;
+    }
+
+    .roi-handle.tr {
+      top: -5px;
+      right: -5px;
+      cursor: nesw-resize;
+    }
+
+    .roi-handle.bl {
+      bottom: -5px;
+      left: -5px;
+      cursor: nesw-resize;
+    }
+
+    .roi-handle.br {
+      bottom: -5px;
+      right: -5px;
+      cursor: nwse-resize;
+    }
 
     /* Outside overlays */
     .roi-overlay {
@@ -1844,21 +1915,21 @@
       pointer-events: none;
       transition: opacity 0.3s;
     }
-    
+
     .roi-info {
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        color: #ccff00;
-        font-family: var(--mono);
-        font-size: 0.6rem;
-        pointer-events: none;
-        letter-spacing: 0.12em;
-        background: rgba(0,0,0,0.6);
-        padding: 2px 6px;
-        border-radius: 3px;
-        border-left: 2px solid #ccff00;
-        text-transform: uppercase;
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: #ccff00;
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      pointer-events: none;
+      letter-spacing: 0.12em;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2px 6px;
+      border-radius: 3px;
+      border-left: 2px solid #ccff00;
+      text-transform: uppercase;
     }
 
     .roi-crosshair {
@@ -1871,25 +1942,57 @@
       pointer-events: none;
       opacity: 0.5;
     }
-    .roi-crosshair::before, .roi-crosshair::after {
-      content: ""; position: absolute; background: #ccff00;
+
+    .roi-crosshair::before,
+    .roi-crosshair::after {
+      content: "";
+      position: absolute;
+      background: #ccff00;
     }
-    .roi-crosshair::before { top: 14px; left: 0; width: 30px; height: 1px; }
-    .roi-crosshair::after { left: 14px; top: 0; width: 1px; height: 30px; }
+
+    .roi-crosshair::before {
+      top: 14px;
+      left: 0;
+      width: 30px;
+      height: 1px;
+    }
+
+    .roi-crosshair::after {
+      left: 14px;
+      top: 0;
+      width: 1px;
+      height: 30px;
+    }
 
 
-  
+
     /* ─── ANALYTICS HEATMAP ─── */
-    #hourly-heatmap > div { transition: transform .15s; }
-    #hourly-heatmap > div:hover { transform: scaleY(1.15); }
+    #hourly-heatmap>div {
+      transition: transform .15s;
+    }
+
+    #hourly-heatmap>div:hover {
+      transform: scaleY(1.15);
+    }
 
     /* ─── CAMERA CARDS ─── */
-    #cameras-grid .panel { transition: border-color .2s, box-shadow .2s; }
-    #cameras-grid .panel:hover { border-color: var(--border2); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+    #cameras-grid .panel {
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    #cameras-grid .panel:hover {
+      border-color: var(--border2);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
 
     /* ─── MAP ─── */
-    .map-pin { cursor: pointer; }
-    .map-pin:hover { opacity: 0.85; }
+    .map-pin {
+      cursor: pointer;
+    }
+
+    .map-pin:hover {
+      opacity: 0.85;
+    }
 
     /* ─── CAMERA PREVIEWS ─── */
     .camera-preview-box {
@@ -1901,7 +2004,7 @@
       position: relative;
       border: 1px solid var(--border);
       margin-bottom: 1rem;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
     }
 
     .camera-preview-img {
@@ -1943,10 +2046,14 @@
     }
 
     @keyframes scanlineAnim {
-      0% { top: 0; }
-      100% { top: 100%; }
-    }
+      0% {
+        top: 0;
+      }
 
+      100% {
+        top: 100%;
+      }
+    }
   </style>
 </head>
 
@@ -2055,21 +2162,35 @@
           </div>
 
           <div class="nav-item" onclick="showPage('analytics',this)">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="3" height="18"/><rect x="11" y="8" width="3" height="13"/><rect x="4" y="13" width="3" height="8"/></svg>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="18" y="3" width="3" height="18" />
+              <rect x="11" y="8" width="3" height="13" />
+              <rect x="4" y="13" width="3" height="8" />
+            </svg>
             Analytics
           </div>
 
           <div class="nav-section">// ADMIN</div>
           <div class="nav-item" onclick="showPage('cameras',this)">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
             Camera Management
           </div>
           <div class="nav-item" onclick="showPage('map',this)">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6" />
+              <line x1="9" y1="3" x2="9" y2="18" />
+              <line x1="15" y1="6" x2="15" y2="21" />
+            </svg>
             Live Map
           </div>
           <div class="nav-item" onclick="showPage('alert-rules',this)">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
             Alert Rules
           </div>
           <div class="nav-item" onclick="showPage('workers',this)">
@@ -2432,77 +2553,107 @@
               </div>
               <div class="panel" style="margin-top:1rem">
                 <div class="panel-title">▷ NOTIFICATION SETTINGS</div>
-                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Configure SMTP email and webhook dispatch for alert rule notifications.</p>
+                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Configure SMTP email
+                  and webhook dispatch for alert rule notifications.</p>
                 <button class="btn btn-primary btn-sm" onclick="openNotifConfig()">⚙ Configure Email / Webhooks</button>
               </div>
               <div class="panel" style="margin-top:1rem">
                 <div class="panel-title">▷ STORAGE CLEANUP</div>
-                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Remove old snapshots and biometric records to optimize storage space.</p>
+                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">Remove old snapshots
+                  and biometric records to optimize storage space.</p>
                 <div style="display:flex;flex-direction:column;gap:0.75rem">
-                    <div class="field">
-                        <label>Retention Period</label>
-                        <select class="form-input" id="cleanup-range" style="width:100%; height: 38px; background: #0a0c12; border: 1px solid var(--border2); color: var(--text); padding: 0 0.75rem; border-radius: 8px; font-family: var(--mono); font-size: 0.85rem;">
-                            <option value="1h">Older than 1 Hour</option>
-                            <option value="24h">Older than 24 Hours</option>
-                            <option value="7d">Older than 7 Days</option>
-                            <option value="30d">Older than 30 Days</option>
-                            <option value="90d">Older than 90 Days</option>
-                            <option value="1y">Older than 1 Year</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Biometric ID (Optional)</label>
-                        <input type="text" id="cleanup-person-id" placeholder="Person ID for targeted deletion" style="padding: 0.6rem 0.75rem;">
-                    </div>
-                    <div class="field">
-                        <label>Target Type</label>
-                        <select class="form-input" id="cleanup-target" style="width:100%; height: 38px; background: #0a0c12; border: 1px solid var(--border2); color: var(--text); padding: 0 0.75rem; border-radius: 8px; font-family: var(--mono); font-size: 0.85rem;">
-                            <option value="all">All Records</option>
-                            <option value="sightings">Biometric Sightings Only</option>
-                            <option value="objects">Object Detections Only</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="runCleanup()" style="margin-top:0.5rem">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
-                        Clean Up System
-                    </button>
+                  <div class="field">
+                    <label>Retention Period</label>
+                    <select class="form-input" id="cleanup-range"
+                      style="width:100%; height: 38px; background: #0a0c12; border: 1px solid var(--border2); color: var(--text); padding: 0 0.75rem; border-radius: 8px; font-family: var(--mono); font-size: 0.85rem;">
+                      <option value="1h">Older than 1 Hour</option>
+                      <option value="24h">Older than 24 Hours</option>
+                      <option value="7d">Older than 7 Days</option>
+                      <option value="30d">Older than 30 Days</option>
+                      <option value="90d">Older than 90 Days</option>
+                      <option value="1y">Older than 1 Year</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Biometric ID (Optional)</label>
+                    <input type="text" id="cleanup-person-id" placeholder="Person ID for targeted deletion"
+                      style="padding: 0.6rem 0.75rem;">
+                  </div>
+                  <div class="field">
+                    <label>Target Type</label>
+                    <select class="form-input" id="cleanup-target"
+                      style="width:100%; height: 38px; background: #0a0c12; border: 1px solid var(--border2); color: var(--text); padding: 0 0.75rem; border-radius: 8px; font-family: var(--mono); font-size: 0.85rem;">
+                      <option value="all">All Records</option>
+                      <option value="sightings">Biometric Sightings Only</option>
+                      <option value="objects">Object Detections Only</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary" onclick="runCleanup()" style="margin-top:0.5rem">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path
+                        d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+                    </svg>
+                    Clean Up System
+                  </button>
                 </div>
               </div>
-              <div class="panel" style="margin-top:1rem; border-color: var(--cyan-dim); position: relative; overflow: hidden;">
-                <div style="position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, var(--cyan), transparent); opacity:0.5"></div>
-                <div class="panel-title" style="color:var(--cyan); letter-spacing: 0.15em;">▷ BIOMETRIC DISCOVERY & PURGE</div>
-                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6">Surgically remove all historical records of a specific subject by providing face references.</p>
-                
-                <div id="biometric-step-1" style="display:flex;flex-direction:column;gap:0.75rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border)">
-                    <div class="field">
-                        <label>Face Photo References</label>
-                        <input type="file" id="biometric-purge-files" multiple accept="image/*" class="form-input" style="padding: 0.4rem;">
-                    </div>
-                    <button class="btn btn-outline btn-sm" id="btn-biometric-search" onclick="runBiometricSearch()" style="color:var(--cyan); border-color:var(--cyan-dim)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                        Search Matches
-                    </button>
+              <div class="panel"
+                style="margin-top:1rem; border-color: var(--cyan-dim); position: relative; overflow: hidden;">
+                <div
+                  style="position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, var(--cyan), transparent); opacity:0.5">
+                </div>
+                <div class="panel-title" style="color:var(--cyan); letter-spacing: 0.15em;">▷ BIOMETRIC DISCOVERY &
+                  PURGE</div>
+                <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6">Surgically remove
+                  all historical records of a specific subject by providing face references.</p>
+
+                <div id="biometric-step-1"
+                  style="display:flex;flex-direction:column;gap:0.75rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border)">
+                  <div class="field">
+                    <label>Face Photo References</label>
+                    <input type="file" id="biometric-purge-files" multiple accept="image/*" class="form-input"
+                      style="padding: 0.4rem;">
+                  </div>
+                  <button class="btn btn-outline btn-sm" id="btn-biometric-search" onclick="runBiometricSearch()"
+                    style="color:var(--cyan); border-color:var(--cyan-dim)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      <line x1="11" y1="8" x2="11" y2="14" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                    Search Matches
+                  </button>
                 </div>
 
                 <div id="biometric-step-2" style="display:none; margin-top:1.25rem">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem">
-                        <span style="font-family:var(--mono); font-size:0.7rem; color:var(--text)" id="biometric-match-count">0 MATCHES FOUND</span>
-                        <button class="btn btn-ghost btn-sm" onclick="resetBiometricPurge()" style="font-size:0.6rem">↺ Restart</button>
-                    </div>
-                    
-                    <div id="biometric-preview-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:10px; max-height:300px; overflow-y:auto; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid var(--border2); margin-bottom:1.25rem">
-                        <!-- Preview thumbnails here -->
-                    </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem">
+                    <span style="font-family:var(--mono); font-size:0.7rem; color:var(--text)"
+                      id="biometric-match-count">0 MATCHES FOUND</span>
+                    <button class="btn btn-ghost btn-sm" onclick="resetBiometricPurge()" style="font-size:0.6rem">↺
+                      Restart</button>
+                  </div>
 
-                    <p style="font-size:0.7rem; color:var(--muted); margin-bottom:0.75rem">// CLICK '✖' TO EXCLUDE PHOTOS YOU WANT TO KEEP</p>
-                    
-                    <button class="btn btn-danger btn-sm" id="btn-biometric-purge" onclick="commitBiometricPurge()" style="width:100%">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        Confirm Purge <span id="biometric-purge-count">0</span> Records
-                    </button>
+                  <div id="biometric-preview-grid"
+                    style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:10px; max-height:300px; overflow-y:auto; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px; border:1px solid var(--border2); margin-bottom:1.25rem">
+                    <!-- Preview thumbnails here -->
+                  </div>
+
+                  <p style="font-size:0.7rem; color:var(--muted); margin-bottom:0.75rem">// CLICK '✖' TO EXCLUDE PHOTOS
+                    YOU WANT TO KEEP</p>
+
+                  <button class="btn btn-danger btn-sm" id="btn-biometric-purge" onclick="commitBiometricPurge()"
+                    style="width:100%">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Confirm Purge <span id="biometric-purge-count">0</span> Records
+                  </button>
                 </div>
 
-                <div id="biometric-purge-status" style="font-family:var(--mono); font-size:0.65rem; color:var(--muted); margin-top:0.75rem; display:none"></div>
+                <div id="biometric-purge-status"
+                  style="font-family:var(--mono); font-size:0.65rem; color:var(--muted); margin-top:0.75rem; display:none">
+                </div>
               </div>
               <div>
                 <div class="panel" style="border-color:rgba(244,63,94,0.2)">
@@ -2553,7 +2704,8 @@
                 <div class="sec-sub">// DETECTION TRENDS &amp; INTELLIGENCE METRICS</div>
               </div>
               <div class="sec-actions">
-                <select class="form-input" id="analytics-days" onchange="loadAnalytics()" style="width:140px;padding:0.5rem 0.75rem;font-size:0.8rem">
+                <select class="form-input" id="analytics-days" onchange="loadAnalytics()"
+                  style="width:140px;padding:0.5rem 0.75rem;font-size:0.8rem">
                   <option value="1">Last 24h</option>
                   <option value="7" selected>Last 7 Days</option>
                   <option value="14">Last 14 Days</option>
@@ -2563,22 +2715,35 @@
             </div>
 
             <!-- Stat strip -->
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem" id="analytics-stats-strip">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem"
+              id="analytics-stats-strip">
               <div class="panel" style="padding:1rem">
-                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">TOTAL FACES</div>
-                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--amber);margin-top:0.35rem" id="a-total-faces">—</div>
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">TOTAL
+                  FACES</div>
+                <div
+                  style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--amber);margin-top:0.35rem"
+                  id="a-total-faces">—</div>
               </div>
               <div class="panel" style="padding:1rem">
-                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">WANTED MATCHES</div>
-                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--red);margin-top:0.35rem" id="a-total-matches">—</div>
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">WANTED
+                  MATCHES</div>
+                <div
+                  style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--red);margin-top:0.35rem"
+                  id="a-total-matches">—</div>
               </div>
               <div class="panel" style="padding:1rem">
-                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">OBJECTS LOGGED</div>
-                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--cyan);margin-top:0.35rem" id="a-total-objects">—</div>
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">OBJECTS
+                  LOGGED</div>
+                <div
+                  style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--cyan);margin-top:0.35rem"
+                  id="a-total-objects">—</div>
               </div>
               <div class="panel" style="padding:1rem">
-                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">MATCH RATE</div>
-                <div style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--purple);margin-top:0.35rem" id="a-match-rate">—</div>
+                <div style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);letter-spacing:0.1em">MATCH RATE
+                </div>
+                <div
+                  style="font-family:var(--display);font-size:2rem;font-weight:700;color:var(--purple);margin-top:0.35rem"
+                  id="a-match-rate">—</div>
               </div>
             </div>
 
@@ -2593,8 +2758,10 @@
               <!-- Hourly heatmap -->
               <div class="panel">
                 <div class="panel-title">▷ HOURLY ACTIVITY HEATMAP</div>
-                <div id="hourly-heatmap" style="margin-top:1rem;display:grid;grid-template-columns:repeat(12,1fr);gap:3px"></div>
-                <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--muted)">
+                <div id="hourly-heatmap"
+                  style="margin-top:1rem;display:grid;grid-template-columns:repeat(12,1fr);gap:3px"></div>
+                <div
+                  style="display:flex;justify-content:space-between;margin-top:0.5rem;font-family:var(--mono);font-size:0.6rem;color:var(--muted)">
                   <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
                 </div>
               </div>
@@ -2604,19 +2771,22 @@
               <!-- Per-camera breakdown -->
               <div class="panel">
                 <div class="panel-title">▷ PER-CAMERA BREAKDOWN</div>
-                <div id="analytics-cameras" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+                <div id="analytics-cameras" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem">
+                </div>
               </div>
               <!-- Top objects -->
               <div class="panel">
                 <div class="panel-title">▷ TOP DETECTED OBJECTS</div>
-                <div id="analytics-objects" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+                <div id="analytics-objects" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem">
+                </div>
               </div>
             </div>
 
             <!-- Watchlist hit leaders -->
             <div class="panel" style="margin-top:1rem">
               <div class="panel-title">▷ MOST SIGHTED WANTED PERSONS</div>
-              <div id="analytics-watchlist-hits" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+              <div id="analytics-watchlist-hits"
+                style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
             </div>
           </div>
 
@@ -2629,13 +2799,18 @@
               </div>
               <div class="sec-actions">
                 <button class="btn btn-primary btn-sm" onclick="openAddCamera()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                   Register Camera
                 </button>
               </div>
             </div>
-            <div id="cameras-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem"></div>
-            <div id="cameras-empty" style="display:none;padding:3rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:0.8rem">
+            <div id="cameras-grid"
+              style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem"></div>
+            <div id="cameras-empty"
+              style="display:none;padding:3rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:0.8rem">
               NO CAMERAS REGISTERED — Click "Register Camera" to add your first node
             </div>
           </div>
@@ -2648,17 +2823,25 @@
                 <div class="sec-sub">// CAMERA POSITIONS &amp; REAL-TIME STATUS</div>
               </div>
               <div class="sec-actions">
-                <button class="btn btn-ghost btn-sm" id="map-edit-btn" onclick="toggleMapEdit()">✎ Edit Positions</button>
+                <button class="btn btn-ghost btn-sm" id="map-edit-btn" onclick="toggleMapEdit()">✎ Edit
+                  Positions</button>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 300px;gap:1rem;height:calc(100vh - 200px)">
               <div class="panel" style="padding:0;overflow:hidden;position:relative" id="map-container">
-                <div id="map-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;color:var(--muted)">
-                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/></svg>
+                <div id="map-placeholder"
+                  style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;color:var(--muted)">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                    opacity="0.3">
+                    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6" />
+                  </svg>
                   <div style="font-family:var(--mono);font-size:0.7rem;letter-spacing:0.1em">FLOOR PLAN MAP</div>
-                  <div style="font-size:0.75rem;text-align:center;max-width:300px">Drop a floor plan image here or use the grid layout below</div>
-                  <input type="file" id="floorplan-upload" accept="image/*" style="display:none" onchange="loadFloorplan(this)">
-                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('floorplan-upload').click()">Upload Floor Plan</button>
+                  <div style="font-size:0.75rem;text-align:center;max-width:300px">Drop a floor plan image here or use
+                    the grid layout below</div>
+                  <input type="file" id="floorplan-upload" accept="image/*" style="display:none"
+                    onchange="loadFloorplan(this)">
+                  <button class="btn btn-ghost btn-sm"
+                    onclick="document.getElementById('floorplan-upload').click()">Upload Floor Plan</button>
                 </div>
                 <canvas id="map-canvas" style="width:100%;height:100%;display:none;cursor:default"></canvas>
                 <svg id="map-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
@@ -2672,9 +2855,12 @@
                 <div class="panel" style="padding:0.75rem">
                   <div class="panel-title" style="margin-bottom:0.75rem">▷ LIVE SUMMARY</div>
                   <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.82rem">
-                    <div class="result-item"><span class="result-label">Online</span><span id="map-stat-online" style="color:var(--green);font-family:var(--mono)">0</span></div>
-                    <div class="result-item"><span class="result-label">Offline</span><span id="map-stat-offline" style="color:var(--red);font-family:var(--mono)">0</span></div>
-                    <div class="result-item"><span class="result-label">Alerts Today</span><span id="map-stat-alerts" style="color:var(--amber);font-family:var(--mono)">0</span></div>
+                    <div class="result-item"><span class="result-label">Online</span><span id="map-stat-online"
+                        style="color:var(--green);font-family:var(--mono)">0</span></div>
+                    <div class="result-item"><span class="result-label">Offline</span><span id="map-stat-offline"
+                        style="color:var(--red);font-family:var(--mono)">0</span></div>
+                    <div class="result-item"><span class="result-label">Alerts Today</span><span id="map-stat-alerts"
+                        style="color:var(--amber);font-family:var(--mono)">0</span></div>
                   </div>
                 </div>
               </div>
@@ -2690,7 +2876,10 @@
               </div>
               <div class="sec-actions">
                 <button class="btn btn-primary btn-sm" onclick="openAddRule()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                   New Rule
                 </button>
               </div>
@@ -2698,14 +2887,23 @@
 
             <!-- Rule type legend -->
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem">
-              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.2)">WANTED MATCH</span>
-              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(59,130,246,0.12);color:var(--amber);border:1px solid rgba(59,130,246,0.2)">ANY FACE</span>
-              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(16,185,129,0.12);color:var(--cyan);border:1px solid rgba(16,185,129,0.2)">OBJECT DETECTED</span>
-              <span style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(139,92,246,0.12);color:var(--purple);border:1px solid rgba(139,92,246,0.2)">HIGH CONFIDENCE</span>
+              <span
+                style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.2)">WANTED
+                MATCH</span>
+              <span
+                style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(59,130,246,0.12);color:var(--amber);border:1px solid rgba(59,130,246,0.2)">ANY
+                FACE</span>
+              <span
+                style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(16,185,129,0.12);color:var(--cyan);border:1px solid rgba(16,185,129,0.2)">OBJECT
+                DETECTED</span>
+              <span
+                style="font-family:var(--mono);font-size:0.65rem;padding:0.3rem 0.75rem;border-radius:20px;background:rgba(139,92,246,0.12);color:var(--purple);border:1px solid rgba(139,92,246,0.2)">HIGH
+                CONFIDENCE</span>
             </div>
 
             <div id="rules-list" style="display:flex;flex-direction:column;gap:0.75rem"></div>
-            <div id="rules-empty" style="display:none;padding:3rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:0.8rem">
+            <div id="rules-empty"
+              style="display:none;padding:3rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:0.8rem">
               NO RULES DEFINED — Click "New Rule" to create your first alert trigger
             </div>
           </div>
@@ -2718,39 +2916,51 @@
 
   <!-- ── ROI CONFIG MODAL ── -->
   <div class="modal-overlay" id="modal-roi">
-    <div class="modal" style="max-width: 90vw; width: 1000px; min-width: 600px; padding: 0; background: #010101; overflow: hidden; border: 1px solid var(--amber-glow)">
-      <div class="sec-head" style="margin: 0; padding: 1.25rem 1.5rem; background: #080808; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="modal"
+      style="max-width: 90vw; width: 1000px; min-width: 600px; padding: 0; background: #010101; overflow: hidden; border: 1px solid var(--amber-glow)">
+      <div class="sec-head"
+        style="margin: 0; padding: 1.25rem 1.5rem; background: #080808; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 1rem;">
-          <div style="width: 40px; height: 40px; border: 1px solid var(--cyan); display: flex; align-items: center; justify-content: center; background: rgba(0,255,255,0.05); border-radius: 4px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+          <div
+            style="width: 40px; height: 40px; border: 1px solid var(--cyan); display: flex; align-items: center; justify-content: center; background: rgba(0,255,255,0.05); border-radius: 4px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2">
+              <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
           </div>
           <div>
-            <div class="sec-title" id="roi-title" style="font-size: 1.1rem; letter-spacing: 0.1em; color: var(--text)">ROI CONFIGURATION</div>
-            <div class="sec-sub" id="roi-id-label" style="color: var(--muted); font-size: 0.7rem; font-family: var(--mono)">// CAMERA NODE: cam-1</div>
+            <div class="sec-title" id="roi-title" style="font-size: 1.1rem; letter-spacing: 0.1em; color: var(--text)">
+              ROI CONFIGURATION</div>
+            <div class="sec-sub" id="roi-id-label"
+              style="color: var(--muted); font-size: 0.7rem; font-family: var(--mono)">// CAMERA NODE: cam-1</div>
           </div>
         </div>
         <div class="sec-actions" style="display: flex; gap: 0.75rem;">
-          <button class="btn btn-ghost btn-sm" onclick="resetROI()" style="border-color: rgba(255,255,255,0.1); margin-right: 1.5rem;">⟲ Restore Full Frame</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetROI()"
+            style="border-color: rgba(255,255,255,0.1); margin-right: 1.5rem;">⟲ Restore Full Frame</button>
           <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-roi')">Discard Changes</button>
-          <button class="btn btn-primary btn-sm" id="roi-save-btn" style="background: var(--cyan); color: #000; border: none; font-weight: 700; padding: 0.5rem 1.5rem; box-shadow: 0 0 15px rgba(0,255,255,0.2);">ACTIVATE ZONE</button>
+          <button class="btn btn-primary btn-sm" id="roi-save-btn"
+            style="background: var(--cyan); color: #000; border: none; font-weight: 700; padding: 0.5rem 1.5rem; box-shadow: 0 0 15px rgba(0,255,255,0.2);">ACTIVATE
+            ZONE</button>
         </div>
       </div>
-      
+
       <div class="roi-container" id="roi-container">
         <div id="roi-overlay-top" class="roi-overlay"></div>
         <div id="roi-overlay-bottom" class="roi-overlay"></div>
         <div id="roi-overlay-left" class="roi-overlay"></div>
         <div id="roi-overlay-right" class="roi-overlay"></div>
 
-        <img id="roi-stream" style="width: 100%; min-width: 640px; min-height: 360px; max-width: 100%; max-height: 75vh; user-select: none; -webkit-user-drag: none; background: #000; display: block;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22640%22 height=%22360%22><rect fill=%22%23000%22 width=%22640%22 height=%22360%22/><text x=%22320%22 y=%22190%22 text-anchor=%22middle%22 fill=%22%23333%22 font-family=%22monospace%22 font-size=%20%2220%22>STREAM SOURCE OFFLINE</text></svg>'">
-        
+        <img id="roi-stream"
+          style="width: 100%; min-width: 640px; min-height: 360px; max-width: 100%; max-height: 75vh; user-select: none; -webkit-user-drag: none; background: #000; display: block;"
+          onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22640%22 height=%22360%22><rect fill=%22%23000%22 width=%22640%22 height=%22360%22/><text x=%22320%22 y=%22190%22 text-anchor=%22middle%22 fill=%22%23333%22 font-family=%22monospace%22 font-size=%20%2220%22>STREAM SOURCE OFFLINE</text></svg>'">
+
         <div id="roi-selector">
           <div class="roi-bracket tl"></div>
           <div class="roi-bracket tr"></div>
           <div class="roi-bracket bl"></div>
           <div class="roi-bracket br"></div>
           <div class="roi-crosshair"></div>
-          
+
           <div class="roi-handle tl" data-handle="tl"></div>
           <div class="roi-handle tr" data-handle="tr"></div>
           <div class="roi-handle bl" data-handle="bl"></div>
@@ -2758,11 +2968,12 @@
           <div class="roi-info" id="roi-inner-label">DETECTION ZONE</div>
         </div>
       </div>
-      
-      <div style="padding: 1rem 1.5rem; background: var(--bg2); border-top: 1px solid var(--border); font-family: var(--mono); font-size: 0.65rem; color: var(--muted); display: flex; justify-content: space-between; align-items: center">
+
+      <div
+        style="padding: 1rem 1.5rem; background: var(--bg2); border-top: 1px solid var(--border); font-family: var(--mono); font-size: 0.65rem; color: var(--muted); display: flex; justify-content: space-between; align-items: center">
         <div style="display: flex; gap: 1.5rem">
-           <span>// DRAG CORNERS TO DEFINE AREA</span>
-           <span style="color:var(--amber)">// ONLY OBJECTS INSIDE THIS ZONE WILL BE LOGGED</span>
+          <span>// DRAG CORNERS TO DEFINE AREA</span>
+          <span style="color:var(--amber)">// ONLY OBJECTS INSIDE THIS ZONE WILL BE LOGGED</span>
         </div>
         <div id="roi-coords-display" style="color:var(--text)">ROI: 0, 0, 100, 100 (%)</div>
       </div>
@@ -2771,17 +2982,22 @@
 
   <!-- ── TACTICAL FULLSCREEN FEED ── -->
   <div class="modal-overlay" id="modal-tactical-fullscreen">
-    <div class="modal" style="max-width: 95vw; width: 1200px; padding: 0; background: #000; overflow: hidden; border: 1px solid var(--cyan)">
-      <div class="sec-head" style="margin: 0; padding: 1rem 1.25rem; background: var(--bg2); border-bottom: 1px solid var(--border)">
+    <div class="modal"
+      style="max-width: 95vw; width: 1200px; padding: 0; background: #000; overflow: hidden; border: 1px solid var(--cyan)">
+      <div class="sec-head"
+        style="margin: 0; padding: 1rem 1.25rem; background: var(--bg2); border-bottom: 1px solid var(--border)">
         <div>
-          <div class="sec-title" id="tactical-stream-title" style="color:var(--cyan); font-size: 0.9rem">LIVE TACTICAL FEED</div>
+          <div class="sec-title" id="tactical-stream-title" style="color:var(--cyan); font-size: 0.9rem">LIVE TACTICAL
+            FEED</div>
           <div class="sec-sub" id="tactical-stream-subtitle" style="font-size: 0.6rem">// CHANNEL: cam-1</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="closeFullScreenStream()">✕ Close</button>
       </div>
-      <div style="width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; position: relative">
-        <div class="sb-status" style="position: absolute; top: 15px; left: 15px; z-index: 10; background: rgba(0,0,0,0.5)">
-           <div class="dot" style="background:var(--cyan)"></div> TACTICAL LINK ACTIVE
+      <div
+        style="width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; position: relative">
+        <div class="sb-status"
+          style="position: absolute; top: 15px; left: 15px; z-index: 10; background: rgba(0,0,0,0.5)">
+          <div class="dot" style="background:var(--cyan)"></div> TACTICAL LINK ACTIVE
         </div>
         <img id="tactical-stream-img" style="max-width: 100%; max-height: 82vh; display: block">
       </div>
@@ -2875,7 +3091,8 @@
         <div style="text-align:right">
           <div
             style="font-family:var(--mono);font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;display:flex;justify-content:space-between;width:200px;margin-bottom:0.3rem">
-            <span>NEURAL SYNC</span><span id="dossier-sync-txt">0%</span></div>
+            <span>NEURAL SYNC</span><span id="dossier-sync-txt">0%</span>
+          </div>
           <div style="width:200px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
             <div id="dossier-sync-bar"
               style="height:100%;background:var(--amber);border-radius:3px;box-shadow:0 0 8px var(--amber);width:0%;transition:width 0.6s">
@@ -2932,8 +3149,10 @@
         <label class="form-label">Stream URL (optional)</label>
         <input type="text" class="form-input" id="ac-stream" placeholder="rtsp://192.168.1.100/stream">
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="addCamera()" id="ac-btn">Register Camera</button>
-      <div id="ac-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="addCamera()" id="ac-btn">Register
+        Camera</button>
+      <div id="ac-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none">
+      </div>
     </div>
   </div>
 
@@ -2959,7 +3178,8 @@
         <label class="form-label">Stream URL</label>
         <input type="text" class="form-input" id="ec-stream">
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveCamera()" id="ec-btn">Save Changes</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveCamera()" id="ec-btn">Save
+        Changes</button>
     </div>
   </div>
 
@@ -3013,8 +3233,10 @@
         <label class="form-label">Webhook URL (optional)</label>
         <input type="text" class="form-input" id="ar-webhook" placeholder="https://hooks.slack.com/…">
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveRule()" id="ar-btn">Create Rule</button>
-      <div id="ar-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveRule()" id="ar-btn">Create
+        Rule</button>
+      <div id="ar-err" style="color:var(--red);font-size:0.8rem;text-align:center;margin-top:0.75rem;display:none">
+      </div>
     </div>
   </div>
 
@@ -3058,7 +3280,7 @@
   </div>
 
 
-    <!-- Toast Container -->
+  <!-- Toast Container -->
   <div id="toasts"></div>
 
   <script>
@@ -3077,27 +3299,27 @@
 
     // ── NEW FEATURES STATE ──────────────────────────────────────────────
     let ALL_CAMERAS = [];
-    let ALL_RULES= [];
+    let ALL_RULES = [];
     let MAP_EDIT_MODE = false;
     let FLOORPLAN_IMG = null;
     let MAP_CAMERAS = [];
     let DRAG_CAM = null;
 
     const PAGE_META = {
-      'overview':    ['OVERVIEW',             '// TACTICAL OVERVIEW'],
-      'live-feed':   ['LIVE MONITOR',         '// DIRECT NEURAL LINK TO CAMERA NODES'],
-      'sightings':   ['FACE SIGHTINGS',       '// BIOMETRIC DETECTION HISTORY'],
-      'objects':     ['OBJECT DETECTIONS',    '// IDENTIFIED ITEMS & ASSETS'],
-      'analytics':   ['ANALYTICS',            '// DETECTION TRENDS & INTELLIGENCE METRICS'],
-      'watchlist':   ['INTELLIGENCE ARCHIVE', '// NEURAL WATCHLIST REGISTRY'],
-      'search':      ['BIOMETRIC LOOKUP',     '// GLOBAL FORENSIC FACE SEARCH'],
-      'analysis':    ['FRAME ANALYSIS',       '// AI-POWERED SNAPSHOT INSPECTION'],
-      'cameras':     ['CAMERA MANAGEMENT',    '// REGISTER & CONFIGURE CAMERA NODES'],
-      'map':         ['LIVE MAP',             '// CAMERA POSITIONS & REAL-TIME STATUS'],
-      'alert-rules': ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
-      'workers':     ['WORKER NODES',         '// ACTIVE FIELD INTELLIGENCE NODES'],
-      'users':       ['USER ACCOUNTS',        '// OPERATOR IDENTITY MANAGEMENT'],
-      'system':      ['SYSTEM CONTROL',       '// CONFIGURATION & MAINTENANCE'],
+      'overview': ['OVERVIEW', '// TACTICAL OVERVIEW'],
+      'live-feed': ['LIVE MONITOR', '// DIRECT NEURAL LINK TO CAMERA NODES'],
+      'sightings': ['FACE SIGHTINGS', '// BIOMETRIC DETECTION HISTORY'],
+      'objects': ['OBJECT DETECTIONS', '// IDENTIFIED ITEMS & ASSETS'],
+      'analytics': ['ANALYTICS', '// DETECTION TRENDS & INTELLIGENCE METRICS'],
+      'watchlist': ['INTELLIGENCE ARCHIVE', '// NEURAL WATCHLIST REGISTRY'],
+      'search': ['BIOMETRIC LOOKUP', '// GLOBAL FORENSIC FACE SEARCH'],
+      'analysis': ['FRAME ANALYSIS', '// AI-POWERED SNAPSHOT INSPECTION'],
+      'cameras': ['CAMERA MANAGEMENT', '// REGISTER & CONFIGURE CAMERA NODES'],
+      'map': ['LIVE MAP', '// CAMERA POSITIONS & REAL-TIME STATUS'],
+      'alert-rules': ['ALERT RULES ENGINE', '// AUTOMATED DETECTION TRIGGERS'],
+      'workers': ['WORKER NODES', '// ACTIVE FIELD INTELLIGENCE NODES'],
+      'users': ['USER ACCOUNTS', '// OPERATOR IDENTITY MANAGEMENT'],
+      'system': ['SYSTEM CONTROL', '// CONFIGURATION & MAINTENANCE'],
     };
 
     // ══════════════════════════════════════════════════
@@ -3137,8 +3359,8 @@
         box.classList.remove('shake');
         void box.offsetWidth; // trigger reflow
         box.classList.add('shake');
-        
-        err.style.display = 'block'; 
+
+        err.style.display = 'block';
         err.innerHTML = `<span style="font-weight:900">ACCESS DENIED</span><br>${e.message.toUpperCase()}`;
       } finally {
         btn.textContent = '▶ AUTHENTICATE'; btn.disabled = false;
@@ -3186,20 +3408,20 @@
     //  NAVIGATION
     // ══════════════════════════════════════════════════
     const pageTitles = {
-      overview:      ['OVERVIEW',             '// TACTICAL DASHBOARD'],
-      sightings:     ['FACE SIGHTINGS',       '// BIOMETRIC ACTIVITY LOG'],
-      objects:       ['OBJECT DETECTIONS',    '// ITEM RECOGNITION LOG'],
-      analytics:     ['ANALYTICS',            '// DETECTION TRENDS & INTELLIGENCE METRICS'],
-      watchlist:     ['INTELLIGENCE ARCHIVE', '// PERSON-OF-INTEREST REGISTRY'],
-      search:        ['BIOMETRIC LOOKUP',     '// GLOBAL FORENSIC FACE SEARCH'],
-      analysis:      ['FRAME ANALYSIS',       '// AI-POWERED SNAPSHOT INSPECTION'],
-      cameras:       ['CAMERA MANAGEMENT',    '// REGISTER & CONFIGURE CAMERA NODES'],
-      map:           ['LIVE MAP',             '// CAMERA POSITIONS & REAL-TIME STATUS'],
-      'alert-rules': ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
-      workers:       ['WORKER NODES',         '// ACTIVE FIELD INTELLIGENCE NODES'],
-      users:         ['USER ACCOUNTS',        '// OPERATOR REGISTRY'],
-      system:        ['SYSTEM CONTROL',       '// CONFIGURATION & MAINTENANCE'],
-      'live-feed':   ['TACTICAL LIVE STREAM', '// DIRECT NEURAL LINK'],
+      overview: ['OVERVIEW', '// TACTICAL DASHBOARD'],
+      sightings: ['FACE SIGHTINGS', '// BIOMETRIC ACTIVITY LOG'],
+      objects: ['OBJECT DETECTIONS', '// ITEM RECOGNITION LOG'],
+      analytics: ['ANALYTICS', '// DETECTION TRENDS & INTELLIGENCE METRICS'],
+      watchlist: ['INTELLIGENCE ARCHIVE', '// PERSON-OF-INTEREST REGISTRY'],
+      search: ['BIOMETRIC LOOKUP', '// GLOBAL FORENSIC FACE SEARCH'],
+      analysis: ['FRAME ANALYSIS', '// AI-POWERED SNAPSHOT INSPECTION'],
+      cameras: ['CAMERA MANAGEMENT', '// REGISTER & CONFIGURE CAMERA NODES'],
+      map: ['LIVE MAP', '// CAMERA POSITIONS & REAL-TIME STATUS'],
+      'alert-rules': ['ALERT RULES ENGINE', '// AUTOMATED DETECTION TRIGGERS'],
+      workers: ['WORKER NODES', '// ACTIVE FIELD INTELLIGENCE NODES'],
+      users: ['USER ACCOUNTS', '// OPERATOR REGISTRY'],
+      system: ['SYSTEM CONTROL', '// CONFIGURATION & MAINTENANCE'],
+      'live-feed': ['TACTICAL LIVE STREAM', '// DIRECT NEURAL LINK'],
     };
 
     function showPage(id, navEl) {
@@ -3224,7 +3446,7 @@
       if (id === 'objects') { newObjects = 0; updateBadge('badge-objects', 0) }
 
       // Lazy-load page data
-      const loaders = { watchlist: loadWatchlist, workers: loadWorkers, users: loadUsers, system: loadSystem, analytics: loadAnalytics, cameras: loadCameras, map: loadMap, 'alert-rules': () => { loadRules(); if(!ALL_CAMERAS.length) loadCameras(); } };
+      const loaders = { watchlist: loadWatchlist, workers: loadWorkers, users: loadUsers, system: loadSystem, analytics: loadAnalytics, cameras: loadCameras, map: loadMap, 'alert-rules': () => { loadRules(); if (!ALL_CAMERAS.length) loadCameras(); } };
       if (loaders[id]) loaders[id]();
 
       if (id === 'live-feed' || id === 'overview') startLiveMonitoring();
@@ -3235,218 +3457,218 @@
     //  ROI CONFIGURATION FEATURE (REWRITTEN)
     // ══════════════════════════════════════════════════
     let roiState = {
-        cid: null,
-        box: { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 },
-        active: false,
-        mode: null, // 'move', 'tl', 'tr', 'bl', 'br'
-        start: { x: 0, y: 0, b: {} }
+      cid: null,
+      box: { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 },
+      active: false,
+      mode: null, // 'move', 'tl', 'tr', 'bl', 'br'
+      start: { x: 0, y: 0, b: {} }
     };
 
     function showROI(nodeKey) {
-        // Preparing IDs: nodeKey might be "user:cam-1" (full) or just "cam-1" (base)
-        const camId = nodeKey.includes(':') ? nodeKey.split(':')[1] : nodeKey;
-        let fullKey = nodeKey;
-        
-        // Reconstruct full key if we only have the base camera_id
-        const cam = ALL_CAMERAS.find(c => c.camera_id === camId);
-        const owner = cam ? (cam.added_by || cam.user || (ME ? ME.username : null)) : null;
-        
-        // Safety: If somehow ALL_CAMERAS is empty (unlikely with bootstrap fix), retry soon or use fallback
-        if (!cam && ALL_CAMERAS.length === 0) {
-            console.log("[ROI] Registry empty, loading cameras...");
-            loadCameras().then(() => showROI(nodeKey));
-            return;
-        }
+      // Preparing IDs: nodeKey might be "user:cam-1" (full) or just "cam-1" (base)
+      const camId = nodeKey.includes(':') ? nodeKey.split(':')[1] : nodeKey;
+      let fullKey = nodeKey;
 
-        if (owner && !nodeKey.includes(':')) {
-            fullKey = `${owner}:${camId}`;
-        }
-        
-        roiState.cid = fullKey; // Store the full node key
-        
-        // Initial setup
-        document.getElementById('roi-id-label').innerText = `// NODE: ${fullKey}`;
-        const img = document.getElementById('roi-stream');
-        img.src = ''; // Clear to force reload
-        img.src = `/api/stream/${fullKey}`;
+      // Reconstruct full key if we only have the base camera_id
+      const cam = ALL_CAMERAS.find(c => c.camera_id === camId);
+      const owner = cam ? (cam.added_by || cam.user || (ME ? ME.username : null)) : null;
 
-        // Reset Box State
-        if (cam && cam.roi) {
-            try {
-                const r = typeof cam.roi === 'string' ? JSON.parse(cam.roi) : cam.roi;
-                if (Array.isArray(r) && r.length === 4) {
-                    roiState.box = { x1: r[0], y1: r[1], x2: r[2], y2: r[3] };
-                }
-            } catch(e) { 
-                roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 }; 
-            }
-        } else {
-            roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
-        }
+      // Safety: If somehow ALL_CAMERAS is empty (unlikely with bootstrap fix), retry soon or use fallback
+      if (!cam && ALL_CAMERAS.length === 0) {
+        console.log("[ROI] Registry empty, loading cameras...");
+        loadCameras().then(() => showROI(nodeKey));
+        return;
+      }
 
-        // Wait for image dimensions to be ready before drawing box
-        img.onload = () => {
-            initRoiInteraction();
-            if (window._updateRoiUI) window._updateRoiUI();
-        };
-        
-        // Safety fallback if already loaded or taking too long
-        if (img.complete) {
-            initRoiInteraction();
-            if (window._updateRoiUI) window._updateRoiUI();
-        }
+      if (owner && !nodeKey.includes(':')) {
+        fullKey = `${owner}:${camId}`;
+      }
 
-        document.getElementById('roi-save-btn').onclick = saveROISettings;
-        openModal('modal-roi');
+      roiState.cid = fullKey; // Store the full node key
+
+      // Initial setup
+      document.getElementById('roi-id-label').innerText = `// NODE: ${fullKey}`;
+      const img = document.getElementById('roi-stream');
+      img.src = ''; // Clear to force reload
+      img.src = `/api/stream/${fullKey}`;
+
+      // Reset Box State
+      if (cam && cam.roi) {
+        try {
+          const r = typeof cam.roi === 'string' ? JSON.parse(cam.roi) : cam.roi;
+          if (Array.isArray(r) && r.length === 4) {
+            roiState.box = { x1: r[0], y1: r[1], x2: r[2], y2: r[3] };
+          }
+        } catch (e) {
+          roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
+        }
+      } else {
+        roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
+      }
+
+      // Wait for image dimensions to be ready before drawing box
+      img.onload = () => {
+        initRoiInteraction();
+        if (window._updateRoiUI) window._updateRoiUI();
+      };
+
+      // Safety fallback if already loaded or taking too long
+      if (img.complete) {
+        initRoiInteraction();
+        if (window._updateRoiUI) window._updateRoiUI();
+      }
+
+      document.getElementById('roi-save-btn').onclick = saveROISettings;
+      openModal('modal-roi');
     }
 
     function initRoiInteraction() {
-        const container = document.getElementById('roi-container');
-        const selector = document.getElementById('roi-selector');
-        const stream = document.getElementById('roi-stream');
-        const display = document.getElementById('roi-coords-display');
+      const container = document.getElementById('roi-container');
+      const selector = document.getElementById('roi-selector');
+      const stream = document.getElementById('roi-stream');
+      const display = document.getElementById('roi-coords-display');
 
-        const updateUI = () => {
-            const rect = stream.getBoundingClientRect();
-            const parent = container.getBoundingClientRect();
-            if (!rect.width || !rect.height) { selector.style.display = 'none'; return; }
+      const updateUI = () => {
+        const rect = stream.getBoundingClientRect();
+        const parent = container.getBoundingClientRect();
+        if (!rect.width || !rect.height) { selector.style.display = 'none'; return; }
 
-            selector.style.display = 'block';
-            const offX = rect.left - parent.left;
-            const offY = rect.top - parent.top;
+        selector.style.display = 'block';
+        const offX = rect.left - parent.left;
+        const offY = rect.top - parent.top;
 
-            const x = offX + roiState.box.x1 * rect.width;
-            const y = offY + roiState.box.y1 * rect.height;
-            const w = (roiState.box.x2 - roiState.box.x1) * rect.width;
-            const h = (roiState.box.y2 - roiState.box.y1) * rect.height;
+        const x = offX + roiState.box.x1 * rect.width;
+        const y = offY + roiState.box.y1 * rect.height;
+        const w = (roiState.box.x2 - roiState.box.x1) * rect.width;
+        const h = (roiState.box.y2 - roiState.box.y1) * rect.height;
 
-            selector.style.left = `${x}px`;
-            selector.style.top = `${y}px`;
-            selector.style.width = `${Math.max(20, w)}px`;
-            selector.style.height = `${Math.max(20, h)}px`;
+        selector.style.left = `${x}px`;
+        selector.style.top = `${y}px`;
+        selector.style.width = `${Math.max(20, w)}px`;
+        selector.style.height = `${Math.max(20, h)}px`;
 
-            // Overlays (Darken outside)
-            const ot = document.getElementById('roi-overlay-top');
-            const ob = document.getElementById('roi-overlay-bottom');
-            const ol = document.getElementById('roi-overlay-left');
-            const or = document.getElementById('roi-overlay-right');
+        // Overlays (Darken outside)
+        const ot = document.getElementById('roi-overlay-top');
+        const ob = document.getElementById('roi-overlay-bottom');
+        const ol = document.getElementById('roi-overlay-left');
+        const or = document.getElementById('roi-overlay-right');
 
-            ot.style.left = `${offX}px`; ot.style.top = `${offY}px`; ot.style.width = `${rect.width}px`; ot.style.height = `${y - offY}px`;
-            ob.style.left = `${offX}px`; ob.style.top = `${y + h}px`; ob.style.width = `${rect.width}px`; ob.style.height = `${rect.height - (y - offY + h)}px`;
-            ol.style.left = `${offX}px`; ol.style.top = `${y}px`; ol.style.width = `${x - offX}px`; ol.style.height = `${h}px`;
-            or.style.left = `${x + w}px`; or.style.top = `${y}px`; or.style.width = `${rect.width - (x - offX + w)}px`; or.style.height = `${h}px`;
+        ot.style.left = `${offX}px`; ot.style.top = `${offY}px`; ot.style.width = `${rect.width}px`; ot.style.height = `${y - offY}px`;
+        ob.style.left = `${offX}px`; ob.style.top = `${y + h}px`; ob.style.width = `${rect.width}px`; ob.style.height = `${rect.height - (y - offY + h)}px`;
+        ol.style.left = `${offX}px`; ol.style.top = `${y}px`; ol.style.width = `${x - offX}px`; ol.style.height = `${h}px`;
+        or.style.left = `${x + w}px`; or.style.top = `${y}px`; or.style.width = `${rect.width - (x - offX + w)}px`; or.style.height = `${h}px`;
 
-            const p = (v) => Math.round(v * 100);
-            display.innerHTML = `ZONE: <span style="color:var(--amber)">X ${p(roiState.box.x1)}%</span> · <span style="color:var(--amber)">Y ${p(roiState.box.y1)}%</span> · <span style="color:var(--cyan)">W ${p(roiState.box.x2 - roiState.box.x1)}%</span> · <span style="color:var(--cyan)">H ${p(roiState.box.y2 - roiState.box.y1)}%</span>`;
+        const p = (v) => Math.round(v * 100);
+        display.innerHTML = `ZONE: <span style="color:var(--amber)">X ${p(roiState.box.x1)}%</span> · <span style="color:var(--amber)">Y ${p(roiState.box.y1)}%</span> · <span style="color:var(--cyan)">W ${p(roiState.box.x2 - roiState.box.x1)}%</span> · <span style="color:var(--cyan)">H ${p(roiState.box.y2 - roiState.box.y1)}%</span>`;
 
-            // Tactical Styling
-            const isFull = (roiState.box.x1 <= 0.05 && roiState.box.y1 <= 0.05 && roiState.box.x2 >= 0.95 && roiState.box.y2 >= 0.95);
-            const label = document.getElementById('roi-inner-label');
-            const color = isFull ? 'var(--cyan)' : '#ccff00';
-            label.innerText = isFull ? "FULL FRAME MONITORING" : "ACTIVE INTELLIGENCE ZONE";
-            label.style.color = color;
-            label.style.borderColor = color;
-            selector.style.borderColor = color;
-            selector.style.boxShadow = `0 0 40px ${color}22, inset 0 0 60px ${color}11`;
-            
-            selector.querySelectorAll('.roi-handle, .roi-bracket, .roi-crosshair::before, .roi-crosshair::after').forEach(el => {
-                if (el.classList.contains('roi-handle') || el.classList.contains('roi-bracket')) {
-                   el.style.borderColor = color;
-                   if (el.classList.contains('roi-handle')) el.style.background = color;
-                }
-            });
-            // Update crosshair separately as it uses pseudo-elements or needs direct style
-            const ch = selector.querySelector('.roi-crosshair');
-            if (ch) ch.style.opacity = isFull ? '0.2' : '0.6';
-        };
+        // Tactical Styling
+        const isFull = (roiState.box.x1 <= 0.05 && roiState.box.y1 <= 0.05 && roiState.box.x2 >= 0.95 && roiState.box.y2 >= 0.95);
+        const label = document.getElementById('roi-inner-label');
+        const color = isFull ? 'var(--cyan)' : '#ccff00';
+        label.innerText = isFull ? "FULL FRAME MONITORING" : "ACTIVE INTELLIGENCE ZONE";
+        label.style.color = color;
+        label.style.borderColor = color;
+        selector.style.borderColor = color;
+        selector.style.boxShadow = `0 0 40px ${color}22, inset 0 0 60px ${color}11`;
 
-        // Attach listeners once
-        if (!selector.dataset.init) {
-            selector.dataset.init = "true";
-            
-            selector.addEventListener('mousedown', (e) => {
-                roiState.active = true;
-                roiState.mode = e.target.dataset.handle || 'move';
-                roiState.start = { x: e.clientX, y: e.clientY, b: { ...roiState.box } };
-                e.preventDefault();
-            });
+        selector.querySelectorAll('.roi-handle, .roi-bracket, .roi-crosshair::before, .roi-crosshair::after').forEach(el => {
+          if (el.classList.contains('roi-handle') || el.classList.contains('roi-bracket')) {
+            el.style.borderColor = color;
+            if (el.classList.contains('roi-handle')) el.style.background = color;
+          }
+        });
+        // Update crosshair separately as it uses pseudo-elements or needs direct style
+        const ch = selector.querySelector('.roi-crosshair');
+        if (ch) ch.style.opacity = isFull ? '0.2' : '0.6';
+      };
 
-            window.addEventListener('mousemove', (e) => {
-                if (!roiState.active) return;
-                const rect = stream.getBoundingClientRect();
-                const dx = (e.clientX - roiState.start.x) / rect.width;
-                const dy = (e.clientY - roiState.start.y) / rect.height;
-                const b = roiState.start.b;
+      // Attach listeners once
+      if (!selector.dataset.init) {
+        selector.dataset.init = "true";
 
-                if (roiState.mode === 'move') {
-                    const w = b.x2 - b.x1, h = b.y2 - b.y1;
-                    roiState.box.x1 = Math.max(0, Math.min(1 - w, b.x1 + dx));
-                    roiState.box.y1 = Math.max(0, Math.min(1 - h, b.y1 + dy));
-                    roiState.box.x2 = roiState.box.x1 + w;
-                    roiState.box.y2 = roiState.box.y1 + h;
-                } else {
-                    if (roiState.mode.includes('t')) roiState.box.y1 = Math.max(0, Math.min(b.y2 - 0.05, b.y1 + dy));
-                    if (roiState.mode.includes('b')) roiState.box.y2 = Math.max(b.y1 + 0.05, Math.min(1, b.y2 + dy));
-                    if (roiState.mode.includes('l')) roiState.box.x1 = Math.max(0, Math.min(b.x2 - 0.05, b.x1 + dx));
-                    if (roiState.mode.includes('r')) roiState.box.x2 = Math.max(b.x1 + 0.05, Math.min(1, b.x2 + dx));
-                }
-                updateUI();
-            });
+        selector.addEventListener('mousedown', (e) => {
+          roiState.active = true;
+          roiState.mode = e.target.dataset.handle || 'move';
+          roiState.start = { x: e.clientX, y: e.clientY, b: { ...roiState.box } };
+          e.preventDefault();
+        });
 
-            window.addEventListener('mouseup', () => { roiState.active = false; });
-            
-            const obs = new ResizeObserver(updateUI);
-            obs.observe(stream);
-            obs.observe(container);
-        }
+        window.addEventListener('mousemove', (e) => {
+          if (!roiState.active) return;
+          const rect = stream.getBoundingClientRect();
+          const dx = (e.clientX - roiState.start.x) / rect.width;
+          const dy = (e.clientY - roiState.start.y) / rect.height;
+          const b = roiState.start.b;
 
-        stream.onload = updateUI;
-        if (stream.complete) updateUI();
-        setTimeout(updateUI, 100);
-        setTimeout(updateUI, 500);
-        window._updateRoiUI = updateUI;
+          if (roiState.mode === 'move') {
+            const w = b.x2 - b.x1, h = b.y2 - b.y1;
+            roiState.box.x1 = Math.max(0, Math.min(1 - w, b.x1 + dx));
+            roiState.box.y1 = Math.max(0, Math.min(1 - h, b.y1 + dy));
+            roiState.box.x2 = roiState.box.x1 + w;
+            roiState.box.y2 = roiState.box.y1 + h;
+          } else {
+            if (roiState.mode.includes('t')) roiState.box.y1 = Math.max(0, Math.min(b.y2 - 0.05, b.y1 + dy));
+            if (roiState.mode.includes('b')) roiState.box.y2 = Math.max(b.y1 + 0.05, Math.min(1, b.y2 + dy));
+            if (roiState.mode.includes('l')) roiState.box.x1 = Math.max(0, Math.min(b.x2 - 0.05, b.x1 + dx));
+            if (roiState.mode.includes('r')) roiState.box.x2 = Math.max(b.x1 + 0.05, Math.min(1, b.x2 + dx));
+          }
+          updateUI();
+        });
+
+        window.addEventListener('mouseup', () => { roiState.active = false; });
+
+        const obs = new ResizeObserver(updateUI);
+        obs.observe(stream);
+        obs.observe(container);
+      }
+
+      stream.onload = updateUI;
+      if (stream.complete) updateUI();
+      setTimeout(updateUI, 100);
+      setTimeout(updateUI, 500);
+      window._updateRoiUI = updateUI;
     }
 
     async function saveROISettings() {
-        const btn = document.getElementById('roi-save-btn');
-        const old = btn.innerText;
-        const cid = roiState.cid;
-        const box = [roiState.box.x1, roiState.box.y1, roiState.box.x2, roiState.box.y2];
+      const btn = document.getElementById('roi-save-btn');
+      const old = btn.innerText;
+      const cid = roiState.cid;
+      const box = [roiState.box.x1, roiState.box.y1, roiState.box.x2, roiState.box.y2];
 
-        // Optimistic UI Update
-        closeModal('modal-roi');
-        toast('Synchronizing Zone Over the Air...', 'amber');
-        
-        // Update local state immediately so UI feels fast
-        const camId = cid.includes(':') ? cid.split(':')[1] : cid;
-        const localCam = ALL_CAMERAS.find(c => c.camera_id === camId);
-        if (localCam) {
-            localCam.roi = box; // Store as raw array for direct comparison later
-            loadCameras(); // Force grid refresh if on camera page
-        }
+      // Optimistic UI Update
+      closeModal('modal-roi');
+      toast('Synchronizing Zone Over the Air...', 'amber');
 
-        const fd = new FormData();
-        if (cid.includes(':')) {
-            fd.append('node_key', cid);
-        } else {
-            fd.append('camera_id', cid);
-        }
-        fd.append('roi', JSON.stringify(box));
+      // Update local state immediately so UI feels fast
+      const camId = cid.includes(':') ? cid.split(':')[1] : cid;
+      const localCam = ALL_CAMERAS.find(c => c.camera_id === camId);
+      if (localCam) {
+        localCam.roi = box; // Store as raw array for direct comparison later
+        loadCameras(); // Force grid refresh if on camera page
+      }
 
-        try {
-            await api('/api/roi/save', { method: 'POST', body: fd });
-            toast('Intelligence Zone Sync Completed', 'green');
-            // Background refresh to catch any other changes
-            loadCameras();
-        } catch(e) { 
-            toast('Sync Failed: ' + e.message, 'red'); 
-            // Re-open if failed? Maybe better to just tell the user.
-        }
+      const fd = new FormData();
+      if (cid.includes(':')) {
+        fd.append('node_key', cid);
+      } else {
+        fd.append('camera_id', cid);
+      }
+      fd.append('roi', JSON.stringify(box));
+
+      try {
+        await api('/api/roi/save', { method: 'POST', body: fd });
+        toast('Intelligence Zone Sync Completed', 'green');
+        // Background refresh to catch any other changes
+        loadCameras();
+      } catch (e) {
+        toast('Sync Failed: ' + e.message, 'red');
+        // Re-open if failed? Maybe better to just tell the user.
+      }
     }
 
     function resetROI() {
-        roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
-        if (window._updateRoiUI) window._updateRoiUI();
+      roiState.box = { x1: 0.03, y1: 0.03, x2: 0.97, y2: 0.97 };
+      if (window._updateRoiUI) window._updateRoiUI();
     }
 
     function closeFullScreenStream() {
@@ -3697,7 +3919,7 @@
     async function deleteSightingFromSearch(id, e) {
       if (e) e.stopPropagation();
       if (!confirm('PERMANENT SHRED ORDER: Are you sure you want to delete this sighting record and snapshot?')) return;
-      
+
       const el = document.getElementById(`search-res-${id}`);
       el.style.opacity = '0.5';
       el.style.pointerEvents = 'none';
@@ -3708,7 +3930,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify([id])
         });
-        
+
         el.style.transform = 'translateX(20px)';
         el.style.opacity = '0';
         setTimeout(() => el.remove(), 300);
@@ -3877,86 +4099,86 @@
         document.getElementById('sys-nodes').textContent = d.nodes?.length || 0;
       } catch (e) { }
     }
-    
+
     async function runCleanup() {
-        const range = document.getElementById('cleanup-range').value;
-        const personId = document.getElementById('cleanup-person-id').value;
-        const target = document.getElementById('cleanup-target').value;
-        
-        const confirmMsg = `Are you sure you want to delete ${target === 'all' ? 'all' : target} records older than ${range}${personId ? ' for person ' + personId : ''}? This action is irreversible.`;
-        if (!confirm(confirmMsg)) return;
-        
-        try {
-            let url = `/api/system/cleanup?time_range=${range}&target=${target}`;
-            if (personId) url += `&person_id=${encodeURIComponent(personId)}`;
-            
-            const res = await api(url, { method: 'POST' });
-            toast(`Cleanup Success: Removed ${res.details.files_removed} files`, 'green');
-            loadStats();
-        } catch (e) {
-            toast('Cleanup failed: ' + e.message, 'red');
-        }
+      const range = document.getElementById('cleanup-range').value;
+      const personId = document.getElementById('cleanup-person-id').value;
+      const target = document.getElementById('cleanup-target').value;
+
+      const confirmMsg = `Are you sure you want to delete ${target === 'all' ? 'all' : target} records older than ${range}${personId ? ' for person ' + personId : ''}? This action is irreversible.`;
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        let url = `/api/system/cleanup?time_range=${range}&target=${target}`;
+        if (personId) url += `&person_id=${encodeURIComponent(personId)}`;
+
+        const res = await api(url, { method: 'POST' });
+        toast(`Cleanup Success: Removed ${res.details.files_removed} files`, 'green');
+        loadStats();
+      } catch (e) {
+        toast('Cleanup failed: ' + e.message, 'red');
+      }
     }
-    
+
     let BIOMETRIC_MATCHES = [];
 
     async function runBiometricSearch() {
-        const files = document.getElementById('biometric-purge-files').files;
-        if (!files || files.length === 0) {
-            toast('Please select at least one face photo', 'red');
-            return;
+      const files = document.getElementById('biometric-purge-files').files;
+      if (!files || files.length === 0) {
+        toast('Please select at least one face photo', 'red');
+        return;
+      }
+
+      const btn = document.getElementById('btn-biometric-search');
+      const statusMsg = document.getElementById('biometric-purge-status');
+
+      btn.disabled = true;
+      btn.innerHTML = `Searching…`;
+      statusMsg.style.display = 'block';
+      statusMsg.textContent = 'Analyzing biometrics…';
+
+      const fd = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        fd.append('files', files[i]);
+      }
+
+      try {
+        const res = await api('/api/system/cleanup/biometric/search', {
+          method: 'POST',
+          body: fd
+        }, true);
+
+        BIOMETRIC_MATCHES = res.matches || [];
+        if (BIOMETRIC_MATCHES.length === 0) {
+          toast('No matching sightings found', 'muted');
+          statusMsg.textContent = 'No matches found.';
+          btn.disabled = false;
+          btn.innerHTML = `Search Matches`;
+          return;
         }
 
-        const btn = document.getElementById('btn-biometric-search');
-        const statusMsg = document.getElementById('biometric-purge-status');
-        
-        btn.disabled = true;
-        btn.innerHTML = `Searching…`;
-        statusMsg.style.display = 'block';
-        statusMsg.textContent = 'Analyzing biometrics…';
-
-        const fd = new FormData();
-        for (let i = 0; i < files.length; i++) {
-            fd.append('files', files[i]);
-        }
-
-        try {
-            const res = await api('/api/system/cleanup/biometric/search', {
-                method: 'POST',
-                body: fd
-            }, true);
-
-            BIOMETRIC_MATCHES = res.matches || [];
-            if (BIOMETRIC_MATCHES.length === 0) {
-                toast('No matching sightings found', 'muted');
-                statusMsg.textContent = 'No matches found.';
-                btn.disabled = false;
-                btn.innerHTML = `Search Matches`;
-                return;
-            }
-
-            renderBiometricPreview();
-            document.getElementById('biometric-step-1').style.display = 'none';
-            document.getElementById('biometric-step-2').style.display = 'block';
-            statusMsg.style.display = 'none';
-        } catch (e) {
-            toast('Discovery failed: ' + e.message, 'red');
-            statusMsg.textContent = '❌ Error: ' + e.message;
-            statusMsg.style.color = 'var(--red)';
-            btn.disabled = false;
-            btn.innerHTML = `Search Matches`;
-        }
+        renderBiometricPreview();
+        document.getElementById('biometric-step-1').style.display = 'none';
+        document.getElementById('biometric-step-2').style.display = 'block';
+        statusMsg.style.display = 'none';
+      } catch (e) {
+        toast('Discovery failed: ' + e.message, 'red');
+        statusMsg.textContent = '❌ Error: ' + e.message;
+        statusMsg.style.color = 'var(--red)';
+        btn.disabled = false;
+        btn.innerHTML = `Search Matches`;
+      }
     }
 
     function renderBiometricPreview() {
-        const grid = document.getElementById('biometric-preview-grid');
-        const countTxt = document.getElementById('biometric-match-count');
-        const purgeCount = document.getElementById('biometric-purge-count');
-        
-        countTxt.innerHTML = `<span style="color:var(--cyan)">${BIOMETRIC_MATCHES.length}</span> TARGETS IDENTIFIED`;
-        purgeCount.textContent = BIOMETRIC_MATCHES.length;
-        
-        grid.innerHTML = BIOMETRIC_MATCHES.map(m => `
+      const grid = document.getElementById('biometric-preview-grid');
+      const countTxt = document.getElementById('biometric-match-count');
+      const purgeCount = document.getElementById('biometric-purge-count');
+
+      countTxt.innerHTML = `<span style="color:var(--cyan)">${BIOMETRIC_MATCHES.length}</span> TARGETS IDENTIFIED`;
+      purgeCount.textContent = BIOMETRIC_MATCHES.length;
+
+      grid.innerHTML = BIOMETRIC_MATCHES.map(m => `
             <div class="biometric-card" style="position:relative; aspect-ratio:1/1; background:var(--bg3); border-radius:8px; overflow:hidden; border:1px solid var(--border2); transition: all 0.2s">
                 <img src="${m.snapshot}" style="width:100%; height:100%; object-fit:cover; opacity: 0.8">
                 <div onclick="excludeBiometricSighting('${m.id}')" style="position:absolute; top:4px; right:4px; width:22px; height:22px; background:var(--bg2); color:var(--red); display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:12px; cursor:pointer; border:1px solid var(--red-dim); box-shadow: 0 2px 8px rgba(0,0,0,0.5); z-index:10" title="Exclude from purge">✕</div>
@@ -3969,47 +4191,47 @@
     }
 
     function excludeBiometricSighting(id) {
-        BIOMETRIC_MATCHES = BIOMETRIC_MATCHES.filter(m => m.id !== id);
-        if (BIOMETRIC_MATCHES.length === 0) {
-            resetBiometricPurge();
-            return;
-        }
-        renderBiometricPreview();
+      BIOMETRIC_MATCHES = BIOMETRIC_MATCHES.filter(m => m.id !== id);
+      if (BIOMETRIC_MATCHES.length === 0) {
+        resetBiometricPurge();
+        return;
+      }
+      renderBiometricPreview();
     }
 
     function resetBiometricPurge() {
-        BIOMETRIC_MATCHES = [];
-        document.getElementById('biometric-step-1').style.display = 'flex';
-        document.getElementById('biometric-step-2').style.display = 'none';
-        document.getElementById('btn-biometric-search').disabled = false;
-        document.getElementById('btn-biometric-search').innerHTML = `Search Matches`;
-        document.getElementById('biometric-purge-files').value = '';
+      BIOMETRIC_MATCHES = [];
+      document.getElementById('biometric-step-1').style.display = 'flex';
+      document.getElementById('biometric-step-2').style.display = 'none';
+      document.getElementById('btn-biometric-search').disabled = false;
+      document.getElementById('btn-biometric-search').innerHTML = `Search Matches`;
+      document.getElementById('biometric-purge-files').value = '';
     }
 
     async function commitBiometricPurge() {
-        const ids = BIOMETRIC_MATCHES.map(m => m.id);
-        const confirmMsg = `Are you sure you want to permanently delete these ${ids.length} verified records?`;
-        if (!confirm(confirmMsg)) return;
+      const ids = BIOMETRIC_MATCHES.map(m => m.id);
+      const confirmMsg = `Are you sure you want to permanently delete these ${ids.length} verified records?`;
+      if (!confirm(confirmMsg)) return;
 
-        const btn = document.getElementById('btn-biometric-purge');
-        btn.disabled = true;
-        btn.innerHTML = `Purging…`;
+      const btn = document.getElementById('btn-biometric-purge');
+      btn.disabled = true;
+      btn.innerHTML = `Purging…`;
 
-        try {
-            const res = await api('/api/system/cleanup/biometric/purge', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(ids)
-            });
+      try {
+        const res = await api('/api/system/cleanup/biometric/purge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ids)
+        });
 
-            toast(`Purge Success: Removed ${res.details.purged} records`, 'cyan');
-            resetBiometricPurge();
-            loadStats();
-        } catch (e) {
-            toast('Purge failed: ' + e.message, 'red');
-            btn.disabled = false;
-            btn.innerHTML = `Confirm Purge ${ids.length} Records`;
-        }
+        toast(`Purge Success: Removed ${res.details.purged} records`, 'cyan');
+        resetBiometricPurge();
+        loadStats();
+      } catch (e) {
+        toast('Purge failed: ' + e.message, 'red');
+        btn.disabled = false;
+        btn.innerHTML = `Confirm Purge ${ids.length} Records`;
+      }
     }
     function confirmReset() { document.getElementById('reset-confirm').value = ''; openModal('modal-confirm-reset') }
     async function doReset() {
@@ -4455,14 +4677,14 @@
       ]);
 
       // Stats strip
-      const totalFaces   = overview.reduce((s,d) => s + d.faces,   0);
-      const totalMatches = overview.reduce((s,d) => s + d.matches, 0);
-      const totalObjects = overview.reduce((s,d) => s + d.objects, 0);
-      document.getElementById('a-total-faces').textContent   = totalFaces.toLocaleString();
+      const totalFaces = overview.reduce((s, d) => s + d.faces, 0);
+      const totalMatches = overview.reduce((s, d) => s + d.matches, 0);
+      const totalObjects = overview.reduce((s, d) => s + d.objects, 0);
+      document.getElementById('a-total-faces').textContent = totalFaces.toLocaleString();
       document.getElementById('a-total-matches').textContent = totalMatches.toLocaleString();
       document.getElementById('a-total-objects').textContent = totalObjects.toLocaleString();
-      document.getElementById('a-match-rate').textContent    = totalFaces > 0
-        ? (totalMatches/totalFaces*100).toFixed(1)+'%' : '0%';
+      document.getElementById('a-match-rate').textContent = totalFaces > 0
+        ? (totalMatches / totalFaces * 100).toFixed(1) + '%' : '0%';
 
       // Daily chart (canvas bars)
       renderDailyChart(overview);
@@ -4473,7 +4695,7 @@
       // Per-camera table
       const camEl = document.getElementById('analytics-cameras');
       const maxCamVal = Math.max(1, ...perCam.map(c => c.faces + c.objects));
-      camEl.innerHTML = perCam.slice(0,8).map(c => {
+      camEl.innerHTML = perCam.slice(0, 8).map(c => {
         const pct = ((c.faces + c.objects) / maxCamVal * 100).toFixed(1);
         return `<div>
           <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px">
@@ -4488,7 +4710,7 @@
       // Top objects
       const objEl = document.getElementById('analytics-objects');
       const maxObjVal = Math.max(1, ...(topObj.map(o => o.count)));
-      objEl.innerHTML = topObj.slice(0,8).map(o => {
+      objEl.innerHTML = topObj.slice(0, 8).map(o => {
         const pct = (o.count / maxObjVal * 100).toFixed(1);
         return `<div>
           <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px">
@@ -4502,9 +4724,9 @@
 
       // Watchlist hits
       const wlEl = document.getElementById('analytics-watchlist-hits');
-      wlEl.innerHTML = hits.length ? hits.map((h,i) => `
+      wlEl.innerHTML = hits.length ? hits.map((h, i) => `
         <div class="result-item">
-          <span style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);width:20px">#${i+1}</span>
+          <span style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);width:20px">#${i + 1}</span>
           <span style="flex:1;font-size:0.85rem">${esc(h.person_name)}</span>
           <span style="font-family:var(--mono);font-size:0.75rem;color:var(--red)">${h.hits} hits</span>
           <span style="font-family:var(--mono);font-size:0.75rem;color:var(--muted);margin-left:1rem">${h.avg_conf.toFixed(1)}% avg</span>
@@ -4537,8 +4759,8 @@
       // Bars
       data.forEach((d, i) => {
         const faceH = (d.faces / maxVal) * chartH;
-        const objH  = (d.objects / maxVal) * chartH;
-        const matchH= (d.matches / maxVal) * chartH;
+        const objH = (d.objects / maxVal) * chartH;
+        const matchH = (d.matches / maxVal) * chartH;
         const x = padL + i * barW + barW * 0.1;
         const bw = barW * 0.8;
 
@@ -4559,12 +4781,12 @@
           ctx.fillStyle = 'rgba(148,163,184,0.6)';
           ctx.font = '9px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText(d.date.slice(5), x + bw/2, H - 6);
+          ctx.fillText(d.date.slice(5), x + bw / 2, H - 6);
         }
       });
 
       // Legend
-      const legend = [['Faces','rgba(59,130,246,0.7)'],['Objects','rgba(16,185,129,0.4)'],['Matches','rgba(239,68,68,0.9)']];
+      const legend = [['Faces', 'rgba(59,130,246,0.7)'], ['Objects', 'rgba(16,185,129,0.4)'], ['Matches', 'rgba(239,68,68,0.9)']];
       legend.forEach(([label, color], i) => {
         ctx.fillStyle = color;
         ctx.fillRect(padL + i * 90, 0, 10, 8);
@@ -4622,10 +4844,10 @@
           </div>
 
           <div class="camera-preview-box">
-             ${online 
-               ? `<img class="camera-preview-img" src="/api/stream/${esc(c.node_key || (c.added_by + ':' + c.camera_id))}" alt="LIVE">` 
-               : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.7rem;text-transform:uppercase">No Live Stream Source</div>`
-             }
+             ${online
+            ? `<img class="camera-preview-img" src="/api/stream/${esc(c.node_key || (c.added_by + ':' + c.camera_id))}" alt="LIVE">`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.7rem;text-transform:uppercase">No Live Stream Source</div>`
+          }
              <div class="status-overlay">${online ? 'SIGNAL REC: OK' : 'NO SIGNAL'}</div>
              <div class="scanline"></div>
           </div>
@@ -4668,19 +4890,19 @@
         await api('/api/cameras', {
           method: 'POST',
           body: JSON.stringify({
-            camera_id:   document.getElementById('ac-id').value.trim(),
-            name:        document.getElementById('ac-name').value.trim(),
-            location:    document.getElementById('ac-location').value.trim(),
+            camera_id: document.getElementById('ac-id').value.trim(),
+            name: document.getElementById('ac-name').value.trim(),
+            location: document.getElementById('ac-location').value.trim(),
             description: document.getElementById('ac-desc').value.trim(),
-            stream_url:  document.getElementById('ac-stream').value.trim(),
+            stream_url: document.getElementById('ac-stream').value.trim(),
           })
         });
         closeModal('modal-add-camera');
         toast('Camera registered', 'green');
         loadCameras();
         // Clear fields
-        ['ac-id','ac-name','ac-location','ac-desc','ac-stream'].forEach(id => document.getElementById(id).value='');
-      } catch(e) {
+        ['ac-id', 'ac-name', 'ac-location', 'ac-desc', 'ac-stream'].forEach(id => document.getElementById(id).value = '');
+      } catch (e) {
         err.textContent = e.message || 'Failed to register camera';
         err.style.display = 'block';
       } finally {
@@ -4691,10 +4913,10 @@
     function openEditCamera(cameraId) {
       const cam = ALL_CAMERAS.find(c => c.camera_id === cameraId);
       if (!cam) return;
-      document.getElementById('ec-id').value     = cameraId;
-      document.getElementById('ec-name').value   = cam.name || '';
+      document.getElementById('ec-id').value = cameraId;
+      document.getElementById('ec-name').value = cam.name || '';
       document.getElementById('ec-location').value = cam.location || '';
-      document.getElementById('ec-desc').value   = cam.description || '';
+      document.getElementById('ec-desc').value = cam.description || '';
       document.getElementById('ec-stream').value = cam.stream_url || '';
       openModal('modal-edit-camera');
     }
@@ -4707,17 +4929,17 @@
         await api(`/api/cameras/${cameraId}`, {
           method: 'PUT',
           body: JSON.stringify({
-            name:        document.getElementById('ec-name').value.trim(),
-            location:    document.getElementById('ec-location').value.trim(),
+            name: document.getElementById('ec-name').value.trim(),
+            location: document.getElementById('ec-location').value.trim(),
             description: document.getElementById('ec-desc').value.trim(),
-            stream_url:  document.getElementById('ec-stream').value.trim(),
+            stream_url: document.getElementById('ec-stream').value.trim(),
           })
         });
         closeModal('modal-edit-camera');
         toast('Camera updated', 'green');
         loadCameras();
-      } catch(e) { toast(e.message||'Update failed','red'); }
-      finally { btn.disabled=false; btn.textContent='Save Changes'; }
+      } catch (e) { toast(e.message || 'Update failed', 'red'); }
+      finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
     }
 
     async function deleteCamera(cameraId, name) {
@@ -4726,7 +4948,7 @@
         await api(`/api/cameras/${cameraId}`, { method: 'DELETE' });
         toast('Camera removed', 'amber');
         loadCameras();
-      } catch(e) { toast(e.message||'Delete failed','red'); }
+      } catch (e) { toast(e.message || 'Delete failed', 'red'); }
     }
 
     // ══════════════════════════════════════════════════
@@ -4771,7 +4993,7 @@
           FLOORPLAN_IMG = img;
           const canvas = document.getElementById('map-canvas');
           const container = document.getElementById('map-container');
-          canvas.width  = container.offsetWidth  || 800;
+          canvas.width = container.offsetWidth || 800;
           canvas.height = container.offsetHeight || 500;
           canvas.style.display = 'block';
           document.getElementById('map-placeholder').style.display = 'none';
@@ -4794,7 +5016,7 @@
     function renderMapPins(cameras) {
       const svg = document.getElementById('map-svg');
       const container = document.getElementById('map-container');
-      const W = container.offsetWidth  || 800;
+      const W = container.offsetWidth || 800;
       const H = container.offsetHeight || 500;
 
       svg.innerHTML = cameras.map(c => {
@@ -4806,9 +5028,9 @@
         return `<g class="map-pin" ${editAttr} onclick="onMapPinClick('${esc(c.camera_id)}')">
           ${pulse}
           <circle cx="${x}" cy="${y}" r="10" fill="${color}" fill-opacity="0.9" stroke="rgba(0,0,0,0.5)" stroke-width="1.5"/>
-          <text x="${x}" y="${y+4}" text-anchor="middle" fill="white" font-size="9" font-family="monospace">📷</text>
-          <rect x="${x+12}" y="${y-16}" width="${c.name.length*6.5+12}" height="18" rx="3" fill="rgba(0,0,0,0.75)" stroke="${color}" stroke-width="0.5"/>
-          <text x="${x+18}" y="${y-4}" fill="white" font-size="9" font-family="monospace">${esc(c.name)}</text>
+          <text x="${x}" y="${y + 4}" text-anchor="middle" fill="white" font-size="9" font-family="monospace">📷</text>
+          <rect x="${x + 12}" y="${y - 16}" width="${c.name.length * 6.5 + 12}" height="18" rx="3" fill="rgba(0,0,0,0.75)" stroke="${color}" stroke-width="0.5"/>
+          <text x="${x + 18}" y="${y - 4}" fill="white" font-size="9" font-family="monospace">${esc(c.name)}</text>
         </g>`;
       }).join('');
     }
@@ -4851,8 +5073,8 @@
       if (!DRAG_CAM) return;
       const svg = document.getElementById('map-svg');
       const rect = svg.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width  * 100).toFixed(1);
-      const y = ((e.clientY - rect.top)  / rect.height * 100).toFixed(1);
+      const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
+      const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
       const cam = MAP_CAMERAS.find(c => c.camera_id === DRAG_CAM);
       if (cam) { cam.floor_plan_x = parseFloat(x); cam.floor_plan_y = parseFloat(y); }
       renderMapPins(MAP_CAMERAS);
@@ -4867,7 +5089,7 @@
             method: 'PUT',
             body: JSON.stringify({ x: cam.floor_plan_x, y: cam.floor_plan_y })
           });
-        } catch(e) {}
+        } catch (e) { }
       }
       DRAG_CAM = null;
     }
@@ -4890,10 +5112,10 @@
       emptyEl.style.display = 'none';
 
       const typeColors = {
-        wanted_match:     ['var(--red)',    'rgba(239,68,68,0.1)',   'rgba(239,68,68,0.2)'],
-        any_face:         ['var(--amber)',  'rgba(59,130,246,0.1)',  'rgba(59,130,246,0.2)'],
-        object_detected:  ['var(--cyan)',   'rgba(16,185,129,0.1)',  'rgba(16,185,129,0.2)'],
-        high_confidence:  ['var(--purple)', 'rgba(139,92,246,0.1)',  'rgba(139,92,246,0.2)'],
+        wanted_match: ['var(--red)', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.2)'],
+        any_face: ['var(--amber)', 'rgba(59,130,246,0.1)', 'rgba(59,130,246,0.2)'],
+        object_detected: ['var(--cyan)', 'rgba(16,185,129,0.1)', 'rgba(16,185,129,0.2)'],
+        high_confidence: ['var(--purple)', 'rgba(139,92,246,0.1)', 'rgba(139,92,246,0.2)'],
       };
       const typeLabels = {
         wanted_match: 'WANTED MATCH', any_face: 'ANY FACE',
@@ -4901,12 +5123,12 @@
       };
 
       listEl.innerHTML = ALL_RULES.map(r => {
-        const [tc, bgc, bc] = typeColors[r.rule_type] || ['var(--muted)','rgba(255,255,255,0.05)','var(--border)'];
+        const [tc, bgc, bc] = typeColors[r.rule_type] || ['var(--muted)', 'rgba(255,255,255,0.05)', 'var(--border)'];
         const condStr = r.conditions.object_label
           ? ` → ${r.conditions.object_label}`
           : r.conditions.min_confidence
-          ? ` ≥ ${r.conditions.min_confidence}%`
-          : '';
+            ? ` ≥ ${r.conditions.min_confidence}%`
+            : '';
         const acts = [];
         if (r.actions.email) acts.push('📧 Email');
         if (r.actions.webhook_url) acts.push('🔗 Webhook');
@@ -4944,8 +5166,8 @@
 
     function onRuleTypeChange() {
       const type = document.getElementById('ar-type').value;
-      document.getElementById('ar-obj-field').style.display  = type === 'object_detected'  ? '' : 'none';
-      document.getElementById('ar-conf-field').style.display = type === 'high_confidence'  ? '' : 'none';
+      document.getElementById('ar-obj-field').style.display = type === 'object_detected' ? '' : 'none';
+      document.getElementById('ar-conf-field').style.display = type === 'high_confidence' ? '' : 'none';
     }
 
     async function saveRule() {
@@ -4974,7 +5196,7 @@
         await api('/api/alert-rules', {
           method: 'POST',
           body: JSON.stringify({
-            name:      document.getElementById('ar-name').value.trim(),
+            name: document.getElementById('ar-name').value.trim(),
             rule_type: type,
             camera_id: document.getElementById('ar-camera').value,
             conditions,
@@ -4986,7 +5208,7 @@
         loadRules();
         document.getElementById('ar-name').value = '';
         document.getElementById('ar-webhook').value = '';
-      } catch(e) {
+      } catch (e) {
         err.textContent = e.message || 'Failed to create rule';
         err.style.display = 'block';
       } finally {
@@ -4998,7 +5220,7 @@
       try {
         await api(`/api/alert-rules/${ruleId}/toggle`, { method: 'PATCH' });
         loadRules();
-      } catch(e) { toast(e.message||'Toggle failed','red'); }
+      } catch (e) { toast(e.message || 'Toggle failed', 'red'); }
     }
 
     async function deleteRule(ruleId, name) {
@@ -5007,7 +5229,7 @@
         await api(`/api/alert-rules/${ruleId}`, { method: 'DELETE' });
         toast('Rule deleted', 'amber');
         loadRules();
-      } catch(e) { toast(e.message||'Delete failed','red'); }
+      } catch (e) { toast(e.message || 'Delete failed', 'red'); }
     }
 
     // ══════════════════════════════════════════════════
@@ -5021,8 +5243,8 @@
         document.getElementById('nc-user').value = cfg.smtp_user || '';
         document.getElementById('nc-pass').value = ''; // never pre-fill password
         document.getElementById('nc-from').value = cfg.smtp_from || '';
-        document.getElementById('nc-to').value   = cfg.smtp_to   || '';
-      } catch(e) {}
+        document.getElementById('nc-to').value = cfg.smtp_to || '';
+      } catch (e) { }
       openModal('modal-notif-config');
     }
 
@@ -5036,21 +5258,21 @@
         smtp_port: document.getElementById('nc-port').value.trim(),
         smtp_user: document.getElementById('nc-user').value.trim(),
         smtp_from: document.getElementById('nc-from').value.trim(),
-        smtp_to:   document.getElementById('nc-to').value.trim(),
+        smtp_to: document.getElementById('nc-to').value.trim(),
       };
       const pass = document.getElementById('nc-pass').value;
       if (pass) body.smtp_password = pass;
 
       try {
-        await api('/api/notifications/config', { method:'POST', body: JSON.stringify(body) });
+        await api('/api/notifications/config', { method: 'POST', body: JSON.stringify(body) });
         msg.textContent = '✅ Config saved';
         msg.style.color = 'var(--green)';
         msg.style.display = 'block';
-      } catch(e) {
-        msg.textContent = '✗ ' + (e.message||'Save failed');
+      } catch (e) {
+        msg.textContent = '✗ ' + (e.message || 'Save failed');
         msg.style.color = 'var(--red)';
         msg.style.display = 'block';
-      } finally { btn.disabled=false; btn.textContent='Save Config'; }
+      } finally { btn.disabled = false; btn.textContent = 'Save Config'; }
     }
 
     async function testEmail() {
@@ -5059,11 +5281,11 @@
       msg.style.color = 'var(--muted)';
       msg.style.display = 'block';
       try {
-        await api('/api/notifications/test-email', { method:'POST' });
+        await api('/api/notifications/test-email', { method: 'POST' });
         msg.textContent = '✅ Test email sent!';
         msg.style.color = 'var(--green)';
-      } catch(e) {
-        msg.textContent = '✗ ' + (e.message||'Send failed — check SMTP config');
+      } catch (e) {
+        msg.textContent = '✗ ' + (e.message || 'Send failed — check SMTP config');
         msg.style.color = 'var(--red)';
       }
     }
@@ -5108,11 +5330,15 @@
   <div id="mini-monitor" class="mini-monitor">
     <div class="mm-header">
       <div class="mm-title">
-        <span class="dot" style="width:5px;height:5px;background:var(--cyan);border-radius:50%;box-shadow:0 0 8px var(--cyan);animation:blink 1.5s infinite"></span>
+        <span class="dot"
+          style="width:5px;height:5px;background:var(--cyan);border-radius:50%;box-shadow:0 0 8px var(--cyan);animation:blink 1.5s infinite"></span>
         GLOBAL MULTI-CAM MONITOR
       </div>
       <div class="mm-close" onclick="toggleMiniMonitor()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
       </div>
     </div>
     <div id="mm-grid" class="mm-grid">
@@ -5120,4 +5346,5 @@
     </div>
   </div>
 </body>
+
 </html>
