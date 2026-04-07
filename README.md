@@ -135,6 +135,7 @@ Once the Worker transmits the data, the Hub processes the payload and pushes rea
 ### 2. Standard Launch (Manual)
 ```bash
 # Register dependencies and setup environment
+(Linux)
 python3 -m venv venv
 source venv/bin/activate
 pip install -r backend/requirements.txt
@@ -146,6 +147,7 @@ python3 backend/main.py
 ### 3. Launching the Surveillance Mesh (Local)
 To launch multiple camera nodes on the same machine:
 ```bash
+(Linux)
 python3 sentrix_orchestrator.py
 ```
 
