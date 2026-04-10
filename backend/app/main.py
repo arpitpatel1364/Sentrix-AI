@@ -73,7 +73,7 @@ async def serve_dashboard():
     # Use absolute path relative to this file
     static_file = Path(__file__).resolve().parent / "static" / "dashboard.html"
     if static_file.exists():
-        return HTMLResponse(static_file.read_text())
+        return HTMLResponse(static_file.read_text(encoding="utf-8"))
     return HTMLResponse(f"<h2>dashboard.html not found!</h2>")
 
 if __name__ == "__main__":
