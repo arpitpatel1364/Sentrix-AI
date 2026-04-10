@@ -12,7 +12,7 @@ python-jose[cryptography]==3.3.0
 opencv-python==4.9.0.80
 insightface==0.7.3
 ultralytics==8.2.0
-onnxruntime-gpu==1.17.1
+onnxruntime-gpu==1.18.0
 numpy==1.26.4
 Pillow==10.3.0
 
