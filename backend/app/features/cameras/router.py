@@ -7,6 +7,7 @@ and per-camera metadata (stream URL, description, status).
 from fastapi import APIRouter, Depends, HTTPException, Request
 from ...core.security import require_admin, get_current_user
 from ...core.database import get_db
+from ..audit_log.router import write_log
 from ...core.worker_state import WORKER_REGISTRY, get_live_nodes
 import sqlite3
 import json
@@ -87,6 +88,7 @@ async def add_camera(request: Request, user=Depends(require_admin), db: sqlite3.
     """, (cam_pk, camera_id, name, location, description, stream_url,
           floor_x, floor_y, user["username"], now))
     db.commit()
+    write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=request.client.host)
     return {"ok": True, "id": cam_pk, "camera_id": camera_id}
 
 
@@ -115,7 +117,7 @@ async def update_camera(camera_id: str, request: Request,
 
 
 @router.delete("/cameras/{camera_id}")
-async def delete_camera(camera_id: str, user=Depends(require_admin),
+async def delete_camera(camera_id: str, request: Request, user=Depends(require_admin),
                         db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
     cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
@@ -124,6 +126,7 @@ async def delete_camera(camera_id: str, user=Depends(require_admin),
 
     db.execute("DELETE FROM cameras WHERE camera_id = ?", (camera_id,))
     db.commit()
+    write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=camera_id, detail=f"Removed camera {camera_id}", ip=request.client.host)
     return {"ok": True}
 
 

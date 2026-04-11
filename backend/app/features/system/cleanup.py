@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
 from typing import Optional, List
 import sqlite3
 import os
@@ -6,6 +6,7 @@ import shutil
 import numpy as np
 from datetime import datetime, timedelta
 from ...core.database import get_db
+from ..audit_log.router import write_log
 from ...core.security import require_admin
 from ...core.config import SNAPSHOTS_DIR, SIMILARITY_THRESHOLD
 from ...core import face_engine
@@ -18,6 +19,7 @@ async def cleanup_records(
     time_range: str = Query(..., description="Range: 1h, 24h, 7d, 30d, 90d, 1y"),
     person_id: Optional[str] = Query(None, description="Optional biometric ID to filter"),
     target: str = Query("all", description="Targets: all, sightings, objects"),
+    request: Request = None,
     user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db)
 ):
@@ -106,6 +108,7 @@ async def cleanup_records(
             db.execute("DELETE FROM object_detections WHERE timestamp < ?", [cutoff_space_str])
 
         db.commit()
+        write_log(db, username=user["username"], role=user["role"], action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "")
         return {
             "status": "success",
             "message": f"Cleanup completed for range {time_range}",
@@ -206,6 +209,7 @@ async def search_biometric_sightings(
 @router.post("/cleanup/biometric/purge")
 async def purge_biometric_sightings(
     sighting_ids: List[str],
+    request: Request = None,
     user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db)
 ):
@@ -247,6 +251,7 @@ async def purge_biometric_sightings(
             db.execute(f"DELETE FROM sightings WHERE id IN ({ph})", chunk)
             
         db.commit()
+        write_log(db, username=user["username"], role=user["role"], action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "")
 
         return {
             "status": "success",

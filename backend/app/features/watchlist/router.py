@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Request
 from fastapi.responses import FileResponse
 from typing import List
 import uuid
@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 from ...core.security import require_admin
 from ...core.database import get_db
+from ..audit_log.router import write_log
 from ...core.face_engine import (
     get_embedding, bytes_to_cv2, QDRANT_AVAILABLE
 )
@@ -46,6 +47,7 @@ async def get_intel_photo(photo_id: str):
 async def add_wanted(
     files: List[UploadFile] = File(...),
     name: str = Form(...),
+    request: Request = None,
     user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db)
 ):
@@ -103,10 +105,11 @@ async def add_wanted(
     if not pids_processed:
         raise HTTPException(status_code=400, detail="No faces detected in any uploaded files.")
 
+    write_log(db, username=user["username"], role=user["role"], action="add_person", target=name_str, detail=f"Added '{name_str}' to watchlist with {len(pids_processed)} photos", ip=request.client.host if request else "")
     return {"status": "success", "count": len(pids_processed), "name": name_str}
 
 @router.delete("/wanted/{person_id}")
-async def remove_wanted(person_id: str, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+async def remove_wanted(person_id: str, request: Request, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
     cur.execute("SELECT id FROM person_photos WHERE person_id = ?", (person_id,))
     photo_rows = cur.fetchall()
@@ -120,6 +123,7 @@ async def remove_wanted(person_id: str, user=Depends(require_admin), db: sqlite3
     db.execute("DELETE FROM person_photos WHERE person_id = ?", (person_id,))
     db.execute("DELETE FROM wanted WHERE id = ?", (person_id,))
     db.commit()
+    write_log(db, username=user["username"], role=user["role"], action="delete_person", target=person_id, detail=f"Deleted person ID {person_id}", ip=request.client.host)
     
     if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
         try:

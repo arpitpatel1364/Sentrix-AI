@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 import json
 from ...core.security import get_current_user
 from .service import save_node_roi, get_all_rois_for_user
+from ..audit_log.router import write_log
+from ...core.database import get_db
+import sqlite3
 
 router = APIRouter(prefix="/api/roi", tags=["ROI"])
 
@@ -10,7 +13,9 @@ async def save_roi(
     node_key: str = Form(None),
     camera_id: str = Form(None),
     roi: str = Form(...), # "[x1, y1, x2, y2]" or ""
-    user=Depends(get_current_user)
+    request: Request = None,
+    user=Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
 ):
     """Save ROI coordinates (normalized 0.0 - 1.0)."""
     # If node_key not provided, build it (admin likely uses node_key)
@@ -27,6 +32,7 @@ async def save_roi(
     try:
         if not roi or roi == 'null' or roi == "":
             save_node_roi(node_key, None)
+            write_log(db, username=user["username"], role=user["role"], action="roi_clear", target=node_key, detail=f"Cleared ROI for {node_key}", ip=request.client.host if request else "")
             return {"status": "ok", "message": "ROI cleared"}
             
         roi_list = json.loads(roi)
@@ -34,6 +40,7 @@ async def save_roi(
             raise ValueError("ROI must have 4 coordinates")
             
         save_node_roi(node_key, roi_list)
+        write_log(db, username=user["username"], role=user["role"], action="roi_save", target=node_key, detail=f"Saved ROI for {node_key}: {roi_list}", ip=request.client.host if request else "")
         print(f"[ROI] Feature Saved for {node_key}: {roi_list}")
         return {"status": "ok", "message": "ROI saved", "roi": roi_list}
     except Exception as e:
@@ -56,6 +63,8 @@ async def legacy_save_roi(
     node_key: str = Form(None),
     camera_id: str = Form(None),
     roi: str = Form(...),
-    user=Depends(get_current_user)
+    request: Request = None,
+    user=Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
 ):
-    return await save_roi(node_key, camera_id, roi, user)
+    return await save_roi(node_key, camera_id, roi, request, user, db)

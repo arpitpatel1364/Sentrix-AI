@@ -51,17 +51,17 @@ def register_on_server(token: str, user: str, passw: str, role: str = "worker"):
         print(f"ℹ  User '{user}' already exists on server.")
         return True
     r.raise_for_status()
-    print(f"✅ Registered user '{user}' on server.")
+    print(f" Registered user '{user}' on server.")
     return True
 
 def delete_from_server(token: str, username: str):
     headers = {"Authorization": f"Bearer {token}"}
     r = requests.delete(f"{SERVER_URL}/api/users/{username}", headers=headers, timeout=10)
     if r.status_code == 404:
-        print(f"⚠  User '{username}' not found on server.")
+        print(f" !!  User '{username}' not found on server.")
         return False
     r.raise_for_status()
-    print(f"✅ Deleted user '{username}' from server.")
+    print(f" Deleted user '{username}' from server.")
     return True
 
 def add_to_conf(node_id, location, camera, user, password):
@@ -72,12 +72,12 @@ def add_to_conf(node_id, location, camera, user, password):
         with open(NODES_CONF, "r") as f:
             for l in f:
                 if l.strip().startswith(node_id + " |"):
-                    print(f"❌ Error: Node ID '{node_id}' already exists in {NODES_CONF}.")
+                    print(f" Error: Node ID '{node_id}' already exists in {NODES_CONF}.")
                     return False
 
     with open(NODES_CONF, "a") as f:
         f.write(line)
-    print(f"✅ Added node '{node_id}' to {NODES_CONF}.")
+    print(f" Added node '{node_id}' to {NODES_CONF}.")
     return True
 
 def list_nodes():
@@ -88,7 +88,7 @@ def list_nodes():
     with open(NODES_CONF, "r") as f:
         for line in f:
             if "|" in line and not line.strip().startswith("#"):
-                print(f"  🛰️  {line.strip()}")
+                print(f" {line.strip()}")
     print("---------------------\n")
 
 def delete_node(node_id, admin_user, admin_pass):
@@ -97,7 +97,7 @@ def delete_node(node_id, admin_user, admin_pass):
     username_to_del = None
     
     if not os.path.exists(NODES_CONF):
-        print(f"❌ {NODES_CONF} not found.")
+        print(f" {NODES_CONF} not found.")
         return
 
     with open(NODES_CONF, "r") as f, open(temp_file, "w") as tf:
@@ -112,12 +112,12 @@ def delete_node(node_id, admin_user, admin_pass):
             tf.write(line)
     
     if not found:
-        print(f"❌ Node ID '{node_id}' not found in {NODES_CONF}.")
+        print(f" Node ID '{node_id}' not found in {NODES_CONF}.")
         os.remove(temp_file)
         return
 
     os.replace(temp_file, NODES_CONF)
-    print(f"✅ Removed node '{node_id}' from {NODES_CONF}.")
+    print(f" Removed node '{node_id}' from {NODES_CONF}.")
 
     if username_to_del and username_to_del != "admin":
         try:
@@ -139,7 +139,7 @@ def main():
         elif args.command == "delete":
             delete_node(args.id, args.admin_user, args.admin_pass)
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f" ERROR: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

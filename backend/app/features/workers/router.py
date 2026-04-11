@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from ...core.worker_state import WORKER_REGISTRY
 from typing import List
@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 from ...core.security import get_current_user, require_admin
 from ...core.database import get_db
+from ..audit_log.router import write_log
 from ...core.face_engine import (
     get_embedding, bytes_to_cv2, match_wanted, QDRANT_AVAILABLE
 )
@@ -200,10 +201,11 @@ async def worker_stats(user=Depends(get_current_user), db: sqlite3.Connection = 
     }
 
 @router.post("/worker/offline")
-async def worker_offline(camera_id: str = Form(...), user=Depends(get_current_user)):
+async def worker_offline(request: Request, camera_id: str = Form(...), user=Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
     from ...core.worker_state import remove_worker
     node_key = f"{user['username']}:{camera_id}"
     remove_worker(node_key)
+    write_log(db, username=user["username"], role=user["role"], action="camera_offline", target=camera_id, detail=f"Camera {camera_id} went offline", ip=request.client.host)
     print(f"[-] Worker Offline Notification: {node_key}")
     return {"status": "offline_logged"}
 
