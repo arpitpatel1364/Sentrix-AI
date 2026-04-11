@@ -48,7 +48,7 @@ def register_on_server(token: str, user: str, passw: str, role: str = "worker"):
                      json={"username": user, "password": passw, "role": role},
                      headers=headers, timeout=10)
     if r.status_code == 409:
-        print(f"ℹ  User '{user}' already exists on server.")
+        print(f" User '{user}' already exists on server.")
         return True
     r.raise_for_status()
     print(f" Registered user '{user}' on server.")
