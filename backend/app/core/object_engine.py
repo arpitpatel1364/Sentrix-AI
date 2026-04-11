@@ -58,15 +58,16 @@ def init_object_engine():
             # Ensure model stays on CPU to save VRAM for other workers
             OBJECT_MODEL.to('cpu') 
         except Exception as e:
-            print(f"⚠  Backend Object Engine OOM or Error: {e}")
+            print(f"[!] Backend Object Engine OOM or Error: {e}")
             return
         
         # Set the custom vocabulary for the model
         OBJECT_MODEL.set_classes(DAILY_USAGE_CLASSES)
         
-        print(f"✓ Object Engine ready (YOLO World v2) defaults: {DAILY_USAGE_CLASSES[:5]}...")
+        print(f"[v] Object Engine ready (YOLO World v2) defaults: {DAILY_USAGE_CLASSES[:5]}...")
     except Exception as e:
-        print(f"⚠  Object Engine load failed: {e}")
+        print(f"[!] Object Engine load failed: {e}")
+
 
 
 def detect_objects(image: np.ndarray, threshold: float = 0.4):

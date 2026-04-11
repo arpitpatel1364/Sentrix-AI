@@ -45,14 +45,29 @@ if not hasattr(sys, 'real_prefix') and sys.base_prefix == sys.prefix:
 
 if __name__ == "__main__":
     import uvicorn
+    
+    print("\n+--------------------------------------+")
+    print("  Sentrix-AI Backend Shim Loader      ")
+    print("+--------------------------------------+")
+    print("  Launching from: backend/main.py    ")
+    print("+--------------------------------------+\n")
+
+
     if app is None:
-        print("\n\033[91mERR: Could not import FastAPI app. Check your installation.\033[0m")
+        print("\n\033[91mERR: Could not import FastAPI app.\033[0m")
+        print("\033[93mDIAGNOSTIC: This usually means 'fastapi' is not installed or the package structure is broken.\033[0m")
+        print(f"Current Working Directory: {os.getcwd()}")
+        print(f"Python Path: {sys.path[:3]}...")
         sys.exit(1)
     
-    print("\n╔══════════════════════════════════════╗")
-    print("║   Sentrix-AI Backend Shim Loader     ║")
-    print("╠══════════════════════════════════════╣")
-    print("║  Launching from: backend/main.py    ║")
-    print("╚══════════════════════════════════════╝\n")
+    # Check if we are running in the project root
+    if not (Path.cwd() / "backend").exists():
+        print("\033[93mWARNING: It looks like you are NOT running from the project root.\033[0m")
+        print("Please run this command from the base Sentrix-AI directory.\n")
     
+    print("[*] Starting Uvicorn server (please wait, models may take 15-30s to load)...")
+    print("\n[v] Backend Ready!")
+    print("Dashboard Link: http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

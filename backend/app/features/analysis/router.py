@@ -8,8 +8,8 @@ from ...core.object_engine import detect_objects, init_object_engine
 
 router = APIRouter(prefix="/api")
 
-# Ensure engine is loaded (In a production app, this would be in lifespan)
-init_object_engine()
+# Ensure engine is loaded is now handled in app/main.py lifespan
+
 
 @router.post("/analyze-snapshot")
 async def analyze_snapshot(file: UploadFile = File(...), user=Depends(get_current_user)):

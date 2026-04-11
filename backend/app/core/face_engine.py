@@ -17,7 +17,8 @@ try:
     FACE_MODEL_AVAILABLE = True
 except ImportError:
     FACE_MODEL_AVAILABLE = False
-    print("⚠  insightface not installed. Face recognition disabled.")
+    print("[!] insightface not installed. Face recognition disabled.")
+
 
 try:
     from qdrant_client import QdrantClient
@@ -25,7 +26,8 @@ try:
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
-    print("⚠  qdrant-client not installed. Using in-memory store.")
+    print("[!] qdrant-client not installed. Using in-memory store.")
+
 
 # Global state
 FACE_APP = None
@@ -62,15 +64,16 @@ def init_face_engines():
                         # Pre-flight check to avoid noisy "Error 126" LoadLibrary failures
                         if _test_cuda_functional():
                             providers = ["CUDAExecutionProvider"]
-                            print("🚀 GPU Detected: Using CUDAExecutionProvider for face recognition")
+                            print("[*] GPU Detected: Using CUDAExecutionProvider for face recognition")
                         else:
-                            print("ℹ  CUDA found but libraries (DLLs) missing/invalid. Falling back to CPU.")
+                            print("[i] CUDA found but libraries (DLLs) missing/invalid. Falling back to CPU.")
                     else:
-                        print("ℹ  Using CPU for face recognition (CUDA provider not available)")
+                        print("[i] Using CPU for face recognition (CUDA provider not available)")
                 except Exception as e:
-                    print(f"ℹ  Provider check failed: {e}. Using CPU.")
+                    print(f"[i] Provider check failed: {e}. Using CPU.")
             else:
-                print("ℹ  Running Face Recognition on CPU (configured)")
+                print("[i] Running Face Recognition on CPU (configured)")
+
 
             FACE_APP = FaceAnalysis(
                 name="buffalo_s",
@@ -108,9 +111,10 @@ def init_face_engines():
             # Migration logic here if needed, but for simplicity we assume the core logic is what's important
             # In a full refactor, we would run the migration task from lifespan.
             
-            print(f"✓ Qdrant persistent storage started at {target_path}")
+            print(f"[v] Qdrant persistent storage started at {target_path}")
         except Exception as e:
-            print(f"⚠  Qdrant error: {e}")
+            print(f"[!] Qdrant error: {e}")
+
 
 def get_embedding(img_array: np.ndarray) -> Optional[np.ndarray]:
     if FACE_APP is None:
