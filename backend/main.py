@@ -2,8 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-# Force Backend to CPU by hiding CUDA from the environment completely
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# Backend initialization setup
 
 # --- CUDA SELF-HEALING ENVIRONMENT (Mirroring Worker Logic) ---
 BASE_DIR = Path(__file__).resolve().parent
@@ -25,6 +24,14 @@ if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
 # Add the current directory to path so 'app' can be imported
 sys.path.append(str(BASE_DIR))
 
+# Import the FastAPI app at module level so 'uvicorn backend.main:app' works
+try:
+    from app.main import app
+except ImportError:
+    # If we are just running for the first time or path is wrong, 
+    # we don't want to crash immediately if dependencies are missing
+    app = None
+
 # Check for virtual environment
 if not hasattr(sys, 'real_prefix') and sys.base_prefix == sys.prefix:
     # We are likely NOT in a virtual environment
@@ -38,7 +45,9 @@ if not hasattr(sys, 'real_prefix') and sys.base_prefix == sys.prefix:
 
 if __name__ == "__main__":
     import uvicorn
-    from app.main import app
+    if app is None:
+        print("\n\033[91mERR: Could not import FastAPI app. Check your installation.\033[0m")
+        sys.exit(1)
     
     print("\n╔══════════════════════════════════════╗")
     print("║   Sentrix-AI Backend Shim Loader     ║")

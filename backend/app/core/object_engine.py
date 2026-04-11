@@ -6,9 +6,9 @@ Modernised to use YOLOv8s-Worldv2, providing:
 2. Superior accuracy and speed over YOLOv4.
 3. Simplified pipeline with Ultralytics framework.
 """
-
 import cv2
 import numpy as np
+import torch
 from pathlib import Path
 from .config import BASE_DIR
 
@@ -17,8 +17,8 @@ MODEL_PATH = BASE_DIR.parent / "yolov8s-worldv2.pt"
 
 # Trimmed: Core Important Daily Items (All others dumped)
 DAILY_USAGE_CLASSES = [
-    "phone","water bottle", "laptop", "backpack", 
-    "remote", "keyboard", "cell phone", "book","bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
+    "phone", "water bottle", "laptop", "backpack", 
+    "remote", "keyboard", "cell phone", "book", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
     "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
     "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
     "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
@@ -34,24 +34,34 @@ DAILY_USAGE_CLASSES = [
 # Object detection model instance (singleton)
 OBJECT_MODEL = None
 
-
 def init_object_engine():
+    """
+    Initializes the YOLO World model, handles PyTorch 2.6+ security globals,
+    and sets the offline vocabulary.
+    """
     global OBJECT_MODEL
     try:
         from ultralytics import YOLOWorld
-        import torch
+        from ultralytics.nn.tasks import WorldModel
         
-        # Load weights: Forced to CPU in backend to save VRAM for workers
-        # Pass device='cpu' to constructor to avoid any CUDA initialization spikes
+        # --- PYTORCH 2.6+ SECURITY FIX ---
+        # We must explicitly allowlist WorldModel because PyTorch 2.6+ 
+        # defaults to weights_only=True for security.
+        torch.serialization.add_safe_globals([WorldModel])
+        # ---------------------------------
+
         try:
             print(f"[*] Backend: Loading Object Engine model on CPU...")
+            # Initialize YOLOWorld; this call triggers the torch.load internally
             OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))
-            OBJECT_MODEL.to('cpu') # Double check
+            
+            # Ensure model stays on CPU to save VRAM for other workers
+            OBJECT_MODEL.to('cpu') 
         except Exception as e:
             print(f"⚠  Backend Object Engine OOM or Error: {e}")
             return
         
-        # Set default to 'Daily Usage' vocabulary
+        # Set the custom vocabulary for the model
         OBJECT_MODEL.set_classes(DAILY_USAGE_CLASSES)
         
         print(f"✓ Object Engine ready (YOLO World v2) defaults: {DAILY_USAGE_CLASSES[:5]}...")
@@ -71,10 +81,14 @@ def detect_objects(image: np.ndarray, threshold: float = 0.4):
         # Standard predict call
         results = OBJECT_MODEL.predict(image, conf=threshold, verbose=False)
         
-        if not results:
+        if not results or len(results) == 0:
             return []
 
         res = results[0]
+        # Check if boxes exist to avoid attribute errors on empty frames
+        if res.boxes is None or len(res.boxes) == 0:
+            return []
+
         boxes = res.boxes.xywh.cpu().numpy()  # [cx, cy, w, h]
         confs = res.boxes.conf.cpu().numpy()
         cls_ids = res.boxes.cls.cpu().numpy().astype(int)
@@ -85,7 +99,7 @@ def detect_objects(image: np.ndarray, threshold: float = 0.4):
             cx, cy, w, h = boxes[i]
             label = names[cls_ids[i]]
             
-            # Convert [cx, cy, w, h] -> [x, y, w, h] (top-left)
+            # Convert [cx, cy, w, h] (center-based) -> [x, y, w, h] (top-left)
             x = int(cx - w / 2)
             y = int(cy - h / 2)
             

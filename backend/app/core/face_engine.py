@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional, List, Dict
 from datetime import datetime
 
-from .config import MODELS_DIR, DATA_DIR, SIMILARITY_THRESHOLD, DB_PATH
+from .config import MODELS_DIR, DATA_DIR, SIMILARITY_THRESHOLD, DB_PATH, DEVICE
 
 # --- InsightFace & Qdrant Availability ---
 try:
@@ -31,6 +31,21 @@ except ImportError:
 FACE_APP = None
 QDRANT_CLIENT = None
 
+def _test_cuda_functional():
+    """Try to create a tiny ONNX session to see if CUDA DLLs are actually working."""
+    try:
+        import onnxruntime as ort
+        import numpy as np
+        # Minimalist 1x1 model
+        from onnx import helper, TensorProto
+        node = helper.make_node("Relu", ["X"], ["Y"])
+        graph = helper.make_graph([node], "test", [helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, 1])], [helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1, 1])])
+        model = helper.make_model(graph)
+        sess = ort.InferenceSession(model.SerializeToString(), providers=["CUDAExecutionProvider"])
+        return "CUDAExecutionProvider" in sess.get_providers()
+    except Exception:
+        return False
+
 def init_face_engines():
     global FACE_APP, QDRANT_CLIENT
 
@@ -38,15 +53,24 @@ def init_face_engines():
     if FACE_MODEL_AVAILABLE:
         try:
             providers = ["CPUExecutionProvider"]
-            try:
-                import onnxruntime as ort
-                if "CUDAExecutionProvider" in ort.get_available_providers():
-                    providers = ["CUDAExecutionProvider"]
-                    print("🚀 GPU Detected: Using CUDAExecutionProvider for face recognition")
-                else:
-                    print("ℹ  Using CPU for face recognition (onnxruntime-gpu not found)")
-            except Exception:
-                pass
+            
+            # Only attempt CUDA if config allows it AND hardware supports it
+            if DEVICE.lower() == "cuda":
+                try:
+                    import onnxruntime as ort
+                    if "CUDAExecutionProvider" in ort.get_available_providers():
+                        # Pre-flight check to avoid noisy "Error 126" LoadLibrary failures
+                        if _test_cuda_functional():
+                            providers = ["CUDAExecutionProvider"]
+                            print("🚀 GPU Detected: Using CUDAExecutionProvider for face recognition")
+                        else:
+                            print("ℹ  CUDA found but libraries (DLLs) missing/invalid. Falling back to CPU.")
+                    else:
+                        print("ℹ  Using CPU for face recognition (CUDA provider not available)")
+                except Exception as e:
+                    print(f"ℹ  Provider check failed: {e}. Using CPU.")
+            else:
+                print("ℹ  Running Face Recognition on CPU (configured)")
 
             FACE_APP = FaceAnalysis(
                 name="buffalo_s",

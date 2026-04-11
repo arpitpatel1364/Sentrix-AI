@@ -8,6 +8,7 @@ TOKEN_EXPIRE_HOURS = 12
 
 # --- Face Recognition Configuration ---
 SIMILARITY_THRESHOLD = 0.75  # cosine similarity — lower = stricter
+DEVICE = os.getenv("DEVICE", "cpu")  # "cpu" or "cuda"
 
 # --- Directory Paths ---
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
