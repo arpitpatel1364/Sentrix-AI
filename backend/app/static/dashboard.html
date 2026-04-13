@@ -4760,7 +4760,19 @@
         await api('/api/system/reset', { method: 'POST' });
         closeModal('modal-confirm-reset');
         toast('System reset complete', 'amber');
+        
+        // Clear local UI state
+        newSightings = 0; newObjects = 0; alertCount = 0;
+        ACTIVE_ALERTS = {};
+        updateBadge('badge-sightings', 0);
+        updateBadge('badge-objects', 0);
+        updateBadge('bell-count', 0);
+        renderActiveAlerts();
+        
         loadStats();
+        if (ACTIVE_PAGE === 'overview') { loadSightings(); loadObjects(); }
+        else if (ACTIVE_PAGE === 'sightings') { loadSightings(); }
+        else if (ACTIVE_PAGE === 'objects') { loadObjects(); }
       } catch (e) { toast('Reset failed: ' + e.message, 'red') }
       finally { btn.disabled = false; btn.textContent = 'Confirm Reset' }
     }

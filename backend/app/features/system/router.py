@@ -167,6 +167,7 @@ async def global_toggle(
 @router.post("/system/reset")
 async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     try:
+        # 1. Purge DB Tables
         db.execute("DELETE FROM sightings")
         db.execute("DELETE FROM wanted")
         db.execute("DELETE FROM users WHERE username != 'admin'")
@@ -176,9 +177,13 @@ async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Dep
         db.execute("DELETE FROM notification_log")
         db.execute("DELETE FROM camera_stop_requests")
         db.execute("DELETE FROM alert_rules")
-        db.commit()
         
+        # 2. Add default worker
         _add_user("worker1", "worker123", "worker")
+
+        # 3. Clear Memory Registry
+        from ...core.worker_state import WORKER_REGISTRY
+        WORKER_REGISTRY.clear()
 
         if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
             try:
@@ -197,6 +202,8 @@ async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Dep
                     item.unlink()
             SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
+        db.commit()
         return {"ok": True, "message": "System reset successfully."}
     except Exception as e:
+        if db: db.rollback()
         raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
