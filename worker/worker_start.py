@@ -101,19 +101,14 @@ def gather_config():
         if more.lower() != "y":
             break
 
-    print(f"\n{BOLD}STEP 4 — Detection Options{RESET}")
-    enable_face = ask("Enable face detection? (y/n)", "y").lower() == "y"
-    enable_obj  = ask("Enable object detection? (y/n)", "y").lower() == "y"
-    force_cpu   = ask("Force CPU mode — no GPU? (y/n)", "n").lower() == "y"
-
     return {
         "server":      server,
         "username":    username,
         "password":    password,
         "cameras":     cameras,
-        "enable_face": enable_face,
-        "enable_obj":  enable_obj,
-        "force_cpu":   force_cpu,
+        "enable_face": True,
+        "enable_obj":  True,
+        "force_cpu":   False,
     }
 
 
@@ -142,7 +137,7 @@ def authenticate(server, username, password):
 
 
 def open_dashboard(server, cameras):
-    print(f"\n{BOLD}STEP 5 — Register Cameras in Dashboard{RESET}")
+    print(f"\n{BOLD}STEP 4 — Register Cameras in Dashboard{RESET}")
     info("Opening the Sentrix dashboard in your browser.")
     info("Ask your admin to:")
     info("  1. Log in to the dashboard")
@@ -152,7 +147,7 @@ def open_dashboard(server, cameras):
         print(f"       Camera ID  : {BOLD}{cam['id']}{RESET}")
         print(f"       Location   : {cam['location']}\n")
 
-    dashboard_url = f"{server}/dashboard"
+    dashboard_url = f"{server}"
     try:
         webbrowser.open(dashboard_url)
         ok(f"Opened: {dashboard_url}")
@@ -328,7 +323,7 @@ def main():
         open_dashboard(config["server"], config["cameras"])
 
     # Double-check cameras are registered
-    verify_cameras(config["server"], token, config["cameras"])
+    # verify_cameras(config["server"], token, config["cameras"])
 
     # Launch worker_agent subprocess
     proc = launch_worker(config)

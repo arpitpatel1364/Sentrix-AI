@@ -65,7 +65,7 @@ async def upload_frame(
     if embedding is None:
         return {
             "status": "no_face",
-            "roi": WORKER_REGISTRY.get(node_key, {}).get("roi")
+            "config": WORKER_REGISTRY.get(node_key, {}).get("config")
         }
 
     result = match_wanted(embedding)
@@ -142,7 +142,7 @@ async def upload_frame(
             "person": result["person"]["name"],
             "person_id": result["person"]["id"],
             "confidence": result["confidence"],
-            "roi": WORKER_REGISTRY.get(node_key, {}).get("roi")
+            "config": WORKER_REGISTRY.get(node_key, {}).get("config")
         }
     else:
         await broadcast_alert({
@@ -156,7 +156,7 @@ async def upload_frame(
         return {
             "status": "stored",
             "matched": False,
-            "roi": WORKER_REGISTRY.get(node_key, {}).get("roi")
+            "config": WORKER_REGISTRY.get(node_key, {}).get("config")
         }
 
 
@@ -224,7 +224,7 @@ async def upload_live(
     update_live_frame(node_key, data)
     return {
         "ok": True,
-        "roi": WORKER_REGISTRY.get(node_key, {}).get("roi")
+        "config": WORKER_REGISTRY.get(node_key, {}).get("config")
     }
 
 @router.get("/stream/{camera_id}", response_class=StreamingResponse)

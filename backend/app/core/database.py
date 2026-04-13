@@ -86,7 +86,10 @@ def init_db():
                 roi          TEXT DEFAULT NULL,
                 added_by     TEXT,
                 added_at     TEXT,
-                status       TEXT DEFAULT 'active'
+                status       TEXT DEFAULT 'active',
+                face_enabled INTEGER DEFAULT 1,
+                obj_enabled  INTEGER DEFAULT 1,
+                stream_enabled INTEGER DEFAULT 1
             )
         """)
 
@@ -160,6 +163,9 @@ def init_db():
         migrations = [
             ("ALTER TABLE cameras ADD COLUMN roi    TEXT DEFAULT NULL",    "roi on cameras"),
             ("ALTER TABLE cameras ADD COLUMN status TEXT DEFAULT 'active'", "status on cameras"),
+            ("ALTER TABLE cameras ADD COLUMN face_enabled INTEGER DEFAULT 1", "face_enabled on cameras"),
+            ("ALTER TABLE cameras ADD COLUMN obj_enabled INTEGER DEFAULT 1", "obj_enabled on cameras"),
+            ("ALTER TABLE cameras ADD COLUMN stream_enabled INTEGER DEFAULT 1", "stream_enabled on cameras"),
         ]
         for sql, label in migrations:
             try:

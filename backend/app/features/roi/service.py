@@ -64,13 +64,21 @@ def get_node_roi(node_key: str) -> Optional[List[float]]:
             
     return roi
 
-def get_all_rois_for_user(username: str) -> dict:
-    """Returns all camera ROIs for a specific user from the primary DB registry."""
+def get_all_configs_for_user(username: str) -> dict:
+    """Returns all camera configs (ROI + toggles) for a specific user."""
     from ...core.database import get_db_conn
     res = {}
     with get_db_conn() as db:
         cur = db.cursor()
-        cur.execute("SELECT camera_id, roi FROM cameras WHERE added_by = ?", (username,))
+        cur.execute("""
+            SELECT camera_id, roi, face_enabled, obj_enabled, stream_enabled 
+            FROM cameras WHERE added_by = ?
+        """, (username,))
         for row in cur.fetchall():
-            res[row["camera_id"]] = json.loads(row["roi"]) if row["roi"] else None
+            res[row["camera_id"]] = {
+                "roi": json.loads(row["roi"]) if row["roi"] else None,
+                "face_enabled": bool(row["face_enabled"]),
+                "obj_enabled": bool(row["obj_enabled"]),
+                "stream_enabled": bool(row["stream_enabled"])
+            }
     return res

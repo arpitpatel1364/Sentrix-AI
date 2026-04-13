@@ -31,9 +31,9 @@ TARGET_CLASSES = [
 
 
 def parse_args():
-    base_dir = Path(__file__).resolve().parent
-    default_face_model = base_dir / "worker" /"models" / "best.onnx"
-    default_obj_model  = PROJECT_ROOT / "worker" / "yolov8s-worldv2.pt"
+    worker_dir = Path(__file__).resolve().parent
+    default_face_model = worker_dir / "models" / "best.onnx"
+    default_obj_model  = worker_dir / "models" / "yolov8s-worldv2.pt"
 
     p = argparse.ArgumentParser(description="Sentrix-AI Multi-Process CCTV Worker (Two-Core)")
     p.add_argument("--server",    default="http://localhost:8000")
@@ -146,10 +146,13 @@ def is_in_roi(bbox, roi, im_w, im_h):
     mx1, mx2 = min(x1, x2), max(x1, x2)
     my1, my2 = min(y1, y2), max(y1, y2)
     
-    return (mx1 <= cx <= mx2) and (my1 <= cy <= my2)
+    inside = (mx1 <= cx <= mx2) and (my1 <= cy <= my2)
+    
+    # print(f"[DEBUG] ROI Check: Center({cx:.3f}, {cy:.3f}) inside [{mx1:.3f}, {my1:.3f}, {mx2:.3f}, {my2:.3f}] -> {inside}")
+    return inside
 
 
-def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, live_queue, cam_rois):
+def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, live_queue, cam_configs):
     print(f"[*] Capture Node started: {cam_id} ({cam_src})")
     cap = open_camera(cam_src)
     if not cap or not cap.isOpened():
@@ -201,7 +204,7 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
             break
 
 
-def face_detector_worker(face_model, face_queue, upload_queue, server, token, cam_rois, force_cpu=False):
+def face_detector_worker(face_model, face_queue, upload_queue, server, token, cam_configs, force_cpu=False):
     print(f"[*] Core 1 — Face Engine starting")
 
     last_face_times = {}
@@ -236,20 +239,28 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
             if face_session is None:
                 continue
 
+            config = cam_configs.get(cam_id, {})
+            if not config.get("face_enabled", True):
+                time.sleep(1) # Feature disabled
+                continue
+
             if time.time() - last_face_times.get(cam_id, 0) < 0.4:
                 continue
 
             h_orig, w_orig = frame.shape[:2]
-            const_roi = cam_rois.get(cam_id)
+            const_roi = config.get("roi")
             
             # ROI Optimized Crop
             crop_frame = frame
             off_x, off_y = 0, 0
             if const_roi and len(const_roi) == 4:
                 x1_n, y1_n, x2_n, y2_n = const_roi
-                if x1_n > 0.005 or y1_n > 0.005 or x2_n < 0.995 or y2_n < 0.995:
-                    off_x, off_y = int(x1_n * w_orig), int(y1_n * h_orig)
-                    ex, ey = int(x2_n * w_orig), int(y2_n * h_orig)
+                if x1_n > 0.001 or y1_n > 0.001 or x2_n < 0.999 or y2_n < 0.999:
+                    off_x = int(min(x1_n, x2_n) * w_orig)
+                    off_y = int(min(y1_n, y2_n) * h_orig)
+                    ex = int(max(x1_n, x2_n) * w_orig)
+                    ey = int(max(y1_n, y2_n) * h_orig)
+                    
                     crop_frame = frame[off_y:ey, off_x:ex]
                     if crop_frame.size == 0:
                         crop_frame = frame
@@ -284,8 +295,14 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
                 
                 # Translate back to Full Frame
                 fx, fy = max(0, off_x + lx), max(0, off_y + ly)
+                fw_full, fh_full = int(fw / scale), int(fh / scale)
                 
-                boxes.append([fx, fy, lw, lh])
+                # Mandatory ROI Filter
+                if not is_in_roi([fx, fy, fw_full, fh_full], const_roi, w_orig, h_orig):
+                    continue
+
+                face_found = True
+                boxes.append([fx, fy, fw_full, fh_full])
                 confs.append(conf)
 
             faces_found = 0
@@ -341,7 +358,7 @@ class DetectionTracker:
         return False
 
 
-def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects, cam_rois, force_cpu=False):
+def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects, cam_configs, force_cpu=False):
     print(f"[*] Core 2 — Object Engine starting (YOLO World)")
     tracker = DetectionTracker(cooldown=15)
 
@@ -352,9 +369,22 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
         from ultralytics.nn.tasks import WorldModel
         
         # --- PYTORCH 2.6+ SECURITY FIX ---
-        # Explicitly allowlist WorldModel for weights_only=True loading
+        # Explicitly allowlist WorldModel and common layers for weights_only=True loading
         try:
-            torch.serialization.add_safe_globals([WorldModel])
+            import torch.nn.modules as modules
+            from ultralytics.nn.tasks import WorldModel, DetectionModel
+            
+            safe_classes = [
+                WorldModel, DetectionModel,
+                modules.container.Sequential,
+                modules.container.ModuleList,
+                modules.conv.Conv2d,
+                modules.batchnorm.BatchNorm2d,
+                modules.activation.SiLU,
+                modules.pooling.MaxPool2d,
+                modules.upsampling.Upsample
+            ]
+            torch.serialization.add_safe_globals(safe_classes)
         except Exception:
             pass
         # ---------------------------------
@@ -399,17 +429,25 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             if obj_model_instance is None:
                 continue
 
+            config = cam_configs.get(cam_id, {})
+            if not config.get("obj_enabled", True):
+                time.sleep(1) # Feature disabled
+                continue
+
             h_orig, w_orig = frame.shape[:2]
-            const_roi = cam_rois.get(cam_id)
+            const_roi = config.get("roi")
 
             # ROI Optimized Crop
             crop_frame = frame
             off_x, off_y = 0, 0
             if const_roi and len(const_roi) == 4:
                 x1_n, y1_n, x2_n, y2_n = const_roi
-                if x1_n > 0.005 or y1_n > 0.005 or x2_n < 0.995 or y2_n < 0.995:
-                    off_x, off_y = int(x1_n * w_orig), int(y1_n * h_orig)
-                    ex, ey = int(x2_n * w_orig), int(y2_n * h_orig)
+                if x1_n > 0.001 or y1_n > 0.001 or x2_n < 0.999 or y2_n < 0.999:
+                    off_x = int(min(x1_n, x2_n) * w_orig)
+                    off_y = int(min(y1_n, y2_n) * h_orig)
+                    ex = int(max(x1_n, x2_n) * w_orig)
+                    ey = int(max(y1_n, y2_n) * h_orig)
+                    
                     crop_frame = frame[off_y:ey, off_x:ex]
                     if crop_frame.size == 0:
                         crop_frame = frame
@@ -437,6 +475,10 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                 fx = int(off_x + (cx - w/2))
                 fy = int(off_y + (cy - h/2))
                 fw, fh = int(w), int(h)
+                
+                # Mandatory ROI Filter
+                if not is_in_roi([fx, fy, fw, fh], const_roi, w_orig, h_orig):
+                    continue
                 
                 # Clamp to full frame
                 fx = max(0, min(fx, w_orig - 1))
@@ -527,7 +569,7 @@ def _annotation_worker(annotation_queue, upload_queue):
             print(f"[!] Annotation error: {e}")
 
 
-def upload_worker(server, token, upload_queue, cam_rois):
+def upload_worker(server, token, upload_queue, cam_configs):
     print("[*] Uploader started")
     session = requests.Session()
     session.headers.update({"Authorization": f"Bearer {token}"})
@@ -559,10 +601,10 @@ def upload_worker(server, token, upload_queue, cam_rois):
             r = session.post(url, files=files, data=data, timeout=15)
             if r.status_code == 200:
                 res = r.json()
-                # Live update ROI
-                if "roi" in res and res["roi"] != cam_rois.get(cam_id):
-                    cam_rois[cam_id] = res["roi"]
-                    print(f"[*] ROI SYNC: {cam_id} zone updated")
+                # Live update config
+                if "config" in res and res["config"] != cam_configs.get(cam_id):
+                    cam_configs[cam_id] = res["config"]
+                    print(f"[*] CONFIG SYNC: {cam_id} settings updated")
                     
                 if dtype == "face":
 
@@ -582,7 +624,7 @@ def upload_worker(server, token, upload_queue, cam_rois):
 # ============================================================
 # PROCESS: LIVE STREAMER — sends raw frames for dashboard
 # ============================================================
-def live_stream_worker(server, token, live_queue, cam_rois):
+def live_stream_worker(server, token, live_queue, cam_configs):
     print("[*] Live Streamer starting")
     headers = {"Authorization": f"Bearer {token}"}
     session = requests.Session()
@@ -598,6 +640,12 @@ def live_stream_worker(server, token, live_queue, cam_rois):
                 if isinstance(sys.exc_info()[0], KeyboardInterrupt): break
                 continue
             
+            # Check if streaming is enabled
+            config = cam_configs.get(cam_id, {})
+            if not config.get("stream_enabled", True):
+                time.sleep(1)
+                continue
+
             # Send at most 25 FPS to avoid spamming network
             if time.time() - last_frame_sent < 0.04:
                 continue
@@ -615,9 +663,9 @@ def live_stream_worker(server, token, live_queue, cam_rois):
                 r = session.post(url, files=files, data=data, timeout=2)
                 if r.status_code == 200:
                     res = r.json()
-                    if "roi" in res and res["roi"] != cam_rois.get(cam_id):
-                        cam_rois[cam_id] = res["roi"]
-                        print(f"[*] ROI SYNC (Live): {cam_id} zone updated")
+                    if "config" in res and res["config"] != cam_configs.get(cam_id):
+                        cam_configs[cam_id] = res["config"]
+                        print(f"[*] CONFIG SYNC (Live): {cam_id} settings updated")
                 last_frame_sent = time.time()
             except Exception:
                 pass
@@ -627,24 +675,24 @@ def live_stream_worker(server, token, live_queue, cam_rois):
             time.sleep(0.05)
 
 
-def config_sync_worker(server, token, cam_rois):
-    """Periodically fetches all assigned ROIs for this worker's nodes."""
+def config_sync_worker(server, token, cam_configs):
+    """Periodically fetches all assigned configs for this worker's nodes."""
     headers = {"Authorization": f"Bearer {token}"}
-    url = f"{server}/api/worker/rois"
+    url = f"{server}/api/roi/worker/rois"
     
     while True:
         try:
             r = requests.get(url, headers=headers, timeout=10)
             if r.status_code == 200:
                 data = r.json()
-                rois = data.get("rois", {})
-                for cam_id, roi in rois.items():
-                    if roi != cam_rois.get(cam_id):
-                        cam_rois[cam_id] = roi
-                        print(f"[*] ROI SYNC (Live): {cam_id} zone updated")
+                configs = data.get("configs", {})
+                for cam_id, config in configs.items():
+                    if config != cam_configs.get(cam_id):
+                        cam_configs[cam_id] = config
+                        print(f"[*] CONFIG SYNC: {cam_id} settings updated")
             time.sleep(15) # Sync every 15 seconds
         except Exception as e:
-            # print(f"[WARN] Config Sync error: {e}")
+            print(f"[WARN] Config Sync failure (will retry): {e}")
             time.sleep(10)
 
 
@@ -676,7 +724,7 @@ def main():
     processes = []
 
     manager = mp.Manager()
-    cam_rois = manager.dict() # Shared across processes
+    cam_configs = manager.dict() # Shared across processes
 
     face_queue   = mp.Queue(maxsize=8)  if not args.no_face else None
     obj_queue    = mp.Queue(maxsize=4)  if not args.no_obj  else None
@@ -687,7 +735,7 @@ def main():
 
     if not args.no_face:
         p = mp.Process(target=face_detector_worker,
-                       args=(args.face_model, face_queue, upload_queue, args.server, token, cam_rois, args.cpu),
+                        args=(args.face_model, face_queue, upload_queue, args.server, token, cam_configs, args.cpu),
                        daemon=True)
         p.start(); processes.append(p)
         print("[+] Core 1 (Face) started")
@@ -695,7 +743,7 @@ def main():
     if not args.no_obj:
         target_objs = [o.lower() for o in args.objects]
         p = mp.Process(target=object_detector_worker,
-                       args=(args.obj_model, obj_queue, annotation_queue, target_objs, cam_rois, args.cpu),
+                        args=(args.obj_model, obj_queue, annotation_queue, target_objs, cam_configs, args.cpu),
                        daemon=True)
         p.start(); processes.append(p)
         print("[+] Core 2 (Object) started")
@@ -707,19 +755,19 @@ def main():
         print("[+] Annotator started")
 
     p = mp.Process(target=upload_worker,
-                   args=(args.server, token, upload_queue, cam_rois),
+                   args=(args.server, token, upload_queue, cam_configs),
                    daemon=True)
     p.start(); processes.append(p)
     print("[+] Uploader started")
 
     p_live = mp.Process(target=live_stream_worker,
-                         args=(args.server, token, live_queue, cam_rois),
+                         args=(args.server, token, live_queue, cam_configs),
                          daemon=True)
     p_live.start(); processes.append(p_live)
     print("[+] Live Streamer started")
 
     p_sync = mp.Process(target=config_sync_worker,
-                         args=(args.server, token, cam_rois),
+                         args=(args.server, token, cam_configs),
                          daemon=True)
     p_sync.start(); processes.append(p_sync)
     print("[+] Config Syncer started")
@@ -730,7 +778,7 @@ def main():
         cam_id  = args.camera_id[i] if i < len(args.camera_id) else f"cam-{i+1}"
         loc     = args.location[i]  if i < len(args.location)  else "Global Perimeter"
         p = mp.Process(target=capture_worker,
-                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue, live_queue, cam_rois),
+                       args=(cam_src, cam_id, loc, args.interval, face_queue, obj_queue, live_queue, cam_configs),
                        daemon=True)
         p.start(); processes.append(p)
         print(f"[+] Capture node {cam_id} started")

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form, Request
 import json
 from ...core.security import get_current_user
-from .service import save_node_roi, get_all_rois_for_user
+from .service import save_node_roi, get_all_configs_for_user
 from ..audit_log.router import write_log
 from ...core.database import get_db
 import sqlite3
@@ -48,15 +48,15 @@ async def save_roi(
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/list")
-async def get_worker_rois(user=Depends(get_current_user)):
-    """Returns local camera IDs and their assigned ROIs for the current worker."""
-    rois = get_all_rois_for_user(user['username'])
-    return {"status": "ok", "rois": rois}
+async def get_worker_configs(user=Depends(get_current_user)):
+    """Returns local camera configs (ROI + toggles) for the current worker."""
+    configs = get_all_configs_for_user(user['username'])
+    return {"status": "ok", "configs": configs}
 
 # Legacy Alias Support for Worker Sync
 @router.get("/worker/rois", include_in_schema=False)
-async def legacy_get_rois(user=Depends(get_current_user)):
-    return await get_worker_rois(user)
+async def legacy_get_configs(user=Depends(get_current_user)):
+    return await get_worker_configs(user)
 
 @router.post("/worker/roi", include_in_schema=False)
 async def legacy_save_roi(
