@@ -86,10 +86,10 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
     # Use absolute path relative to this file
-    static_file = Path(__file__).resolve().parent / "static" / "dashboard.html"
+    static_file = Path(__file__).resolve().parent / "static" / "index.html"
     if static_file.exists():
         return HTMLResponse(static_file.read_text(encoding="utf-8"))
-    return HTMLResponse(f"<h2>dashboard.html not found!</h2>")
+    return HTMLResponse(f"<h2>index.html not found!</h2>")
 
 if __name__ == "__main__":
     import uvicorn

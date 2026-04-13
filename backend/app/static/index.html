@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentrix AI | Cognitive Vision Suite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/animations.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/pages.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     LOGIN SCREEN
+     ════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="wordmark">SENTRIX AI</div>
+      <div class="tagline">COGNITIVE VISION SUITE · CLASSIFIED</div>
+    </div>
+    <div class="field">
+      <label>Operator ID</label>
+      <input type="text" id="li-user" placeholder="admin" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label>Authorization Key</label>
+      <input type="password" id="li-pass" placeholder="••••••••">
+    </div>
+    <button id="login-btn" onclick="doLogin()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:0.5rem">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      AUTHENTICATE
+    </button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MAIN APPLICATION
+     ════════════════════════════════════════ -->
+<div id="app">
+  <div class="app-shell">
+
+    <!-- ══ SIDEBAR ══ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-header">
+        <div class="sb-brand">
+          <div class="sb-logo-icon">SX</div>
+          <div>
+            <div class="sb-wordmark">SENTRIX</div>
+            <div class="sb-sub">ADVANCED VISION SUITE</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sb-status">
+        <div class="sb-dot"></div>
+        <span class="sb-status-text">SYSTEM ACTIVE</span>
+        <span class="sb-node-count" id="sb-node-count">0 NODES</span>
+      </div>
+
+      <nav class="sb-nav">
+        <div class="nav-section">// ANALYSIS</div>
+
+        <div class="nav-item active" onclick="showPage('overview',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <span class="nav-label">Overview</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('live-feed',this)">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          <span class="nav-label">Live Monitor</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('sightings',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+          </svg>
+          <span class="nav-label">Face Sightings</span>
+          <span class="nav-badge" id="badge-sightings" style="display:none">0</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('objects',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+          <span class="nav-label">Object Detections</span>
+          <span class="nav-badge" id="badge-objects" style="display:none">0</span>
+        </div>
+
+        <div class="nav-section">// COGNITIVE TOOLS</div>
+
+        <div class="nav-item" onclick="showPage('watchlist',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span class="nav-label">Intelligence Archive</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('search',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span class="nav-label">Biometric Lookup</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('analysis',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <span class="nav-label">Frame Analysis</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('analytics',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="18" y="3" width="3" height="18"/>
+            <rect x="11" y="8" width="3" height="13"/>
+            <rect x="4" y="13" width="3" height="8"/>
+          </svg>
+          <span class="nav-label">Analytics</span>
+        </div>
+
+        <div class="nav-section">// ADMIN</div>
+
+        <div class="nav-item" onclick="showPage('cameras',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 7l-7 5 7 5V7z"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+          <span class="nav-label">Camera Management</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('map',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/>
+            <line x1="9" y1="3" x2="9" y2="18"/>
+            <line x1="15" y1="6" x2="15" y2="21"/>
+          </svg>
+          <span class="nav-label">Live Map</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('alert-rules',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="nav-label">Alert Rules</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('workers',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span class="nav-label">Worker Nodes</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('users',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span class="nav-label">User Accounts</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('system',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93L17.66 6.34A8 8 0 1 0 6.34 17.66l-1.41 1.41A10 10 0 1 1 19.07 4.93z"/>
+          </svg>
+          <span class="nav-label">System</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('audit',this)">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span class="nav-label">Audit Log</span>
+        </div>
+
+        <div class="nav-item" onclick="showPage('stop-requests',this)" id="nav-stop-requests">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <rect x="9" y="9" width="6" height="6"/>
+          </svg>
+          <span class="nav-label">Stop Requests</span>
+          <span class="nav-badge" id="badge-stop-requests" style="display:none">0</span>
+        </div>
+      </nav>
+
+      <div class="sb-footer">
+        <div class="user-av" id="user-av">?</div>
+        <div class="user-details">
+          <div class="user-name" id="user-name">—</div>
+          <div class="user-role-label" id="user-role-label">—</div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="Logout">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span>LOGOUT</span>
+        </button>
+      </div>
+
+      <!-- Floating Toggle -->
+      <button class="sb-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    </aside>
+
+    <!-- ══ MAIN AREA ══ -->
+    <div class="main-area">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="tb-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div>
+            <div class="page-title" id="topbar-title">OVERVIEW</div>
+            <div class="breadcrumb" id="topbar-sub">// TACTICAL INTELLIGENCE DASHBOARD</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div id="mm-toggle" title="Multi-Cam Monitor" onclick="toggleMiniMonitor()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="12" y1="3" x2="12" y2="21"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+            </svg>
+          </div>
+          <span class="sys-time" id="sys-time">--:--:--</span>
+          <div id="alert-bell" onclick="showPage('sightings')" title="Alerts">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <div id="bell-count" class="show">0</div>
+          </div>
+          <div id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+            <span class="theme-icon" id="theme-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </span>
+            <span id="theme-label">DARK</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ALERT BANNERS -->
+      <div id="active-alerts-monitor"></div>
+
+      <!-- ══ PAGES ══ -->
+      <div class="pages">
+
+        <!-- ── OVERVIEW ── -->
+        <div class="page active" id="page-overview">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">TACTICAL OVERVIEW</div>
+              <div class="sec-sub">// REAL-TIME INTELLIGENCE DASHBOARD</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadStats();loadSightings();loadObjects()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div id="overview-monitor" class="monitor-matrix" style="display:none"></div>
+          <div class="stat-grid">
+            <div class="stat-card amber">
+              <div class="stat-label">FACE SIGHTINGS</div>
+              <div class="stat-val" id="s-sightings">—</div>
+              <div class="stat-sub">Total records found</div>
+            </div>
+            <div class="stat-card red">
+              <div class="stat-label">THREAT MATCHES</div>
+              <div class="stat-val" id="s-matches">—</div>
+              <div class="stat-sub">High-priority alerts</div>
+            </div>
+            <div class="stat-card cyan">
+              <div class="stat-label">OBJECT EVENTS</div>
+              <div class="stat-val" id="s-objects">—</div>
+              <div class="stat-sub">Automated detections</div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-label">ON WATCHLIST</div>
+              <div class="stat-val" id="s-wanted">—</div>
+              <div class="stat-sub">Active targets</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-label">LIVE NODES</div>
+              <div class="stat-val" id="s-nodes">—</div>
+              <div class="stat-sub">Active camera workers</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div>
+              <div class="sec-head" style="margin-bottom:1rem">
+                <div class="sec-title" style="font-size:0.8rem;letter-spacing:0.1em">RECENT SIGHTINGS</div>
+              </div>
+              <div id="overview-sightings" class="feed-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
+            </div>
+            <div>
+              <div class="sec-head" style="margin-bottom:1rem">
+                <div class="sec-title" style="font-size:0.8rem;letter-spacing:0.1em">RECENT OBJECTS</div>
+              </div>
+              <div id="overview-objects" class="feed-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── LIVE FEED ── -->
+        <div class="page" id="page-live-feed">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">TACTICAL LIVE STREAM</div>
+              <div class="sec-sub">// DIRECT NEURAL LINK TO DISTRIBUTED CAMERA NODES</div>
+            </div>
+          </div>
+          <div id="live-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem"></div>
+          <div id="no-streams" class="empty-state">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">No active data channels</div>
+            <div class="empty-sub">// Ensure worker nodes are enrolled and online</div>
+          </div>
+        </div>
+
+        <!-- ── SIGHTINGS ── -->
+        <div class="page" id="page-sightings">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">FACE SIGHTINGS</div>
+              <div class="sec-sub">// BIOMETRIC ACTIVITY LOG</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadSightings()">↺ Refresh</button>
+            </div>
+          </div>
+          <div id="sightings-feed" class="feed-grid"></div>
+        </div>
+
+        <!-- ── OBJECTS ── -->
+        <div class="page" id="page-objects">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">OBJECT DETECTIONS</div>
+              <div class="sec-sub">// AUTOMATED ITEM RECOGNITION LOG</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadObjects()">↺ Refresh</button>
+            </div>
+          </div>
+          <div id="objects-feed" class="feed-grid"></div>
+        </div>
+
+        <!-- ── WATCHLIST ── -->
+        <div class="page" id="page-watchlist">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">INTELLIGENCE ARCHIVE</div>
+              <div class="sec-sub">// SUBJECT REGISTRY</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-primary btn-sm" onclick="openAddPerson()">+ Add Target</button>
+              <button class="btn btn-ghost btn-sm" onclick="loadWatchlist()">↺ Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Photo</th><th>Name / ID</th><th>Added By</th>
+                <th>Added At</th><th>Photos</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="watchlist-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── BIOMETRIC LOOKUP ── -->
+        <div class="page" id="page-search">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">BIOMETRIC LOOKUP</div>
+              <div class="sec-sub">// REVERSE FACE IDENTIFICATION</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div>
+              <div class="panel">
+                <div class="panel-title">UPLOAD FACE PHOTO(S)</div>
+                <div class="upload-zone" id="search-zone"
+                     ondragover="event.preventDefault();this.classList.add('drag')"
+                     ondragleave="this.classList.remove('drag')"
+                     ondrop="handleSearchDrop(event)">
+                  <input type="file" id="search-files" multiple accept="image/*" onchange="previewSearchFiles(this)">
+                  <div class="upload-icon">⊕</div>
+                  <div class="upload-text">Drag & drop or click to select face images</div>
+                  <div id="search-preview" style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center"></div>
+                </div>
+                <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="runFaceSearch()" id="search-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  Run Biometric Search
+                </button>
+              </div>
+            </div>
+            <div id="search-results-wrap" style="display:none">
+              <div class="panel">
+                <div class="panel-title" id="search-result-title">RESULTS</div>
+                <div id="search-results"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── FRAME ANALYSIS ── -->
+        <div class="page" id="page-analysis">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">FRAME ANALYSIS</div>
+              <div class="sec-sub">// COGNITIVE INFERENCE ENGINE</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div>
+              <div class="panel">
+                <div class="panel-title">SUBMIT SNAPSHOT</div>
+                <div class="upload-zone" id="analysis-zone">
+                  <input type="file" id="analysis-file" accept="image/*" onchange="previewAnalysis(this)">
+                  <div class="upload-icon">⊕</div>
+                  <div class="upload-text">Drop image for full analysis</div>
+                </div>
+                <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="runAnalysis()" id="analysis-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Run Full Analysis
+                </button>
+              </div>
+            </div>
+            <div id="analysis-results-wrap" style="display:none">
+              <div class="panel">
+                <div class="panel-title">ANALYSIS OUTPUT</div>
+                <img id="analysis-preview" style="width:100%;border-radius:var(--radius-md);margin-bottom:1rem;display:none" alt="Annotated preview">
+                <div id="analysis-results"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ANALYTICS ── -->
+        <div class="page" id="page-analytics">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">ANALYTICS</div>
+              <div class="sec-sub">// DETECTION TRENDS & INTELLIGENCE METRICS</div>
+            </div>
+            <div class="sec-actions">
+              <select id="analytics-days" onchange="loadAnalytics()" style="width:140px;padding:0.5rem 0.75rem;font-size:0.8rem;background:var(--surface-high);border:1px solid var(--outline);color:var(--on-surface);border-radius:var(--radius-md)">
+                <option value="1">Last 24h</option>
+                <option value="7" selected>Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30">Last 30 Days</option>
+              </select>
+            </div>
+          </div>
+          <div id="analytics-stats-strip">
+            <div class="panel" style="padding:1rem">
+              <div class="stat-label">TOTAL FACES</div>
+              <div class="stat-val" style="font-size:2rem;color:var(--primary)" id="a-total-faces">—</div>
+            </div>
+            <div class="panel" style="padding:1rem">
+              <div class="stat-label">WANTED MATCHES</div>
+              <div class="stat-val" style="font-size:2rem;color:var(--red)" id="a-total-matches">—</div>
+            </div>
+            <div class="panel" style="padding:1rem">
+              <div class="stat-label">OBJECTS LOGGED</div>
+              <div class="stat-val" style="font-size:2rem;color:var(--cyan)" id="a-total-objects">—</div>
+            </div>
+            <div class="panel" style="padding:1rem">
+              <div class="stat-label">MATCH RATE</div>
+              <div class="stat-val" style="font-size:2rem;color:var(--purple)" id="a-match-rate">—</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-title">DAILY DETECTION TREND</div>
+              <div style="position:relative;height:180px;margin-top:0.5rem">
+                <canvas id="chart-daily" style="width:100%;height:100%"></canvas>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-title">HOURLY ACTIVITY HEATMAP</div>
+              <div id="hourly-heatmap" style="margin-top:0.75rem;display:grid;grid-template-columns:repeat(12,1fr);gap:3px"></div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted)">
+                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+              </div>
+            </div>
+          </div>
+          <div class="two-col" style="margin-top:1.25rem">
+            <div class="panel">
+              <div class="panel-title">PER-CAMERA BREAKDOWN</div>
+              <div id="analytics-cameras" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.6rem"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-title">TOP DETECTED OBJECTS</div>
+              <div id="analytics-objects" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.6rem"></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:1.25rem">
+            <div class="panel-title">MOST SIGHTED WANTED PERSONS</div>
+            <div id="analytics-watchlist-hits" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem"></div>
+          </div>
+        </div>
+
+        <!-- ── CAMERA MANAGEMENT ── -->
+        <div class="page" id="page-cameras">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">CAMERA MANAGEMENT</div>
+              <div class="sec-sub">// REGISTER, CONFIGURE & MONITOR NODES</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-primary btn-sm" onclick="openAddCamera()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Register Camera
+              </button>
+            </div>
+          </div>
+
+          <!-- Control Panel -->
+          <div class="control-panel">
+            <div class="control-sec">
+              <div class="control-label">RUNTIME SIGNALS</div>
+              <div style="display:flex;gap:0.75rem">
+                <button class="btn btn-success" onclick="startMesh()" id="mesh-start-btn">START ALL NODES</button>
+                <button class="btn btn-danger admin-only" onclick="stopMesh()" id="mesh-stop-btn">STOP ALL NODES</button>
+              </div>
+              <div id="mesh-status-text">
+                <span class="mesh-pulse" style="display:none"></span>
+                MESH STATUS: OFFLINE
+              </div>
+            </div>
+            <div class="control-sec">
+              <div class="control-label">GLOBAL DETECTION SIGNALS</div>
+              <div class="signal-grid">
+                <button class="signal-btn" id="sbtn-face" onclick="toggleGlobalBtn('face')">
+                  <span class="icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <span class="label">FACE DETECT</span>
+                  <span class="status-text">INACTIVE</span>
+                </button>
+                <button class="signal-btn" id="sbtn-obj" onclick="toggleGlobalBtn('obj')">
+                  <span class="icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                  </span>
+                  <span class="label">OBJECT DETECT</span>
+                  <span class="status-text">INACTIVE</span>
+                </button>
+                <button class="signal-btn" id="sbtn-stream" onclick="toggleGlobalBtn('stream')">
+                  <span class="icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.58 16.11a7 7 0 0 1 6.84 0"/><circle cx="12" cy="20" r="2"/></svg>
+                  </span>
+                  <span class="label">LIVE MONITOR</span>
+                  <span class="status-text">INACTIVE</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="cameras-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.25rem"></div>
+          <div id="cameras-empty" class="empty-state" style="display:none">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">No cameras registered</div>
+            <div class="empty-sub">// Click "Register Camera" to add your first node</div>
+          </div>
+        </div>
+
+        <!-- ── LIVE MAP ── -->
+        <div class="page" id="page-map">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">LIVE MAP</div>
+              <div class="sec-sub">// CAMERA POSITIONS & REAL-TIME STATUS</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-ghost btn-sm" id="map-edit-btn" onclick="toggleMapEdit()">✎ Edit Positions</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;height:calc(100vh - 220px)">
+            <div class="panel" style="padding:0;overflow:hidden;position:relative" id="map-container">
+              <div id="map-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;color:var(--on-surface-muted)">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.25">
+                  <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6"/>
+                </svg>
+                <div style="font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.1em">FLOOR PLAN MAP</div>
+                <input type="file" id="floorplan-upload" accept="image/*" style="display:none" onchange="loadFloorplan(this)">
+                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('floorplan-upload').click()">Upload Floor Plan</button>
+              </div>
+              <canvas id="map-canvas" style="width:100%;height:100%;display:none"></canvas>
+              <svg id="map-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1rem;overflow-y:auto">
+              <div class="panel" style="padding:1rem">
+                <div class="panel-title" style="margin-bottom:0.75rem">CAMERA STATUS</div>
+                <div id="map-camera-list"></div>
+              </div>
+              <div class="panel" style="padding:1rem">
+                <div class="panel-title" style="margin-bottom:0.75rem">LIVE SUMMARY</div>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.82rem">
+                  <div class="result-item"><span class="result-label">Online</span><span id="map-stat-online" style="color:var(--green);font-family:var(--font-mono)">0</span></div>
+                  <div class="result-item"><span class="result-label">Offline</span><span id="map-stat-offline" style="color:var(--red);font-family:var(--font-mono)">0</span></div>
+                  <div class="result-item"><span class="result-label">Alerts Today</span><span id="map-stat-alerts" style="color:var(--primary);font-family:var(--font-mono)">0</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ALERT RULES ── -->
+        <div class="page" id="page-alert-rules">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">ALERT RULES ENGINE</div>
+              <div class="sec-sub">// CONFIGURE AUTOMATED DETECTION TRIGGERS</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-primary btn-sm" onclick="openAddRule()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Rule
+              </button>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1.25rem">
+            <span style="font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.7rem;border-radius:20px;background:var(--red-dim);color:var(--red)">WANTED MATCH</span>
+            <span style="font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.7rem;border-radius:20px;background:var(--primary-dim);color:var(--primary)">ANY FACE</span>
+            <span style="font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.7rem;border-radius:20px;background:var(--cyan-dim);color:var(--cyan)">OBJECT DETECTED</span>
+            <span style="font-family:var(--font-mono);font-size:0.6rem;padding:0.25rem 0.7rem;border-radius:20px;background:rgba(92,66,160,0.1);color:var(--purple)">HIGH CONFIDENCE</span>
+          </div>
+          <div id="rules-list" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+          <div id="rules-empty" class="empty-state" style="display:none">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">No rules defined</div>
+            <div class="empty-sub">// Click "New Rule" to create your first alert trigger</div>
+          </div>
+        </div>
+
+        <!-- ── WORKERS ── -->
+        <div class="page" id="page-workers">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">WORKER NODES</div>
+              <div class="sec-sub">// ACTIVE CAMERA WORKER REGISTRY</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadWorkers()">↺ Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Node ID</th><th>Status</th><th>Last Seen</th></tr></thead>
+              <tbody id="workers-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── USERS ── -->
+        <div class="page" id="page-users">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">USER ACCOUNTS</div>
+              <div class="sec-sub">// OPERATOR ACCESS REGISTRY</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-primary btn-sm" onclick="openAddUser()">+ New Operator</button>
+              <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↺ Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Username</th><th>Role</th><th>Actions</th></tr></thead>
+              <tbody id="users-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── SYSTEM ── -->
+        <div class="page" id="page-system">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">SYSTEM CONTROL</div>
+              <div class="sec-sub">// CONFIGURATION & MAINTENANCE</div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div style="display:flex;flex-direction:column;gap:1.25rem">
+              <div class="panel">
+                <div class="panel-title">SYSTEM STATUS</div>
+                <div style="display:flex;flex-direction:column;gap:0.5rem">
+                  <div class="result-item">
+                    <span class="result-label">Backend API</span>
+                    <span class="badge online">● Online</span>
+                  </div>
+                  <div class="result-item">
+                    <span class="result-label">SSE Stream</span>
+                    <span class="badge" id="sse-status-badge">Connecting…</span>
+                  </div>
+                  <div class="result-item">
+                    <span class="result-label">Active Sessions</span>
+                    <span class="td-mono" id="sys-sessions">—</span>
+                  </div>
+                  <div class="result-item">
+                    <span class="result-label">Live Nodes</span>
+                    <span class="td-mono" id="sys-nodes">—</span>
+                  </div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-title">NOTIFICATION SETTINGS</div>
+                <p style="font-size:0.82rem;color:var(--on-surface-muted);margin-bottom:1rem;line-height:1.6">Configure SMTP email and webhook dispatch for alert rule notifications.</p>
+                <button class="btn btn-primary btn-sm" onclick="openNotifConfig()">⚙ Configure Email / Webhooks</button>
+              </div>
+              <div class="panel" style="border-color:var(--red-dim)">
+                <div class="panel-title" style="color:var(--red)">⚠ DANGER ZONE</div>
+                <p style="font-size:0.82rem;color:var(--on-surface-muted);margin-bottom:1.25rem;line-height:1.6">
+                  Factory reset will wipe <strong style="color:var(--on-surface)">all sightings, watchlist entries, object detections</strong> and non-admin users. This is <strong style="color:var(--red)">irreversible.</strong>
+                </p>
+                <button class="btn btn-danger btn-sm" onclick="confirmReset()">Factory Reset System</button>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:1.25rem">
+              <div class="panel">
+                <div class="panel-title">STORAGE CLEANUP</div>
+                <p style="font-size:0.82rem;color:var(--on-surface-muted);margin-bottom:1.25rem;line-height:1.6">Remove old snapshots and biometric records.</p>
+                <div class="field">
+                  <label>Retention Period</label>
+                  <select id="cleanup-range">
+                    <option value="1h">Older than 1 Hour</option>
+                    <option value="24h">Older than 24 Hours</option>
+                    <option value="7d">Older than 7 Days</option>
+                    <option value="30d" selected>Older than 30 Days</option>
+                    <option value="90d">Older than 90 Days</option>
+                    <option value="1y">Older than 1 Year</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Biometric ID (optional)</label>
+                  <input type="text" id="cleanup-person-id" placeholder="Person ID (optional)">
+                </div>
+                <div class="field">
+                  <label>Target Type</label>
+                  <select id="cleanup-target">
+                    <option value="all">All Records</option>
+                    <option value="sightings">Biometric Sightings Only</option>
+                    <option value="objects">Object Detections Only</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="runCleanup()">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                  Clean Up System
+                </button>
+              </div>
+
+              <div class="panel" style="border-color:var(--cyan-dim)">
+                <div class="panel-title" style="color:var(--cyan)">BIOMETRIC DISCOVERY & PURGE</div>
+                <p style="font-size:0.82rem;color:var(--on-surface-muted);margin-bottom:1.25rem;line-height:1.6">Surgically remove all historical records of a specific subject by providing face references.</p>
+                <div id="biometric-step-1" style="display:flex;flex-direction:column;gap:0.75rem">
+                  <div class="field">
+                    <label>Face Photo References</label>
+                    <input type="file" id="biometric-purge-files" multiple accept="image/*" style="padding:0.4rem">
+                  </div>
+                  <button class="btn btn-outline btn-sm" id="btn-biometric-search" onclick="runBiometricSearch()">
+                    Search Matches
+                  </button>
+                </div>
+                <div id="biometric-step-2" style="display:none;margin-top:1rem">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                    <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--on-surface)" id="biometric-match-count">0 MATCHES</span>
+                    <button class="btn btn-ghost btn-sm" onclick="resetBiometricPurge()">↺ Restart</button>
+                  </div>
+                  <div id="biometric-preview-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;max-height:240px;overflow-y:auto;padding:8px;background:var(--surface-low);border-radius:var(--radius-md);margin-bottom:1rem;border:1px solid var(--outline)"></div>
+                  <button class="btn btn-danger btn-sm" id="btn-biometric-purge" onclick="commitBiometricPurge()" style="width:100%">
+                    PURGE <span id="biometric-purge-count">0</span> RECORDS
+                  </button>
+                </div>
+                <div id="biometric-purge-status" style="font-family:var(--font-mono);font-size:0.62rem;color:var(--on-surface-muted);margin-top:0.75rem;display:none"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── AUDIT LOG ── -->
+        <div class="page" id="page-audit">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">AUDIT LOG</div>
+              <div class="sec-sub">// SYSTEM ACTIVITY TRAIL — WHO DID WHAT AND WHEN</div>
+            </div>
+            <div class="sec-actions">
+              <select id="audit-filter-action" onchange="loadAuditLog()" style="padding:0.45rem 0.75rem;font-size:0.78rem;background:var(--surface-high);border:1px solid var(--outline);color:var(--on-surface);border-radius:var(--radius-sm)">
+                <option value="">All Actions</option>
+                <option value="login">Login</option>
+                <option value="logout">Logout</option>
+                <option value="add_person">Add Person</option>
+                <option value="delete_person">Delete Person</option>
+                <option value="add_camera">Add Camera</option>
+                <option value="delete_camera">Delete Camera</option>
+                <option value="add_user">Add User</option>
+                <option value="delete_user">Delete User</option>
+                <option value="cleanup">Cleanup</option>
+                <option value="roi_save">ROI Save</option>
+                <option value="stop_request">Stop Request</option>
+                <option value="stop_approve">Stop Approve</option>
+                <option value="stop_deny">Stop Deny</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="loadAuditLog()">↺ Refresh</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportAuditLog()">↓ Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr></thead>
+              <tbody id="audit-table"><tr><td colspan="6" style="text-align:center;color:var(--on-surface-muted);padding:2rem">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem">
+            <span id="audit-count" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--on-surface-muted)"></span>
+            <div style="display:flex;gap:0.5rem">
+              <button class="btn btn-ghost btn-sm" id="audit-prev" onclick="auditPage(-1)">← Prev</button>
+              <button class="btn btn-ghost btn-sm" id="audit-next" onclick="auditPage(1)">Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STOP REQUESTS ── -->
+        <div class="page" id="page-stop-requests">
+          <div class="sec-head">
+            <div>
+              <div class="sec-title">STOP REQUESTS</div>
+              <div class="sec-sub">// WORKERS REQUESTING CAMERA SHUTDOWN</div>
+            </div>
+            <div class="sec-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadStopRequests()">↺ Refresh</button>
+            </div>
+          </div>
+          <div id="stop-requests-empty" class="empty-state" style="display:none">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">No pending stop requests</div>
+          </div>
+          <div class="table-wrap" id="stop-requests-wrap">
+            <table>
+              <thead><tr><th>Requested At</th><th>Worker</th><th>Camera ID</th><th>Location</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="stop-requests-table"><tr><td colspan="7" style="text-align:center;color:var(--on-surface-muted);padding:2rem">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /pages -->
+    </div><!-- /main-area -->
+  </div><!-- /app-shell -->
+</div><!-- /app -->
+
+<!-- ════════════════════════════════════════
+     MODALS
+     ════════════════════════════════════════ -->
+
+<!-- Snapshot Viewer -->
+<div class="modal-overlay" id="modal-snapshot">
+  <div class="modal" style="max-width:820px;padding:0;border-radius:var(--radius-2xl)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--outline)">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--primary);letter-spacing:0.1em" id="snap-modal-cam">—</div>
+        <div style="font-weight:600;margin-top:2px" id="snap-modal-name">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-snapshot')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 260px">
+      <div style="background:#000;display:flex;align-items:center;justify-content:center;min-height:280px;border-radius:0 0 0 var(--radius-2xl)">
+        <img id="snap-modal-img" style="max-width:100%;max-height:65vh;object-fit:contain;border-radius:4px" src="" alt="Snapshot">
+      </div>
+      <div style="padding:1.5rem;border-left:1px solid var(--outline);display:flex;flex-direction:column;gap:0.875rem">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.08em;margin-bottom:3px">TIMESTAMP</div>
+          <div style="font-size:0.82rem" id="snap-modal-ts">—</div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.08em;margin-bottom:3px">CAMERA</div>
+          <div style="font-size:0.82rem;font-family:var(--font-mono)" id="snap-modal-cam2">—</div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.08em;margin-bottom:3px">LOCATION</div>
+          <div style="font-size:0.82rem" id="snap-modal-loc">—</div>
+        </div>
+        <div>
+          <div id="snap-modal-match-label" style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.08em;margin-bottom:3px">MATCH</div>
+          <div id="snap-modal-match" style="font-size:0.82rem">—</div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.08em;margin-bottom:3px">CONFIDENCE</div>
+          <div id="snap-modal-conf" style="font-size:0.82rem;font-family:var(--font-mono)">—</div>
+        </div>
+        <div style="margin-top:auto;padding-top:1rem;border-top:1px solid var(--outline)">
+          <a id="snap-modal-download" href="#" download style="display:block">
+            <button class="btn btn-ghost btn-sm" style="width:100%">↓ Download</button>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROI Configuration -->
+<div class="modal-overlay" id="modal-roi">
+  <div class="modal" style="max-width:min(90vw,1000px);padding:0;background:var(--surface-low);border:1px solid var(--outline-strong)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--outline)">
+      <div style="display:flex;align-items:center;gap:0.875rem">
+        <div style="width:36px;height:36px;border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;background:var(--cyan-dim);border-radius:var(--radius-sm)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:0.95rem" id="roi-title">ROI CONFIGURATION</div>
+          <div id="roi-id-label" style="font-family:var(--font-mono);font-size:0.62rem;color:var(--on-surface-muted)">// NODE: —</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem">
+        <button class="btn btn-ghost btn-sm" onclick="resetROI()">⟲ Full Frame</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-roi')">Discard</button>
+        <button class="btn btn-primary btn-sm" id="roi-save-btn" style="background:var(--cyan);color:#000">ACTIVATE ZONE</button>
+      </div>
+    </div>
+    <div class="roi-container" id="roi-container">
+      <div id="roi-overlay-top" class="roi-overlay"></div>
+      <div id="roi-overlay-bottom" class="roi-overlay"></div>
+      <div id="roi-overlay-left" class="roi-overlay"></div>
+      <div id="roi-overlay-right" class="roi-overlay"></div>
+      <img id="roi-stream" style="width:100%;min-height:360px;max-height:72vh;display:block;background:#000;user-select:none"
+           onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22640%22 height=%22360%22><rect fill=%22%23111%22 width=%22640%22 height=%22360%22/><text x=%22320%22 y=%22190%22 text-anchor=%22middle%22 fill=%22%23444%22 font-family=%22monospace%22 font-size=%2216%22>STREAM OFFLINE</text></svg>'">
+      <div id="roi-selector">
+        <div class="roi-bracket tl"></div><div class="roi-bracket tr"></div>
+        <div class="roi-bracket bl"></div><div class="roi-bracket br"></div>
+        <div class="roi-crosshair"></div>
+        <div class="roi-handle tl" data-handle="tl"></div>
+        <div class="roi-handle tr" data-handle="tr"></div>
+        <div class="roi-handle bl" data-handle="bl"></div>
+        <div class="roi-handle br" data-handle="br"></div>
+        <div class="roi-info" id="roi-inner-label">DETECTION ZONE</div>
+      </div>
+    </div>
+    <div style="padding:0.875rem 1.5rem;background:var(--surface-low);border-top:1px solid var(--outline);font-family:var(--font-mono);font-size:0.62rem;color:var(--on-surface-muted);display:flex;justify-content:space-between">
+      <span>// DRAG CORNERS TO DEFINE DETECTION AREA</span>
+      <span id="roi-coords-display" style="color:var(--on-surface)">ZONE: 0, 0, 100, 100 (%)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Tactical Fullscreen -->
+<div class="modal-overlay" id="modal-tactical-fullscreen">
+  <div class="modal" style="max-width:95vw;padding:0;background:#000;border:1px solid var(--cyan)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1.25rem;background:var(--surface-low);border-bottom:1px solid var(--outline)">
+      <div>
+        <div style="font-weight:700;color:var(--cyan);font-size:0.9rem" id="tactical-stream-title">LIVE TACTICAL FEED</div>
+        <div id="tactical-stream-subtitle" style="font-family:var(--font-mono);font-size:0.6rem;color:var(--on-surface-muted)">// CHANNEL: —</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeFullScreenStream()">✕ Close</button>
+    </div>
+    <div style="position:relative;aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;top:12px;left:12px;z-index:10;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:4px;font-family:var(--font-mono);font-size:0.6rem;color:var(--cyan)">
+        <span style="width:6px;height:6px;background:var(--cyan);border-radius:50%;animation:blink 1.5s infinite"></span>
+        TACTICAL LINK ACTIVE
+      </div>
+      <img id="tactical-stream-img" style="max-width:100%;max-height:85vh;display:block">
+    </div>
+  </div>
+</div>
+
+<!-- Add Person -->
+<div class="modal-overlay" id="modal-add-person">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-add-person')">✕</button>
+    <div class="modal-title">ADD TARGET TO WATCHLIST</div>
+    <div class="form-group">
+      <label class="form-label">Full Name / Alias</label>
+      <input type="text" id="ap-name" placeholder="e.g. John Doe">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reference Photos (max 15)</label>
+      <div class="upload-zone" style="padding:1.5rem">
+        <input type="file" id="ap-files" multiple accept="image/*" onchange="showFileCount(this,'ap-count')">
+        <div class="upload-icon" style="font-size:1.75rem">⊕</div>
+        <div class="upload-text">Upload clear face photos</div>
+        <div id="ap-count" style="margin-top:0.5rem;font-size:0.72rem;color:var(--primary)"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="addWatchlistPerson()" id="ap-btn">Add to Watchlist</button>
+    <div id="ap-err" style="color:var(--red);font-size:0.78rem;text-align:center;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
+
+<!-- Add User -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-add-user')">✕</button>
+    <div class="modal-title">CREATE OPERATOR ACCOUNT</div>
+    <div class="form-group"><label class="form-label">Username</label><input type="text" id="au-user" placeholder="operator2"></div>
+    <div class="form-group"><label class="form-label">Password</label><input type="password" id="au-pass" placeholder="••••••••"></div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select id="au-role">
+        <option value="worker">Worker (Camera Node)</option>
+        <option value="admin">Admin (Full Access)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="addUser()" id="au-btn">Create Account</button>
+    <div id="au-err" style="color:var(--red);font-size:0.78rem;text-align:center;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
+
+<!-- Confirm Reset -->
+<div class="modal-overlay" id="modal-confirm-reset">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title" style="color:var(--red)">⚠ CONFIRM FACTORY RESET</div>
+    <p style="font-size:0.85rem;color:var(--on-surface-muted);margin-bottom:1.5rem;line-height:1.7">
+      Type <code style="color:var(--red);font-family:var(--font-mono)">RESET</code> to confirm destruction of all data.
+    </p>
+    <div class="form-group"><input type="text" id="reset-confirm" placeholder="Type RESET to confirm"></div>
+    <div style="display:flex;gap:0.75rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-confirm-reset')">Cancel</button>
+      <button class="btn btn-danger" style="flex:1" onclick="doReset()" id="reset-btn">Confirm Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dossier -->
+<div class="modal-overlay" id="modal-dossier">
+  <div class="modal" style="max-width:860px">
+    <button class="modal-close" onclick="closeDossier()">✕</button>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--outline);padding-bottom:1.5rem;margin-bottom:1.5rem">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.15em;margin-bottom:0.4rem">BIOMETRIC INTELLIGENCE DOSSIER</div>
+        <div id="dossier-name" style="font-size:1.4rem;font-weight:700">Subject</div>
+        <div id="dossier-id" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--on-surface-muted);margin-top:3px">ID: --------</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--font-mono);font-size:0.58rem;color:var(--on-surface-muted);letter-spacing:0.1em;display:flex;justify-content:space-between;width:180px;margin-bottom:4px">
+          <span>NEURAL SYNC</span><span id="dossier-sync-txt">0%</span>
+        </div>
+        <div style="width:180px;height:4px;background:var(--surface-high);border-radius:2px;overflow:hidden">
+          <div id="dossier-sync-bar" style="height:100%;background:var(--primary);border-radius:2px;width:0%;transition:width 0.6s"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="panel-title" style="margin:0">NEURAL TEMPLATES</div>
+      <div style="display:flex;gap:0.6rem">
+        <button class="btn btn-danger btn-sm" onclick="deletePerson(State.dossierPersonId,document.getElementById('dossier-name').textContent)">Terminate Profile</button>
+        <input type="file" id="dossier-add-file" multiple style="display:none" onchange="uploadToDossier()" accept="image/*">
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('dossier-add-file').click()">+ Inject Data</button>
+      </div>
+    </div>
+    <div id="dossier-gallery" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.75rem"></div>
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--outline);display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.62rem;color:var(--on-surface-muted)">
+      <div>Enlisted by: <span id="dossier-enlisted-by" style="color:var(--on-surface)">--</span></div>
+      <div>Created: <span id="dossier-created-at" style="color:var(--on-surface)">--</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Camera -->
+<div class="modal-overlay" id="modal-add-camera">
+  <div class="modal" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal('modal-add-camera')">✕</button>
+    <div class="modal-title">REGISTER CAMERA NODE</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group"><label class="form-label">Camera ID <span style="color:var(--red)">*</span></label><input type="text" id="ac-id" placeholder="cam-1"></div>
+      <div class="form-group"><label class="form-label">Display Name <span style="color:var(--red)">*</span></label><input type="text" id="ac-name" placeholder="Front Entrance"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Location / Zone</label><input type="text" id="ac-location" placeholder="Building A - Floor 1"></div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" id="ac-desc" placeholder="Covers main entrance door"></div>
+    <div class="form-group"><label class="form-label">Stream URL (optional)</label><input type="text" id="ac-stream" placeholder="rtsp://192.168.1.100/stream"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="addCamera()" id="ac-btn">Register Camera</button>
+    <div id="ac-err" style="color:var(--red);font-size:0.78rem;text-align:center;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
+
+<!-- Edit Camera -->
+<div class="modal-overlay" id="modal-edit-camera">
+  <div class="modal" style="max-width:500px">
+    <button class="modal-close" onclick="closeModal('modal-edit-camera')">✕</button>
+    <div class="modal-title">EDIT CAMERA NODE</div>
+    <input type="hidden" id="ec-id">
+    <div class="form-group"><label class="form-label">Display Name</label><input type="text" id="ec-name"></div>
+    <div class="form-group"><label class="form-label">Location / Zone</label><input type="text" id="ec-location"></div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" id="ec-desc"></div>
+    <div class="form-group"><label class="form-label">Stream URL</label><input type="text" id="ec-stream"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="saveCamera()" id="ec-btn">Save Changes</button>
+  </div>
+</div>
+
+<!-- Add Alert Rule -->
+<div class="modal-overlay" id="modal-add-rule">
+  <div class="modal" style="max-width:540px">
+    <button class="modal-close" onclick="closeModal('modal-add-rule')">✕</button>
+    <div class="modal-title">CREATE ALERT RULE</div>
+    <div class="form-group"><label class="form-label">Rule Name <span style="color:var(--red)">*</span></label><input type="text" id="ar-name" placeholder="e.g. Wanted Person Alert"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">Trigger Type <span style="color:var(--red)">*</span></label>
+        <select id="ar-type" onchange="onRuleTypeChange()">
+          <option value="wanted_match">Wanted Match</option>
+          <option value="any_face">Any Face Detected</option>
+          <option value="object_detected">Object Detected</option>
+          <option value="high_confidence">High Confidence Match</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Camera Scope</label><select id="ar-camera"><option value="">All Cameras</option></select></div>
+    </div>
+    <div id="ar-obj-field" style="display:none" class="form-group"><label class="form-label">Object Label (blank = any)</label><input type="text" id="ar-obj-label" placeholder="e.g. knife, backpack"></div>
+    <div id="ar-conf-field" style="display:none" class="form-group"><label class="form-label">Min Confidence (%)</label><input type="number" id="ar-min-conf" value="90" min="50" max="100"></div>
+    <div class="panel-title" style="margin:0.75rem 0">NOTIFICATION ACTIONS</div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem"><input type="checkbox" id="ar-act-popup" checked> Dashboard Popup</label>
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem"><input type="checkbox" id="ar-act-email"> Email Alert</label>
+    </div>
+    <div class="form-group"><label class="form-label">Webhook URL (optional)</label><input type="text" id="ar-webhook" placeholder="https://hooks.slack.com/…"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:0.25rem" onclick="saveRule()" id="ar-btn">Create Rule</button>
+    <div id="ar-err" style="color:var(--red);font-size:0.78rem;text-align:center;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
+
+<!-- Notification Config -->
+<div class="modal-overlay" id="modal-notif-config">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('modal-notif-config')">✕</button>
+    <div class="modal-title">EMAIL / NOTIFICATION SETTINGS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group"><label class="form-label">SMTP Host</label><input type="text" id="nc-host" placeholder="smtp.gmail.com"></div>
+      <div class="form-group"><label class="form-label">SMTP Port</label><input type="number" id="nc-port" placeholder="587" value="587"></div>
+    </div>
+    <div class="form-group"><label class="form-label">SMTP Username</label><input type="text" id="nc-user" placeholder="you@gmail.com"></div>
+    <div class="form-group"><label class="form-label">SMTP Password / App Password</label><input type="password" id="nc-pass" placeholder="••••••••"></div>
+    <div class="form-group"><label class="form-label">From Address</label><input type="text" id="nc-from" placeholder="sentrix@yourdomain.com"></div>
+    <div class="form-group"><label class="form-label">Recipients (comma-separated)</label><input type="text" id="nc-to" placeholder="admin@company.com"></div>
+    <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="testEmail()">Send Test</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveNotifConfig()" id="nc-btn">Save Config</button>
+    </div>
+    <div id="nc-msg" style="font-size:0.78rem;text-align:center;margin-top:0.75rem;display:none"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     FLOATING UI
+     ════════════════════════════════════════ -->
+
+<!-- Toast Container -->
+<div id="toasts"></div>
+
+<!-- Mini Monitor -->
+<div id="mini-monitor">
+  <div class="mm-header">
+    <div class="mm-title">
+      <span style="width:5px;height:5px;background:var(--cyan);border-radius:50%;animation:blink 1.5s infinite"></span>
+      GLOBAL MULTI-CAM MONITOR
+    </div>
+    <div class="mm-close" onclick="toggleMiniMonitor()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+  </div>
+  <div id="mm-grid" class="mm-grid"></div>
+</div>
+
+<!-- Sync Alert -->
+<div id="sync-alert">
+  <div class="sync-spinner"></div>
+  <div class="sync-text" id="sync-alert-text">SYSTEM REFRESHING<br><span style="font-size:0.6rem;opacity:0.6">PLEASE WAIT…</span></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     JAVASCRIPT — Load order matters
+     ════════════════════════════════════════ -->
+<script src="/static/js/state.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+<script src="/static/js/auth.js"></script>
+<script src="/static/js/nav.js"></script>
+<script src="/static/js/sse.js"></script>
+<script src="/static/js/sightings.js"></script>
+<script src="/static/js/watchlist.js"></script>
+<script src="/static/js/cameras.js"></script>
+<script src="/static/js/pages.js"></script>
+<script src="/static/js/controls.js"></script>
+<script src="/static/js/app.js"></script>
+
+</body>
+</html>

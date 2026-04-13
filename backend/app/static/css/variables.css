@@ -1,0 +1,89 @@
+/* ══════════════════════════════════════════
+   SENTRIX AI — DESIGN TOKENS & THEME SYSTEM
+   ══════════════════════════════════════════ */
+
+:root {
+  /* ─── Light Theme ─── */
+  --background: #f4f6fb;
+  --surface-low: #eef1f6;
+  --surface: #ffffff;
+  --surface-high: #e4e8f0;
+  --surface-highest: #d8dde8;
+
+  --primary: #1f33aa;
+  --primary-hover: #2a42cc;
+  --primary-container: #3b4ec2;
+  --on-primary: #ffffff;
+  --primary-dim: rgba(31, 51, 170, 0.1);
+  --primary-glow: rgba(31, 51, 170, 0.25);
+
+  --on-surface: #1a1d2e;
+  --on-surface-muted: #50546a;
+  --outline: rgba(180, 185, 210, 0.25);
+  --outline-strong: rgba(140, 148, 180, 0.3);
+
+  --cyan: #006b8a;
+  --cyan-dim: rgba(0, 107, 138, 0.1);
+  --red: #c0182a;
+  --red-dim: rgba(192, 24, 42, 0.1);
+  --green: #00703c;
+  --green-dim: rgba(0, 112, 60, 0.1);
+  --amber: #1f33aa;
+  --amber-dim: rgba(31, 51, 170, 0.1);
+  --purple: #5c42a0;
+
+  --shadow-sm: 0 2px 8px rgba(30, 40, 80, 0.06);
+  --shadow-md: 0 8px 24px rgba(30, 40, 80, 0.08);
+  --shadow-lg: 0 24px 64px rgba(30, 40, 80, 0.1);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  --sidebar-w: 260px;
+  --sidebar-mini-w: 72px;
+  --topbar-h: 72px;
+
+  --font-display: 'Manrope', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme="dark"] {
+  --background: #030509;
+  --surface-low: #0a0c14;
+  --surface: #10141f;
+  --surface-high: #1a1f2e;
+  --surface-highest: #242b3d;
+
+  --primary: #4d7cff;
+  --primary-hover: #6e94ff;
+  --primary-container: #2a42cc;
+  --on-primary: #ffffff;
+  --primary-dim: rgba(77, 124, 255, 0.15);
+  --primary-glow: rgba(77, 124, 255, 0.3);
+
+  --on-surface: #f0f4f8;
+  --on-surface-muted: #707a9e;
+  --outline: rgba(66, 78, 114, 0.25);
+  --outline-strong: rgba(86, 100, 140, 0.35);
+
+  --cyan: #00d2ff;
+  --cyan-dim: rgba(0, 210, 255, 0.12);
+  --red: #ff4d4d;
+  --red-dim: rgba(255, 77, 77, 0.12);
+  --green: #00e676;
+  --green-dim: rgba(0, 230, 118, 0.12);
+  --amber: #4d7cff;
+  --amber-dim: rgba(77, 124, 255, 0.15);
+  --purple: #9d7cff;
+
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.7);
+}

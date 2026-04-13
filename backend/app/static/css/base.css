@@ -1,0 +1,48 @@
+/* ══════════════════════════════════
+   BASE RESET & TYPOGRAPHY
+   ══════════════════════════════════ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  outline-color: var(--primary);
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--background);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4,
+.display, .page-title, .sec-title, .modal-title,
+.wordmark, .sb-wordmark, .panel-title, .card-name {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--surface-highest);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--outline-strong); }
+
+/* Links */
+a { color: var(--primary); text-decoration: none; }
+
+/* Code / Mono */
+code, .mono { font-family: var(--font-mono); }
+
+/* Visibility helpers */
+#app, #login-screen { display: none; }
+.hidden { display: none !important; }
