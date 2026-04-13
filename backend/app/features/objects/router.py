@@ -83,7 +83,7 @@ async def upload_object(
         return {
             "status": "ok",
             "object_id": obj_id,
-            "roi": WORKER_REGISTRY.get(node_key, {}).get("roi")
+            "config": WORKER_REGISTRY.get(node_key, {}).get("config")
         }
     except Exception as e:
         print(f"[!] Backend Error in upload_object: {e}")

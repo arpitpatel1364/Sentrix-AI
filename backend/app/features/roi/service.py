@@ -30,18 +30,12 @@ def save_node_roi(node_key: str, roi_list: Optional[List[float]]):
     from ...core.database import get_db_conn
     
     set_worker_roi(node_key, roi_list)
-    camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
-    
-    roi_str = json.dumps(roi_list) if roi_list is not None else None
-    
-    with get_db_conn() as db:
-        db.execute("UPDATE cameras SET roi = ? WHERE camera_id = ?", (roi_str, camera_id))
 
 def get_node_roi(node_key: str) -> Optional[List[float]]:
     """Get active ROI for a node, falling back to DB if needed."""
     state = WORKER_REGISTRY.get(node_key)
-    if state and state.get("roi") is not None:
-        return state["roi"]
+    if state and state.get("config") and state["config"].get("roi") is not None:
+        return state["config"]["roi"]
     
     # Fallback to DB
     from ...core.database import get_db_conn
@@ -58,9 +52,16 @@ def get_node_roi(node_key: str) -> Optional[List[float]]:
     # Update local state if found
     if roi is not None:
         if state:
-            state["roi"] = roi
+            if "config" not in state:
+                state["config"] = {"roi": roi, "face_enabled": True, "obj_enabled": True, "stream_enabled": True}
+            else:
+                state["config"]["roi"] = roi
         else:
-            WORKER_REGISTRY[node_key] = {"last_seen": 0.0, "roi": roi, "location": ""}
+            WORKER_REGISTRY[node_key] = {
+                "last_seen": 0.0, 
+                "config": {"roi": roi, "face_enabled": True, "obj_enabled": True, "stream_enabled": True}, 
+                "location": ""
+            }
             
     return roi
 

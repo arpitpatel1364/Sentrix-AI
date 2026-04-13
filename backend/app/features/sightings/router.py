@@ -28,13 +28,6 @@ async def get_sightings(limit: int = 50, user=Depends(require_admin), db: sqlite
         r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
     return {"sightings": rows, "total_count": total_count}
 
-@router.get("/snapshots/{path:path}")
-async def get_snapshot(path: str):
-    full_path = SNAPSHOTS_DIR / path
-    if not full_path.exists():
-        raise HTTPException(status_code=404)
-    return StreamingResponse(open(full_path, "rb"), media_type="image/jpeg")
-
 @router.post("/search-face")
 async def search_face(files: List[UploadFile] = File(...), user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     all_results = {}

@@ -24,7 +24,8 @@ async def list_cameras(user=Depends(require_admin), db: sqlite3.Connection = Dep
     cur = db.cursor()
     cur.execute("""
         SELECT id, camera_id, name, location, description, stream_url,
-               floor_plan_x, floor_plan_y, roi, added_by, added_at
+               floor_plan_x, floor_plan_y, roi, added_by, added_at,
+               face_enabled, obj_enabled, stream_enabled
         FROM cameras ORDER BY added_at DESC
     """)
     cameras = [dict(r) for r in cur.fetchall()]
@@ -57,6 +58,11 @@ async def list_cameras(user=Depends(require_admin), db: sqlite3.Connection = Dep
         """, (cam["camera_id"], f"{today}%"))
         cam["detections_today"] = cur.fetchone()[0]
 
+        # Convert integers to bools
+        cam["face_enabled"]   = bool(cam.get("face_enabled", 1))
+        cam["obj_enabled"]    = bool(cam.get("obj_enabled", 1))
+        cam["stream_enabled"] = bool(cam.get("stream_enabled", 1))
+
     return cameras
 
 
@@ -70,6 +76,9 @@ async def add_camera(request: Request, user=Depends(require_admin), db: sqlite3.
     stream_url  = body.get("stream_url", "").strip()
     floor_x     = body.get("floor_plan_x", 50.0)
     floor_y     = body.get("floor_plan_y", 50.0)
+    face_en     = body.get("face_enabled", True)
+    obj_en      = body.get("obj_enabled", True)
+    strm_en     = body.get("stream_enabled", True)
 
     if not camera_id or not name:
         raise HTTPException(status_code=400, detail="camera_id and name are required")
@@ -83,10 +92,10 @@ async def add_camera(request: Request, user=Depends(require_admin), db: sqlite3.
     now = datetime.utcnow().isoformat()
     db.execute("""
         INSERT INTO cameras
-          (id, camera_id, name, location, description, stream_url, floor_plan_x, floor_plan_y, added_by, added_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, camera_id, name, location, description, stream_url, floor_plan_x, floor_plan_y, added_by, added_at, face_enabled, obj_enabled, stream_enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (cam_pk, camera_id, name, location, description, stream_url,
-          floor_x, floor_y, user["username"], now))
+          floor_x, floor_y, user["username"], now, 1 if face_en else 0, 1 if obj_en else 0, 1 if strm_en else 0))
     db.commit()
     write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=request.client.host)
     return {"ok": True, "id": cam_pk, "camera_id": camera_id}
@@ -102,10 +111,13 @@ async def update_camera(camera_id: str, request: Request,
         raise HTTPException(status_code=404, detail="Camera not found")
 
     fields, vals = [], []
-    for key in ("name", "location", "description", "stream_url", "floor_plan_x", "floor_plan_y"):
+    for key in ("name", "location", "description", "stream_url", "floor_plan_x", "floor_plan_y", "face_enabled", "obj_enabled", "stream_enabled"):
         if key in body:
             fields.append(f"{key} = ?")
-            vals.append(body[key])
+            if key.endswith("_enabled"):
+                vals.append(1 if body[key] else 0)
+            else:
+                vals.append(body[key])
 
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -141,3 +153,29 @@ async def update_camera_position(camera_id: str, request: Request,
                (x, y, camera_id))
     db.commit()
     return {"ok": True}
+
+
+@router.post("/cameras/config/{camera_id}")
+async def set_camera_config_flags(
+    camera_id: str,
+    face: int = None,
+    obj: int = None,
+    stream: int = None,
+    user=Depends(require_admin),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Legacy/Quick toggle for camera features (face, obj, stream)."""
+    from ...core.worker_state import update_worker_config
+
+    updates = {}
+    if face is not None:   updates["face_enabled"] = bool(face)
+    if obj is not None:    updates["obj_enabled"] = bool(obj)
+    if stream is not None: updates["stream_enabled"] = bool(stream)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No config fields provided")
+
+    update_worker_config(camera_id, updates)
+    write_log(db, username=user["username"], role=user["role"], action="camera_config", target=camera_id, detail=f"Updated config flags: {updates}")
+    
+    return {"ok": True, "updated": updates}

@@ -72,6 +72,17 @@ app.include_router(cleanup_router)
 app.include_router(audit_router)
 app.include_router(stop_router)
 
+# --- STATIC & SNAPSHOT SERVING ---
+# Ensure these exist before mounting
+SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+static_dir = Path(__file__).resolve().parent / "static"
+static_dir.mkdir(parents=True, exist_ok=True)
+
+# Mount /api/snapshots to SNAPSHOTS_DIR
+app.mount("/api/snapshots", StaticFiles(directory=str(SNAPSHOTS_DIR)), name="snapshots")
+# Mount /static to the static folder for CSS/JS/Assets
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
     # Use absolute path relative to this file
@@ -82,5 +93,6 @@ async def serve_dashboard():
 
 if __name__ == "__main__":
     import uvicorn
+    # Important: 0.0.0.0 allows access from other devices on the LAN
     print("[*] Sentrix-AI Backend running on http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

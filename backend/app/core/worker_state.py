@@ -112,3 +112,32 @@ def get_live_nodes() -> list[dict]:
         WORKER_REGISTRY.pop(k, None)
 
     return live
+
+
+def update_worker_config(camera_id: str, updates: dict):
+    """Update configurations (face/obj/stream toggles) in memory and DB."""
+    from .database import get_db_conn
+    
+    # 1. Update DB
+    fields, vals = [], []
+    for k, v in updates.items():
+        if k in ("face_enabled", "obj_enabled", "stream_enabled"):
+            fields.append(f"{k} = ?")
+            vals.append(1 if v else 0)
+    
+    if not fields:
+        return
+    
+    vals.append(camera_id)
+    with get_db_conn() as db:
+        db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ?", vals)
+
+    # 2. Update memory for all nodes matching this camera_id
+    for node_key, state in WORKER_REGISTRY.items():
+        # node_key is usually username:camera_id
+        if node_key.endswith(f":{camera_id}") or node_key == camera_id:
+            if "config" not in state:
+                state["config"] = {"roi": None, "face_enabled": True, "obj_enabled": True, "stream_enabled": True}
+            for k, v in updates.items():
+                if k in ("face_enabled", "obj_enabled", "stream_enabled"):
+                    state["config"][k] = bool(v)
