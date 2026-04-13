@@ -625,54 +625,101 @@ def upload_worker(server, token, upload_queue, cam_configs):
 # PROCESS: LIVE STREAMER — sends raw frames for dashboard
 # ============================================================
 def live_stream_worker(server, token, live_queue, cam_configs):
-    print("[*] Live Streamer starting")
+    print("[*] H.264 Live Streamer starting (FFmpeg-powered)")
     headers = {"Authorization": f"Bearer {token}"}
     session = requests.Session()
     session.headers.update(headers)
     
-    last_frame_sent = 0
+    # Per-camera FFmpeg processes
+    # { cam_id: { "proc": subprocess, "last_active": time } }
+    ffmpeg_nodes = {}
+
+    from static_ffmpeg import run
+    try:
+        ffmpeg_exe, _ = run.get_or_fetch_platform_executables_else_raise()
+    except Exception as e:
+        print(f"[ERR] Static FFmpeg fetch failed: {e}. Falling back to system ffmpeg.")
+        ffmpeg_exe = "ffmpeg"
+
     while True:
         try:
-            # We want high FPS, so shorter timeout
             try:
                 frame, cam_id, _ = live_queue.get(timeout=2)
             except (mp.queues.Empty, KeyboardInterrupt):
                 if isinstance(sys.exc_info()[0], KeyboardInterrupt): break
                 continue
             
-            # Check if streaming is enabled
             config = cam_configs.get(cam_id, {})
             if not config.get("stream_enabled", True):
-                time.sleep(1)
+                if cam_id in ffmpeg_nodes:
+                    ffmpeg_nodes[cam_id]["proc"].terminate()
+                    del ffmpeg_nodes[cam_id]
                 continue
 
-            # Send at most 25 FPS to avoid spamming network
-            if time.time() - last_frame_sent < 0.04:
-                continue
+            h, w = frame.shape[:2]
+            
+            # 1. Ensure FFmpeg process exists for this camera
+            if cam_id not in ffmpeg_nodes:
+                print(f"[*] Initializing H.264 pipeline for {cam_id} ({w}x{h})")
+                cmd = [
+                    ffmpeg_exe,
+                    '-f', 'rawvideo',
+                    '-pixel_format', 'bgr24',
+                    '-video_size', f'{w}x{h}',
+                    '-i', '-',
+                    '-c:v', 'libx264',
+                    '-preset', 'ultrafast',
+                    '-tune', 'zerolatency',
+                    '-pix_fmt', 'yuv420p',
+                    '-g', '30',           # I-frame every 30 frames
+                    '-f', 'mpegts',
+                    '-'
+                ]
+                proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                ffmpeg_nodes[cam_id] = {"proc": proc, "last_active": time.time(), "url": f"{server}/api/upload-live-h264"}
 
-            # Lower quality (40) for faster transmission, still readable
-            _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 40])
-            img_bytes = buf.tobytes()
+                # Task to read ffmpeg stdout and POST to server
+                def _stream_reader(c_id, node_proc, upload_url):
+                    while True:
+                        try:
+                            # Read in chunks (e.g. 1kb) to keep latency low
+                            chunk = node_proc.stdout.read(4096)
+                            if not chunk: break
+                            
+                            # Fire and forget POST
+                            # Note: No session reuse here to avoid bottlenecking, or use a dedicated thread-safe session
+                            requests.post(
+                                upload_url,
+                                data=chunk,
+                                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"},
+                                params={"camera_id": c_id},
+                                timeout=1.5
+                            )
+                        except Exception:
+                            break
+                    print(f"[-] H.264 Reader closed for {c_id}")
 
-            url = f"{server}/api/upload-live"
-            files = {"file": ("live.jpg", img_bytes, "image/jpeg")}
-            data = {"camera_id": cam_id}
+                threading.Thread(target=_stream_reader, args=(cam_id, proc, ffmpeg_nodes[cam_id]["url"]), daemon=True).start()
 
+            # 2. Pipe the frame to ffmpeg
+            node = ffmpeg_nodes[cam_id]
             try:
-                # Use very short timeout + session reuse for ultra low latency
-                r = session.post(url, files=files, data=data, timeout=2)
-                if r.status_code == 200:
-                    res = r.json()
-                    if "config" in res and res["config"] != cam_configs.get(cam_id):
-                        cam_configs[cam_id] = res["config"]
-                        print(f"[*] CONFIG SYNC (Live): {cam_id} settings updated")
-                last_frame_sent = time.time()
+                node["proc"].stdin.write(frame.tobytes())
+                node["proc"].stdin.flush()
+                node["last_active"] = time.time()
             except Exception:
-                pass
+                print(f"[!] FFmpeg pipe failed for {cam_id}, resetting.")
+                del ffmpeg_nodes[cam_id]
 
-                
-        except Exception:
-            time.sleep(0.05)
+            # 3. Cleanup stale nodes (inactive > 10s)
+            now = time.time()
+            stale = [cid for cid, n in ffmpeg_nodes.items() if now - n["last_active"] > 10]
+            for cid in stale:
+                ffmpeg_nodes[cid]["proc"].terminate()
+                del ffmpeg_nodes[cid]
+
+        except Exception as e:
+            time.sleep(0.1)
 
 
 def config_sync_worker(server, token, cam_configs):

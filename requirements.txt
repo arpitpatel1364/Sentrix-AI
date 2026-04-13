@@ -18,3 +18,6 @@ Pillow==10.3.0
 
 # --- DATABASE & STORAGE ---
 qdrant-client==1.9.1
+
+# --- STREAMING ---
+static-ffmpeg==2.5

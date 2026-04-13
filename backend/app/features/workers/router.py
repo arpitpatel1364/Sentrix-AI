@@ -17,7 +17,10 @@ from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import update_worker_heartbeat, get_live_nodes
 from ...core.sse_manager import SSE_CONNECTIONS, broadcast_alert
-from ...core.stream_state import update_live_frame, get_live_frame, LIVE_FRAMES
+from ...core.stream_state import (
+    update_live_frame, get_live_frame, LIVE_FRAMES,
+    update_live_packets, subscribe_packets
+)
 from qdrant_client.models import PointStruct
 import sqlite3
 
@@ -246,4 +249,30 @@ async def stream_camera(camera_id: str):
     return StreamingResponse(
         frame_generator(), 
         media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+# --- H.264 HIGH-PERFORMANCE STREAMING ---
+
+@router.post("/upload-live-h264")
+async def upload_live_h264(
+    request: Request,
+    camera_id: str = Form("cam-1"),
+    user=Depends(get_current_user)
+):
+    """Higher performance: Worker pushes encoded H.264 packets."""
+    node_key = f"{user['username']}:{camera_id}"
+    update_worker_heartbeat(node_key)
+    
+    # Read raw body binary
+    data = await request.body()
+    update_live_packets(node_key, data)
+    
+    return {"ok": True}
+
+@router.get("/stream-h264/{camera_id}", response_class=StreamingResponse)
+async def stream_h264(camera_id: str):
+    """Produces the H.264 (MPEG-TS) stream for the frontend UI."""
+    return StreamingResponse(
+        subscribe_packets(camera_id),
+        media_type="video/mp2t"
     )
