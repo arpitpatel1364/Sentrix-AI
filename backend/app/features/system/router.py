@@ -165,26 +165,33 @@ async def global_toggle(
     return {"ok": True, "message": f"Global {feature} set to {enabled}"}
 
 @router.post("/system/reset")
-async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+async def system_reset(user=Depends(require_admin)):
+    from ...core.database import get_db_conn
+    from ...core.worker_state import WORKER_REGISTRY
+    
     try:
-        # 1. Purge DB Tables
-        db.execute("DELETE FROM sightings")
-        db.execute("DELETE FROM wanted")
-        db.execute("DELETE FROM users WHERE username != 'admin'")
-        db.execute("DELETE FROM person_photos")
-        db.execute("DELETE FROM object_detections")
-        db.execute("DELETE FROM audit_log")
-        db.execute("DELETE FROM notification_log")
-        db.execute("DELETE FROM camera_stop_requests")
-        db.execute("DELETE FROM alert_rules")
-        
-        # 2. Add default worker
-        _add_user("worker1", "worker123", "worker")
-
-        # 3. Clear Memory Registry
-        from ...core.worker_state import WORKER_REGISTRY
+        # 1. Clear Memory Registry first to stop accepting new data briefly
         WORKER_REGISTRY.clear()
 
+        with get_db_conn() as db:
+            # 2. Purge DB Tables
+            db.execute("DELETE FROM sightings")
+            db.execute("DELETE FROM wanted")
+            db.execute("DELETE FROM users WHERE username != 'admin'")
+            db.execute("DELETE FROM person_photos")
+            db.execute("DELETE FROM object_detections")
+            db.execute("DELETE FROM audit_log")
+            db.execute("DELETE FROM notification_log")
+            db.execute("DELETE FROM camera_stop_requests")
+            db.execute("DELETE FROM alert_rules")
+            
+            # 3. Add default worker
+            _add_user("worker1", "worker123", "worker")
+            
+            # Force commit now so tables are empty while we do files
+            db.commit()
+
+        # 4. Qdrant Reset
         if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
             try:
                 face_engine.QDRANT_CLIENT.delete_collection("sightings")
@@ -194,16 +201,18 @@ async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Dep
             except Exception as e:
                 print(f"Qdrant reset error: {e}")
 
+        # 5. File System Cleanup
         if SNAPSHOTS_DIR.exists():
             for item in SNAPSHOTS_DIR.iterdir():
-                if item.is_dir():
-                    shutil.rmtree(item)
-                else:
-                    item.unlink()
+                try:
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+                except Exception as fe:
+                    print(f"File cleanup error for {item}: {fe}")
             SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        db.commit()
         return {"ok": True, "message": "System reset successfully."}
     except Exception as e:
-        if db: db.rollback()
         raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
