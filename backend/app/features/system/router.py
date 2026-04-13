@@ -171,6 +171,11 @@ async def system_reset(user=Depends(require_admin), db: sqlite3.Connection = Dep
         db.execute("DELETE FROM wanted")
         db.execute("DELETE FROM users WHERE username != 'admin'")
         db.execute("DELETE FROM person_photos")
+        db.execute("DELETE FROM object_detections")
+        db.execute("DELETE FROM audit_log")
+        db.execute("DELETE FROM notification_log")
+        db.execute("DELETE FROM camera_stop_requests")
+        db.execute("DELETE FROM alert_rules")
         db.commit()
         
         _add_user("worker1", "worker123", "worker")
