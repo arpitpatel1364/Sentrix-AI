@@ -1,12 +1,11 @@
 import argparse, time, sys, os, multiprocessing as mp
 
-# Check for virtual environment
+# Dependencies check
 if not hasattr(sys, 'real_prefix') and sys.base_prefix == sys.prefix:
     try:
         import onnxruntime, cv2, requests, numpy
     except ImportError:
-        print("\nERR: Required dependencies not found. Run using venv:")
-        print("    ./venv/bin/python3 worker/worker_agent.py --user worker1 --password worker123 --camera 1\n")
+        print("\nERR: Required dependencies missing. Run using venv.")
         sys.exit(1)
 
 from pathlib import Path
@@ -14,35 +13,7 @@ import cv2
 import numpy as np
 import requests
 
-# --- CUDA SELF-HEALING ENVIRONMENT ---
-BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parent
-LIBS_PATH = str(PROJECT_ROOT / "libs")
-
-if LIBS_PATH not in os.environ.get("LD_LIBRARY_PATH", ""):
-    os.environ["LD_LIBRARY_PATH"] = LIBS_PATH + ":" + os.environ.get("LD_LIBRARY_PATH", "")
-    try:
-        if sys.platform.startswith('linux'):
-            # Optimization for low-VRAM systems
-            if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
-                os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-            os.execv(sys.executable, [sys.executable] + sys.argv)
-    except Exception:
-        pass
-
-# ==========================================
-# CCTV MULTI-PROCESS WORKER AGENT v2
-# Two-Core Architecture:
-#   Core 1 — Face Engine: continuous crop + upload
-#   Core 2 — Object Engine: full frame + bbox draw + 30s cooldown
-#
-# FIXES in v2:
-#   - Object detector now correctly uses BCHW input (not BHWC)
-#   - Confidence = objectness × class_score (not class_score alone)
-#   - Letterbox coordinate rescaling properly accounts for padding
-# ==========================================
-
-# Filtered Daily Targets (Person removed as Face Engine covers it)
+# --- CONFIG ---
 TARGET_CLASSES = [
     "phone","water bottle", "laptop", "backpack", 
     "remote", "keyboard", "cell phone", "book","bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
@@ -61,8 +32,8 @@ TARGET_CLASSES = [
 
 def parse_args():
     base_dir = Path(__file__).resolve().parent
-    default_face_model = base_dir / "models" / "best.onnx"
-    default_obj_model  = PROJECT_ROOT / "yolov8s-worldv2.pt"
+    default_face_model = base_dir / "worker" /"models" / "best.onnx"
+    default_obj_model  = PROJECT_ROOT / "worker" / "yolov8s-worldv2.pt"
 
     p = argparse.ArgumentParser(description="Sentrix-AI Multi-Process CCTV Worker (Two-Core)")
     p.add_argument("--server",    default="http://localhost:8000")
@@ -97,19 +68,31 @@ def open_camera(source):
     except Exception:
         src = source
 
-    backends = [cv2.CAP_ANY, cv2.CAP_V4L2] if sys.platform.startswith('linux') else [cv2.CAP_ANY, cv2.CAP_DSHOW]
+    # Preference:
+    # Linux   -> CAP_V4L2 (The standard)
+    # Windows -> CAP_DSHOW (More stable for many USB cams) -> CAP_MSMF (Modern, often default)
+    if sys.platform.startswith('linux'):
+        backends = [cv2.CAP_V4L2, cv2.CAP_ANY]
+    else:
+        backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
 
     def try_open(s):
         for b in backends:
             try:
                 cap = cv2.VideoCapture(s, b)
                 if cap.isOpened():
-                    print(f"[*] Camera {s} opened with backend {b}")
-                    return cap
+                    # SMOKE TEST: Some backends (MSMF) "open" but fail the first grab
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None:
+                        print(f"[*] Camera {s} opened with backend {b}")
+                        return cap
+                    else:
+                        print(f"[!] Backend {b} opened for camera {s} but failed test read. Skipping.")
                 cap.release()
             except Exception:
                 continue
         return None
+
 
     cap = try_open(src)
     if cap:
@@ -166,9 +149,6 @@ def is_in_roi(bbox, roi, im_w, im_h):
     return (mx1 <= cx <= mx2) and (my1 <= cy <= my2)
 
 
-# ============================================================
-# PROCESS: CAMERA CAPTURE — feeds both face and object queues
-# ============================================================
 def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, live_queue, cam_rois):
     print(f"[*] Capture Node started: {cam_id} ({cam_src})")
     cap = open_camera(cam_src)
@@ -221,9 +201,6 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
             break
 
 
-# ============================================================
-# PROCESS: CORE 1 — FACE DETECTOR (YOLOv8/v10 compatible)
-# ============================================================
 def face_detector_worker(face_model, face_queue, upload_queue, server, token, cam_rois, force_cpu=False):
     print(f"[*] Core 1 — Face Engine starting")
 
@@ -364,15 +341,6 @@ class DetectionTracker:
         return False
 
 
-# ============================================================
-# PROCESS: CORE 2 — OBJECT DETECTOR (v3 — Fixed)
-#
-# Architecture: Detection → annotation_queue → Annotator Process → upload_queue
-# This ensures heavy drawing/encoding never blocks the detector loop.
-#
-# Coordinate math: unscale center first, then convert to corners
-# (matching the backend object_engine.py approach)
-# ============================================================
 def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects, cam_rois, force_cpu=False):
     print(f"[*] Core 2 — Object Engine starting (YOLO World)")
     tracker = DetectionTracker(cooldown=15)
@@ -381,6 +349,16 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
     try:
         import torch
         from ultralytics import YOLOWorld
+        from ultralytics.nn.tasks import WorldModel
+        
+        # --- PYTORCH 2.6+ SECURITY FIX ---
+        # Explicitly allowlist WorldModel for weights_only=True loading
+        try:
+            torch.serialization.add_safe_globals([WorldModel])
+        except Exception:
+            pass
+        # ---------------------------------
+
         
         # Clear VRAM first
         if torch.cuda.is_available():
@@ -500,10 +478,6 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
             traceback.print_exc()
 
 
-# ============================================================
-# PROCESS: ANNOTATION WORKER — draws bbox + crops + queues upload
-# Runs in its own process so drawing never blocks detection
-# ============================================================
 def _annotation_worker(annotation_queue, upload_queue):
     """Receives raw detection data, draws clean bounding boxes on the
     full frame, then crops the annotated region for upload."""
@@ -553,9 +527,6 @@ def _annotation_worker(annotation_queue, upload_queue):
             print(f"[!] Annotation error: {e}")
 
 
-# ============================================================
-# PROCESS: UPLOADER — sends to backend
-# ============================================================
 def upload_worker(server, token, upload_queue, cam_rois):
     print("[*] Uploader started")
     session = requests.Session()
@@ -688,9 +659,7 @@ def main():
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         print("[*] Forced CPU Mode: Hiding GPU from all engines")
         
-    print("╔═══════════════════════════════════════╗")
-    print("║  Sentrix-AI Two-Core Worker  v2.0     ║")
-    print("╚═══════════════════════════════════════╝")
+    print(f"[*] Sentrix-AI Worker v2.0 | Server: {args.server}")
     print(f"  Server  : {args.server}")
     print(f"  Cameras : {args.camera}")
     print(f"  Cam IDs : {args.camera_id}")

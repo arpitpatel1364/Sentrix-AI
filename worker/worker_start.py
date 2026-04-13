@@ -37,7 +37,7 @@ except ImportError:
     sys.exit(1)
 
 
-# ── ANSI colours ────────────────────────────────────────────────────────────
+# Colors
 GREEN  = "\033[92m"
 YELLOW = "\033[93m"
 RED    = "\033[91m"
@@ -64,18 +64,9 @@ def ask(prompt, default=None, secret=False):
 
 
 def banner():
-    print(f"""
-{CYAN}{BOLD}
-  ╔══════════════════════════════════════════╗
-  ║     Sentrix-AI  Worker Setup Script     ║
-  ╚══════════════════════════════════════════╝
-{RESET}
-  This script guides you through starting a
-  camera worker node — step by step.
-""")
+    print(f"\n{CYAN}{BOLD} [*] Sentrix-AI Worker Setup{RESET}\n")
 
 
-# ── Step 1: gather info ─────────────────────────────────────────────────────
 def gather_config():
     print(f"\n{BOLD}STEP 1 — Server Connection{RESET}")
     server = ask("Server URL (e.g. http://192.168.1.10:8000)", "http://localhost:8000")
@@ -126,7 +117,6 @@ def gather_config():
     }
 
 
-# ── Step 2: authenticate ────────────────────────────────────────────────────
 def authenticate(server, username, password):
     print(f"\n{BOLD}Connecting to server…{RESET}")
     try:
@@ -151,7 +141,6 @@ def authenticate(server, username, password):
         sys.exit(1)
 
 
-# ── Step 3: open browser for admin to register cameras ──────────────────────
 def open_dashboard(server, cameras):
     print(f"\n{BOLD}STEP 5 — Register Cameras in Dashboard{RESET}")
     info("Opening the Sentrix dashboard in your browser.")
@@ -174,7 +163,6 @@ def open_dashboard(server, cameras):
     input(f"  {BOLD}Press Enter once the admin has registered the cameras…{RESET} ")
 
 
-# ── Step 4: verify cameras are on server ─────────────────────────────────────
 def verify_cameras(server, token, cameras):
     headers = {"Authorization": f"Bearer {token}"}
     print(f"\n{BOLD}Verifying camera registration…{RESET}")
@@ -196,7 +184,6 @@ def verify_cameras(server, token, cameras):
         warn(f"Could not verify cameras: {exc}")
 
 
-# ── Step 5: launch worker_agent.py ───────────────────────────────────────────
 def launch_worker(config):
     base_dir   = Path(__file__).resolve().parent
     agent_path = base_dir / "worker_agent.py"
@@ -240,7 +227,6 @@ def launch_worker(config):
     return subprocess.Popen(cmd)
 
 
-# ── Step 6: poll stop-requests in background ─────────────────────────────────
 def poll_stop_requests(server, token, cameras, proc):
     """
     Background thread — polls /api/stop-requests/my-status every 10 seconds.
@@ -291,7 +277,6 @@ def poll_stop_requests(server, token, cameras, proc):
                 pass  # Transient network issue — try again next cycle
 
 
-# ── Main entry point ─────────────────────────────────────────────────────────
 def main():
     banner()
 

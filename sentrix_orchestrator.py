@@ -15,18 +15,16 @@ from pathlib import Path
 SERVER_URL = "http://localhost:8000"
 BASE_DIR = Path(__file__).resolve().parent
 
-# CONFIGURATION: Load from nodes.conf inside admin/
 def load_nodes():
     nodes = []
-    # Check newer backend/ nodes.conf, then legacy locations
     conf_path = BASE_DIR / "backend" / "nodes.conf"
     if not conf_path.exists():
-        conf_path = BASE_DIR / "admin" / "nodes.conf" # Legacy fallback
+        conf_path = BASE_DIR / "admin" / "nodes.conf"
     if not conf_path.exists():
         conf_path = BASE_DIR / "nodes.conf"
     
     if not conf_path.exists():
-        print(f"XX ERROR: nodes.conf not found (checked admin/ and root)!")
+        print(f"ERR: nodes.conf not found!")
         return []
 
     with open(conf_path, "r") as f:
@@ -34,7 +32,6 @@ def load_nodes():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            
             parts = [p.strip() for p in line.split("|")]
             if len(parts) >= 5:
                 nodes.append({
@@ -48,17 +45,14 @@ def load_nodes():
 
 def launch_workers(nodes):
     processes = []
-    
-    # Check if worker_agent.py exists inside worker/
     agent_path = BASE_DIR / "worker" / "worker_agent.py"
     if not agent_path.exists():
-        print(f" XX ERROR: {agent_path} not found!")
+        print(f"ERR: {agent_path} not found!")
         return []
 
-    # Detect virtual environment (Try venv_worker first, then venv)
     paths_to_check = [
-        BASE_DIR / "worker" / "venv_worker", # Standard Linux
-        BASE_DIR / "worker" / "venv_worker" / "Scripts" / "python.exe", # Windows
+        BASE_DIR / "worker" / "venv_worker",
+        BASE_DIR / "worker" / "venv_worker" / "Scripts" / "python.exe",
         BASE_DIR / "venv" / "bin" / "python", 
         BASE_DIR / "venv" / "Scripts" / "python.exe"
     ]
@@ -70,8 +64,7 @@ def launch_workers(nodes):
             python_exe = str(executable)
             break
     
-    print(f" Launching {len(nodes)} camera nodes...")
-
+    print(f"[*] Launching {len(nodes)} camera nodes...")
     for node in nodes:
         cmd = [
             python_exe, str(agent_path),
@@ -82,39 +75,33 @@ def launch_workers(nodes):
             "--camera-id", node["id"],
             "--location", node["location"]
         ]
-        
-        print(f"  >> Starting Node: {node['id']} ({node['location']})")
         p = subprocess.Popen(cmd)
         processes.append(p)
-    
     return processes
 
 def main():
     nodes = load_nodes()
     if not nodes:
-        print("  No nodes found in admin/nodes.conf. Use admin/manage_workers.py to add some!")
+        print("No nodes found. Add them to nodes.conf.")
         return
 
     processes = launch_workers(nodes)
     
     def signal_handler(sig, frame):
-        print("\n Shutting down all nodes...")
+        print("\n[*] Shutting down all nodes...")
         for p in processes:
             p.terminate()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
+    print("\n[v] Mesh is running. Press Ctrl+C to stop.\n")
     
-    print("\n All nodes are running. Press Ctrl+C to stop the entire mesh.\n")
-    
-    # Monitor processes
     while True:
         try:
             time.sleep(5)
-            # Check if any process died
             for p in processes:
                 if p.poll() is not None:
-                    print(f" Process {p.pid} has exited.")
+                    print(f"Process {p.pid} exited.")
         except KeyboardInterrupt:
             break
 

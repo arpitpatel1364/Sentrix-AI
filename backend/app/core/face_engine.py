@@ -10,15 +10,12 @@ from datetime import datetime
 
 from .config import MODELS_DIR, DATA_DIR, SIMILARITY_THRESHOLD, DB_PATH, DEVICE
 
-# --- InsightFace & Qdrant Availability ---
 try:
     import insightface
     from insightface.app import FaceAnalysis
     FACE_MODEL_AVAILABLE = True
 except ImportError:
     FACE_MODEL_AVAILABLE = False
-    print("[!] insightface not installed. Face recognition disabled.")
-
 
 try:
     from qdrant_client import QdrantClient
@@ -26,19 +23,14 @@ try:
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
-    print("[!] qdrant-client not installed. Using in-memory store.")
 
-
-# Global state
 FACE_APP = None
 QDRANT_CLIENT = None
 
 def _test_cuda_functional():
-    """Try to create a tiny ONNX session to see if CUDA DLLs are actually working."""
+    """Try to create a tiny ONNX session to see if CUDA DLLs are working."""
     try:
         import onnxruntime as ort
-        import numpy as np
-        # Minimalist 1x1 model
         from onnx import helper, TensorProto
         node = helper.make_node("Relu", ["X"], ["Y"])
         graph = helper.make_graph([node], "test", [helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, 1])], [helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1, 1])])
@@ -51,29 +43,18 @@ def _test_cuda_functional():
 def init_face_engines():
     global FACE_APP, QDRANT_CLIENT
 
-    # 1. Load Face Model (InsightFace)
     if FACE_MODEL_AVAILABLE:
         try:
             providers = ["CPUExecutionProvider"]
-            
-            # Only attempt CUDA if config allows it AND hardware supports it
             if DEVICE.lower() == "cuda":
                 try:
                     import onnxruntime as ort
-                    if "CUDAExecutionProvider" in ort.get_available_providers():
-                        # Pre-flight check to avoid noisy "Error 126" LoadLibrary failures
-                        if _test_cuda_functional():
-                            providers = ["CUDAExecutionProvider"]
-                            print("[*] GPU Detected: Using CUDAExecutionProvider for face recognition")
-                        else:
-                            print("[i] CUDA found but libraries (DLLs) missing/invalid. Falling back to CPU.")
+                    if "CUDAExecutionProvider" in ort.get_available_providers() and _test_cuda_functional():
+                        providers = ["CUDAExecutionProvider"]
                     else:
-                        print("[i] Using CPU for face recognition (CUDA provider not available)")
+                        print("[i] CUDA hardware not available or libraries missing. Using CPU.")
                 except Exception as e:
                     print(f"[i] Provider check failed: {e}. Using CPU.")
-            else:
-                print("[i] Running Face Recognition on CPU (configured)")
-
 
             FACE_APP = FaceAnalysis(
                 name="buffalo_s",
@@ -82,39 +63,30 @@ def init_face_engines():
             )
             FACE_APP.prepare(ctx_id=0, det_size=(160, 160))
             
-            # Get actual providers used by the underlying ONNX sessions
             actual_providers = []
             for model in FACE_APP.models.values():
                 if hasattr(model, 'session'):
                     actual_providers.extend(model.session.get_providers())
             
             p_report = list(set(actual_providers)) if actual_providers else providers
-            print(f"InsightFace model loaded (buffalo_s, providers: {p_report})")
+            print(f"InsightFace loaded (providers: {p_report})")
         except Exception as e:
             print(f"Could not load InsightFace: {e}")
 
-    # 2. Init Qdrant
     if QDRANT_AVAILABLE:
         try:
             target_path = str(DATA_DIR / "qdrant_storage")
             QDRANT_CLIENT = QdrantClient(path=target_path)
+            cols = [c.name for c in QDRANT_CLIENT.get_collections().collections]
             
-            cols = QDRANT_CLIENT.get_collections().collections
-            col_names = [c.name for c in cols]
-            
-            if "sightings" not in col_names:
+            if "sightings" not in cols:
                 QDRANT_CLIENT.create_collection("sightings", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
-            
-            if "watchlist" not in col_names:
+            if "watchlist" not in cols:
                 QDRANT_CLIENT.create_collection("watchlist", vectors_config=VectorParams(size=512, distance=Distance.COSINE))
             
-            # Migration logic here if needed, but for simplicity we assume the core logic is what's important
-            # In a full refactor, we would run the migration task from lifespan.
-            
-            print(f"[v] Qdrant persistent storage started at {target_path}")
+            print(f"Qdrant storage started at {target_path}")
         except Exception as e:
-            print(f"[!] Qdrant error: {e}")
-
+            print(f"Qdrant error: {e}")
 
 def get_embedding(img_array: np.ndarray) -> Optional[np.ndarray]:
     if FACE_APP is None:
@@ -130,7 +102,6 @@ def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b))
 
 def match_wanted(embedding: np.ndarray) -> Optional[dict]:
-    # 1. Qdrant (Fast Vector Search)
     if QDRANT_AVAILABLE and QDRANT_CLIENT:
         try:
             hits = QDRANT_CLIENT.search("watchlist", query_vector=embedding.tolist(), limit=1)
@@ -139,12 +110,11 @@ def match_wanted(embedding: np.ndarray) -> Optional[dict]:
         except Exception as e:
             print(f"Qdrant search error: {e}")
             
-    # 2. SQLite Fallback
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute("""
-            SELECT p.id, p.person_id, p.embedding, w.name 
+            SELECT p.person_id, p.embedding, w.name 
             FROM person_photos p JOIN wanted w ON p.person_id = w.id
         """)
         rows = cur.fetchall()
@@ -160,8 +130,7 @@ def match_wanted(embedding: np.ndarray) -> Optional[dict]:
     return None
 
 def bytes_to_cv2(data: bytes) -> np.ndarray:
-    arr = np.frombuffer(data, np.uint8)
-    return cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    return cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
 
 def cv2_to_b64(img: np.ndarray) -> str:
     import base64

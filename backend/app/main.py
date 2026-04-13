@@ -82,10 +82,5 @@ async def serve_dashboard():
 
 if __name__ == "__main__":
     import uvicorn
-    print("\n+--------------------------------------+")
-    print("  Sentrix-AI Restructured Backend     ")
-    print("+--------------------------------------+")
-    print("  Dashboard -> http://localhost:8000   ")
-    print("+--------------------------------------+\n")
-
+    print("[*] Sentrix-AI Backend running on http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
