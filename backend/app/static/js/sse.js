@@ -112,7 +112,9 @@ function renderActiveAlerts() {
   monitor.innerHTML = alerts.map(a => `
     <div class="alert-banner ${a.inVision ? '' : 'lost'}">
       <div style="display:flex;align-items:center;gap:1.25rem">
-        <img src="${esc(a.snapshot)}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid ${a.inVision ? 'var(--red)' : 'var(--outline)'}">
+        ${a.snapshot
+          ? `<img src="${esc(a.snapshot)}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid ${a.inVision ? 'var(--red)' : 'var(--outline)'}" onerror="this.style.display='none'">`
+          : `<div style="width:48px;height:48px;border-radius:8px;background:var(--surface-high);border:1px solid var(--outline);display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted);font-size:0.6rem">NO IMG</div>`}
         <div class="alert-info">
           <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.15rem">
             <h4>${esc(a.name)}</h4>
@@ -123,7 +125,7 @@ function renderActiveAlerts() {
           </div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="deactivateAlert('${esc(a.id)}')">Dismiss</button>
+      <button class="btn btn-ghost btn-sm" onclick="deactivateAlert(this.dataset.id)" data-id="${esc(a.id)}">Dismiss</button>
     </div>`).join('');
 }
 

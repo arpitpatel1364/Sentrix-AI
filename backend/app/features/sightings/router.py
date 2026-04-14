@@ -49,7 +49,9 @@ async def list_sightings(
             "person_name": r.person_name,
             "confidence": r.confidence,
             "worker_id": str(r.worker_id) if r.worker_id else None,
-            "snapshot_path": r.snapshot_path
+            "snapshot_path": r.snapshot_path,
+            "location": r.location,
+            "snapshot": f"/api/snapshots/{r.snapshot_path}" if r.snapshot_path else None,
         }
         
         # Add worker label if possible

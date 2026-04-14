@@ -329,7 +329,9 @@ async function doReset() {
    ALERT RULES
    ══════════════════════════════════════════ */
 async function loadRules() {
-  State.rules = await api('/api/alerts/alert-rules');
+  try {
+    State.rules = await api('/api/alerts/alert-rules');
+  } catch (e) { console.warn('[rules]', e); return; }
   const listEl  = document.getElementById('rules-list');
   const emptyEl = document.getElementById('rules-empty');
 

@@ -355,6 +355,7 @@ async function saveROISettings() {
   fd.append('roi', JSON.stringify(box));
 
   try {
+    // Do NOT set Content-Type — browser must set it with the multipart boundary
     await api('/api/roi/save', { method: 'POST', body: fd });
     toast('Zone saved', 'green');
     loadCameras();
@@ -472,8 +473,10 @@ function updateMapCameraList(cameras) {
 }
 
 async function loadMap() {
-  const cameras = await api('/api/cameras');
-  updateMapCameraList(cameras);
+  try {
+    const cameras = await api('/api/cameras');
+    updateMapCameraList(cameras);
+  } catch (e) { console.warn('[map]', e); }
 }
 
 function loadFloorplan(input) {

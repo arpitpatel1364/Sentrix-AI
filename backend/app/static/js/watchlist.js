@@ -132,12 +132,12 @@ async function uploadToDossier() {
   if (!files.length || !State.dossierPersonId) return;
 
   const fd = new FormData();
-  fd.append('name', document.getElementById('dossier-name').textContent);
   for (const f of files) fd.append('files', f);
 
   toast(`Injecting ${files.length} neural sample(s)…`, 'amber');
   try {
-    await api('/api/watchlist', { method: 'POST', body: fd });
+    // Use person-specific photos endpoint to add photos to an EXISTING person
+    await api(`/api/watchlist/${State.dossierPersonId}/photos`, { method: 'POST', body: fd });
     const photos = await api(`/api/watchlist/${State.dossierPersonId}/photos`);
     renderDossierGallery(photos || []);
     updateDossierSync(photos.length);

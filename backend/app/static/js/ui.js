@@ -116,16 +116,17 @@ function showFileCount(input, countId) {
 /* ─── SYNC ALERT OVERLAY ─── */
 function showSyncAlert(type = 'loading') {
   const el = document.getElementById('sync-alert');
+  if (!el) return;
   const txt = document.getElementById('sync-alert-text');
   const spinner = el.querySelector('.sync-spinner');
 
   if (type === 'done') {
-    txt.innerHTML = "SYSTEM REFRESHED<br><span style='font-size:0.6rem;color:var(--green);letter-spacing:0.1em'>SYNC COMPLETE</span>";
-    spinner.style.borderTopColor = 'var(--green)';
+    if (txt) txt.innerHTML = "SYSTEM REFRESHED<br><span style='font-size:0.6rem;color:var(--green);letter-spacing:0.1em'>SYNC COMPLETE</span>";
+    if (spinner) spinner.style.borderTopColor = 'var(--green)';
     el.style.borderColor = 'var(--green)';
   } else {
-    txt.innerHTML = "SYSTEM REFRESHING<br><span style='font-size:0.6rem;opacity:0.6'>PLEASE WAIT…</span>";
-    spinner.style.borderTopColor = 'var(--primary)';
+    if (txt) txt.innerHTML = "SYSTEM REFRESHING<br><span style='font-size:0.6rem;opacity:0.6'>PLEASE WAIT…</span>";
+    if (spinner) spinner.style.borderTopColor = 'var(--primary)';
     el.style.borderColor = 'var(--primary)';
   }
 
@@ -135,6 +136,7 @@ function showSyncAlert(type = 'loading') {
 
 function hideSyncAlert() {
   const el = document.getElementById('sync-alert');
+  if (!el) return;
   el.classList.remove('show');
   setTimeout(() => { el.style.display = 'none'; }, 400);
 }

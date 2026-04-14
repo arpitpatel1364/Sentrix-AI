@@ -130,6 +130,7 @@ async def get_stats(user=Depends(get_current_user), db: AsyncSession = Depends(g
         "total_sightings": total_sightings,
         "total_matches": total_matches,
         "total_watchlist": total_watchlist,
+        "total_wanted": total_watchlist,   # alias used by JS dashboard
         "total_objects": total_objects,
         "total_nodes": len(live_nodes)
     }
@@ -173,29 +174,23 @@ async def stop_mesh(user=Depends(require_admin)):
     return {"ok": True, "message": "Mesh shutdown sequence initiated."}
 
 @router.post("/mesh/nodes/{node_id}/start")
-async def start_node(node_id: str, user=Depends(get_current_user)):
+async def start_node(node_id: str, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     # Workers can start, admins can start.
     success = orchestrator.start_node(node_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to start node")
-    
-    # Audit log
-    from ...core.database import get_db_conn, log_audit
-    async with get_db_conn() as db:
-        await log_audit(db, user.username, user.role, "START_NODE", target=node_id, detail="Detection node manual start")
-        
+
+    from ..audit_log.router import write_log
+    await write_log(db, username=user.username, role=user.role, action="start_node", target=node_id, detail="Detection node manual start")
     return {"ok": True}
 
 @router.post("/mesh/nodes/{node_id}/stop")
-async def stop_node(node_id: str, user=Depends(require_admin)):
+async def stop_node(node_id: str, user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
     # ONLY admins can stop
     orchestrator.stop_node(node_id)
-    
-    # Audit log
-    from ...core.database import get_db_conn, log_audit
-    async with get_db_conn() as db:
-        await log_audit(db, user.username, user.role, "STOP_NODE", target=node_id, detail="Detection node manual stop")
-        
+
+    from ..audit_log.router import write_log
+    await write_log(db, username=user.username, role=user.role, action="stop_node", target=node_id, detail="Detection node manual stop")
     return {"ok": True}
 
 # ─── CAMERA CONFIGURATION (TOGGLES) ────────────────────────────────────────
@@ -329,12 +324,13 @@ async def system_reset(user=Depends(require_admin)):
         return {"ok": True, "message": "System reset successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
+
 @router.get("/active-users")
 async def active_users(user=Depends(get_current_user)):
     """
-    Returns live nodes. Clients only see their own nodes.
+    Returns live nodes and sessions. Clients only see their own nodes.
     """
-    # Use model-based user object
     client_id = str(user.client_id) if user.role == "client" else None
     live_nodes = get_live_nodes(client_id=client_id)
-    return {"nodes": live_nodes}
+    # sessions list needed by JS pages (loadWorkers, loadSystem)
+    return {"nodes": live_nodes, "sessions": live_nodes}

@@ -306,25 +306,24 @@
   <!-- Add Person Modal -->
   <div class="modal-overlay" id="modal-add-person">
     <div class="modal">
-      <button class="modal-close" onclick="closeModal('modal-add-person')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-add-person')">&#x2715;</button>
       <div class="modal-title">REGISTER NEW SUBJECT</div>
       <div class="form-group">
         <label class="form-label">Subject Name</label>
-        <input type="text" id="new-person-name" placeholder="Full Name">
+        <input type="text" id="ap-name" placeholder="Full Name">
       </div>
       <div class="form-group">
-        <label class="form-label">Face Photo</label>
-        <div class="upload-zone" onclick="document.getElementById('person-photo').click()">
-          <input type="file" id="person-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
-          <div id="photo-preview-placeholder">
-            <div class="upload-icon">⊕</div>
-            <div class="upload-text">Upload clear face photo</div>
-          </div>
-          <img id="photo-preview-img" style="display:none; width: 100%; height: auto; border-radius: var(--radius-md);">
+        <label class="form-label">Face Photo(s)</label>
+        <div class="upload-zone" onclick="document.getElementById('ap-files').click()">
+          <input type="file" id="ap-files" accept="image/*" multiple style="display:none" onchange="showFileCount(this,'ap-count')">
+          <div class="upload-icon">⊕</div>
+          <div class="upload-text">Upload clear face photo(s)</div>
+          <div id="ap-count" style="font-size:0.75rem;color:var(--primary);margin-top:0.4rem"></div>
         </div>
       </div>
-      <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="submitNewPerson()"
-        id="submit-person-btn">Enroll Subject</button>
+      <div id="ap-err" style="display:none;color:var(--red);font-size:0.8rem;margin-top:0.5rem"></div>
+      <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="addWatchlistPerson()"
+        id="ap-btn">Enroll Subject</button>
     </div>
   </div>
 
@@ -388,59 +387,6 @@
       } else {
         showPage('live-feed');
       }
-    }
-
-    function openAddPerson() { document.getElementById('new-person-name').value = ''; openModal('modal-add-person'); }
-    
-    function previewPhoto(input) {
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = document.getElementById('photo-preview-img');
-          const placeholder = document.getElementById('photo-preview-placeholder');
-          img.src = e.target.result;
-          img.style.display = 'block';
-          placeholder.style.display = 'none';
-        };
-        reader.readAsDataURL(input.files[0]);
-      }
-    }
-
-    async function submitNewPerson() {
-      const name = document.getElementById('new-person-name').value.trim();
-      const photo = document.getElementById('person-photo').files[0];
-      const btn = document.getElementById('submit-person-btn');
-      if (!name || !photo) return toast('Name and photo required', 'red');
-      
-      btn.disabled = true; btn.textContent = 'Enrolling...';
-      try {
-        const workers = await api('/api/workers/');
-        if (!workers.nodes?.length) throw new Error('No operational node found for biometric processing');
-        
-        const fd = new FormData(); fd.append('file', photo);
-        const res = await fetch(`${workers.nodes[0].media_base_url}/compute-embedding?token=${localStorage.getItem('sentrix_jwt')}`, {
-          method: 'POST', body: fd
-        });
-        if (!res.ok) throw new Error('Node failed to process biometrics');
-        const { embedding } = await res.json();
-
-        // Consistent API payload: person_name + embedding
-        const qd = await api('/api/qdrant/upsert', { method: 'POST', body: JSON.stringify({ person_name: name, embedding }) });
-        // The watchlist POST handles everything including Qdrant now in the refined backend, 
-        // but keeping this consistent with what we have for now. Actually, let's just call the watchlist endpoint directly if it supports file uploads.
-        // Wait, the watchlist endpoint in router.py supports files!
-        
-        /* REFINED FLOW: Just use the watchlist endpoint which handles detection and Qdrant in one go */
-        const wfd = new FormData();
-        wfd.append('files', photo);
-        wfd.append('name', name);
-        await api('/api/watchlist/', { method: 'POST', body: wfd });
-
-        closeModal('modal-add-person');
-        toast('Subject enrolled', 'green');
-        if (State.activePage === 'watchlist') loadWatchlist();
-      } catch(e) { toast(e.message, 'red'); }
-      finally { btn.disabled = false; btn.textContent = 'Enroll Subject'; }
     }
 
     document.addEventListener('DOMContentLoaded', initDashboard);

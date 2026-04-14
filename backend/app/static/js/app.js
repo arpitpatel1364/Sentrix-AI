@@ -37,8 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Keyboard shortcuts
-  document.getElementById('li-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  document.getElementById('li-user').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('li-pass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('li-user')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
   // Check for existing session
   if (State.token && State.me) {
