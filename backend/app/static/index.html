@@ -31,7 +31,15 @@
     </div>
     <div class="field">
       <label>Authorization Key</label>
-      <input type="password" id="li-pass" placeholder="••••••••">
+      <div class="password-wrapper">
+        <input type="password" id="li-pass" placeholder="••••••••">
+        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('li-pass', 'eye-icon-login')" tabindex="-1">
+          <svg id="eye-icon-login" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
     </div>
     <button id="login-btn" onclick="doLogin()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:0.5rem">
@@ -1169,7 +1177,18 @@
       <div class="form-group"><label class="form-label">SMTP Port</label><input type="number" id="nc-port" placeholder="587" value="587"></div>
     </div>
     <div class="form-group"><label class="form-label">SMTP Username</label><input type="text" id="nc-user" placeholder="you@gmail.com"></div>
-    <div class="form-group"><label class="form-label">SMTP Password / App Password</label><input type="password" id="nc-pass" placeholder="••••••••"></div>
+    <div class="form-group">
+      <label class="form-label">SMTP Password / App Password</label>
+      <div class="password-wrapper">
+        <input type="password" id="nc-pass" placeholder="••••••••">
+        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('nc-pass', 'eye-icon-smtp')" tabindex="-1">
+          <svg id="eye-icon-smtp" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label">From Address</label><input type="text" id="nc-from" placeholder="sentrix@yourdomain.com"></div>
     <div class="form-group"><label class="form-label">Recipients (comma-separated)</label><input type="text" id="nc-to" placeholder="admin@company.com"></div>
     <div style="display:flex;gap:0.75rem;margin-top:0.5rem">

@@ -140,6 +140,32 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--primary-dim);
 }
 
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-wrapper input {
+  padding-right: 3rem;
+}
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--on-surface-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  padding: 4px;
+  z-index: 10;
+}
+.password-toggle:hover {
+  color: var(--primary);
+}
+
 select option { background: var(--surface); color: var(--on-surface); }
 
 textarea { resize: vertical; min-height: 80px; }
