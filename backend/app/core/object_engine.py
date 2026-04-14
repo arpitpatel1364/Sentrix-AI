@@ -29,7 +29,14 @@ def init_object_engine():
         from ultralytics import YOLOWorld
         from ultralytics.nn.tasks import WorldModel
         
-        torch.serialization.add_safe_globals([WorldModel])
+        import collections
+        torch.serialization.add_safe_globals([
+            WorldModel, 
+            torch.nn.modules.container.Sequential,
+            collections.OrderedDict,
+            torch.storage.TypedStorage, # For modern PyTorch
+            torch._utils._rebuild_tensor_v2
+        ])
 
         try:
             OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))
@@ -72,4 +79,4 @@ def detect_objects(image: np.ndarray, threshold: float = 0.4):
         return detections
     except Exception as e:
         print(f"Object detection error: {e}")
-        return []
+        return []

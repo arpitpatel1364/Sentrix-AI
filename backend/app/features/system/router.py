@@ -17,6 +17,64 @@ import json
 
 router = APIRouter(tags=["System"])
 
+@router.get("/health")
+async def get_health(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    import psutil
+    import os
+    
+    # Simple metrics
+    cpu = psutil.cpu_percent()
+    ram = psutil.virtual_memory().percent
+    
+    # DB Size (approx for Postgres)
+    db_size = "N/A"
+    try:
+        res = await db.execute(text("SELECT pg_size_pretty(pg_database_size(current_database()))"))
+        db_size = res.scalar()
+    except: pass
+
+    live_nodes = get_live_nodes()
+    
+    return {
+        "hub": {"cpu": cpu, "ram": ram},
+        "db": {"size": db_size},
+        "qdrant": {"vectors_count": "Pending"},
+        "redis": {"sessions": 1},
+        "workers": {"online": len(live_nodes), "total": len(live_nodes)} # Simplified
+    }
+
+@router.get("/stream/{node_key}")
+async def proxy_stream(node_key: str, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Proxies or redirects to the worker's media server for the live MJPEG stream.
+    Expected node_key format: 'username:camera_id' or 'camera_id'
+    """
+    from fastapi.responses import RedirectResponse
+    from ...core.models import Camera, Worker
+    
+    # Use split instead of rsplit to stay consistent with worker_state.py
+    parts = node_key.split(":")
+    cam_id = parts[-1]
+    
+    # Find Camera and Worker
+    query = select(Camera).where(Camera.camera_id == cam_id)
+    res = await db.execute(query)
+    cam = res.scalar_one_or_none()
+    
+    if not cam or not cam.worker_id:
+        raise HTTPException(status_code=404, detail="Camera or Worker node not found")
+        
+    worker_res = await db.execute(select(Worker).where(Worker.id == cam.worker_id))
+    worker = worker_res.scalar_one_or_none()
+    
+    if not worker or not worker.media_base_url:
+        raise HTTPException(status_code=503, detail="Worker media server offline or not configured")
+        
+    # Redirect to worker's media server. index 0 for now as we don't store index separately.
+    # In a real environment, we'd proxy this to avoid exposing worker IPs directly.
+    return RedirectResponse(url=f"{worker.media_base_url}/stream/0")
+
+
 @router.get("/stats")
 async def get_stats(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
     total_sightings = (await db.execute(text("SELECT COUNT(*) FROM sightings"))).scalar()

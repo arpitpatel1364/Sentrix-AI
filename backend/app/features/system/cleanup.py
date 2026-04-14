@@ -13,7 +13,7 @@ from ...core.config import SNAPSHOTS_DIR, SIMILARITY_THRESHOLD
 from ...core import face_engine
 from ...core.face_engine import QDRANT_AVAILABLE, get_embedding, bytes_to_cv2
 
-router = APIRouter(prefix="/api/system")
+router = APIRouter(prefix="/system")
 
 @router.post("/cleanup")
 async def cleanup_records(

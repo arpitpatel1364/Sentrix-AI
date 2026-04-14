@@ -6,9 +6,9 @@ from ...core.dependencies import get_current_user
 from ...core.sse_manager import add_connection, remove_connection
 import uuid
 
-router = APIRouter(prefix="/api/sse")
+router = APIRouter(prefix="/stream")
 
-@router.get("/events")
+@router.get("")
 async def sse_events(request: Request, user=Depends(get_current_user)):
     """
     SSE connection opened by client dashboard or admin dashboard.

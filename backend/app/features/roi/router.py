@@ -10,7 +10,7 @@ from ...core.models import Camera, Client
 from ..audit_log.router import write_log
 from ...core.worker_state import set_worker_roi, WORKER_REGISTRY
 
-router = APIRouter(prefix="/api/roi", tags=["ROI"])
+router = APIRouter(prefix="/roi", tags=["ROI"])
 
 @router.post("/save")
 async def save_roi(
