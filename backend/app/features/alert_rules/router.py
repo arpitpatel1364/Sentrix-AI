@@ -15,7 +15,7 @@ import uuid
 import json
 from datetime import datetime
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["Alert Rules"])
 
 
 # ─── RULE CRUD ───────────────────────────────────────────────────────────────

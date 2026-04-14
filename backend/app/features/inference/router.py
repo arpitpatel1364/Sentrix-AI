@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-router = APIRouter(prefix="/api", tags=["Inference"])
+router = APIRouter(tags=["Inference"])
 
 @router.post("/inference/result")
 async def inference_result(
@@ -130,10 +130,10 @@ async def qdrant_upsert(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user["role"] != "client" or not user.get("client_id"):
+    if user.role != "client" or not user.client_id:
          raise HTTPException(status_code=403, detail="Forbidden")
     
-    client_id = user["client_id"]
+    client_id = user.client_id
     person_name = payload.get("person_name")
     embedding = payload.get("embedding")
 
@@ -160,10 +160,10 @@ async def qdrant_delete(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user["role"] != "client" or not user.get("client_id"):
+    if user.role != "client" or not user.client_id:
          raise HTTPException(status_code=403, detail="Forbidden")
     
-    client_id = user["client_id"]
+    client_id = user.client_id
     client_res = await db.execute(select(Client).where(Client.id == client_id))
     client = client_res.scalar_one_or_none()
     

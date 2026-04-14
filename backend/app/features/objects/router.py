@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import json
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["Objects"])
 
 @router.post("/upload-object")
 async def upload_object(
@@ -34,7 +34,7 @@ async def upload_object(
 
         # Register node heartbeat so it shows as active
         camera_id = camera_id.strip().rstrip(".").strip() # Sanitize paths
-        node_key = f"{user['username']}:{camera_id}"
+        node_key = f"{user.username}:{camera_id}"
         update_worker_heartbeat(node_key)
 
         obj_id = str(uuid.uuid4())

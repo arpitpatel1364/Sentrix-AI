@@ -18,7 +18,7 @@ from sqlalchemy import text
 from ...core.security import require_admin
 from ...core.database import get_db
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["Audit"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────

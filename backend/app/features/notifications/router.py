@@ -14,7 +14,7 @@ import aiohttp
 import asyncio
 from datetime import datetime
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["Notifications"])
 
 
 # ─── NOTIFICATION CONFIG ─────────────────────────────────────────────────────

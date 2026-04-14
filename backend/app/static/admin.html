@@ -380,7 +380,7 @@
     `;
     
     try {
-      const res = await fetch('/admin/clients', { headers: Auth.headers() });
+      const res = await fetch('/api/admin/clients', { headers: Auth.headers() });
       const clients = await res.json();
       const tbody = document.getElementById('clients-table');
       tbody.innerHTML = '';
@@ -421,7 +421,7 @@
     `;
     
     try {
-      const res = await fetch('/workers/', { headers: Auth.headers() });
+      const res = await fetch('/api/workers/', { headers: Auth.headers() });
       const workers = await res.json();
       const tbody = document.getElementById('workers-table');
       tbody.innerHTML = '';
@@ -448,7 +448,7 @@
     container.innerHTML = '<div class="health-grid" id="system-health"></div>';
     
     try {
-      const res = await fetch('/system/health', { headers: Auth.headers() });
+      const res = await fetch('/api/system/health', { headers: Auth.headers() });
       const data = await res.json();
       const grid = document.getElementById('system-health');
       grid.innerHTML = '';

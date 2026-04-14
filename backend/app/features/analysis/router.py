@@ -6,7 +6,7 @@ from ...core.security import get_current_user
 from ...core.face_engine import get_embedding, bytes_to_cv2, match_wanted, cv2_to_b64
 from ...core.object_engine import detect_objects, init_object_engine
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["Analysis"])
 
 # Ensure engine is loaded is now handled in app/main.py lifespan
 

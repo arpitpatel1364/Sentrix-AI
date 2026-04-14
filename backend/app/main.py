@@ -56,25 +56,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Route Mounting
-app.include_router(auth_router)
-app.include_router(watchlist_router)
-app.include_router(sightings_router)
-app.include_router(workers_router)
-app.include_router(system_router)
-app.include_router(sse_router)
-app.include_router(objects_router)
-app.include_router(analysis_router)
-app.include_router(cameras_router)
-app.include_router(analytics_router)
-app.include_router(roi_router)
-app.include_router(alert_rules_router)
-app.include_router(notifications_router)
-app.include_router(cleanup_router)
-app.include_router(audit_router)
-app.include_router(stop_router)
-app.include_router(clients_router)
-app.include_router(inference_router)
+# --- API Route Grouping (All under /api) ---
+api_app = FastAPI(title="Sentrix-AI API")
+
+api_app.include_router(auth_router)
+api_app.include_router(watchlist_router)
+api_app.include_router(sightings_router)
+api_app.include_router(workers_router)
+api_app.include_router(system_router, prefix="") # system_router already has /api internally, but we mount it in api_app
+api_app.include_router(sse_router)
+api_app.include_router(objects_router, prefix="") 
+api_app.include_router(analysis_router)
+api_app.include_router(cameras_router)
+api_app.include_router(analytics_router, prefix="")
+api_app.include_router(roi_router, prefix="")
+api_app.include_router(alert_rules_router, prefix="")
+api_app.include_router(notifications_router, prefix="")
+api_app.include_router(cleanup_router, prefix="")
+api_app.include_router(audit_router, prefix="")
+api_app.include_router(stop_router)
+api_app.include_router(clients_router, prefix="")
+api_app.include_router(inference_router, prefix="")
+
+app.mount("/api", api_app)
 
 # --- STATIC & SNAPSHOT SERVING ---
 # Ensure these exist before mounting

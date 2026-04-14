@@ -15,13 +15,13 @@ from ...core.orchestrator import orchestrator
 from qdrant_client.models import VectorParams, Distance
 import json
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["System"])
 
 @router.get("/stats")
 async def get_stats(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
     total_sightings = (await db.execute(text("SELECT COUNT(*) FROM sightings"))).scalar()
     total_matches = (await db.execute(text("SELECT COUNT(*) FROM sightings WHERE matched = TRUE"))).scalar()
-    total_wanted = (await db.execute(text("SELECT COUNT(*) FROM wanted"))).scalar()
+    total_watchlist = (await db.execute(text("SELECT COUNT(*) FROM watchlist"))).scalar()
     total_objects = (await db.execute(text("SELECT COUNT(*) FROM object_detections"))).scalar()
     
     live_nodes = get_live_nodes()
@@ -29,7 +29,7 @@ async def get_stats(user=Depends(require_admin), db: AsyncSession = Depends(get_
     return {
         "total_sightings": total_sightings,
         "total_matches": total_matches,
-        "total_wanted": total_wanted,
+        "total_watchlist": total_watchlist,
         "total_objects": total_objects,
         "total_nodes": len(live_nodes)
     }
@@ -170,7 +170,7 @@ async def system_reset(user=Depends(require_admin)):
         async with get_db_conn() as db:
             # 2. Purge DB Tables
             await db.execute(text("DELETE FROM sightings"))
-            await db.execute(text("DELETE FROM wanted"))
+            await db.execute(text("DELETE FROM watchlist"))
             await db.execute(text("DELETE FROM users WHERE username != 'admin'"))
             await db.execute(text("DELETE FROM person_photos"))
             await db.execute(text("DELETE FROM object_detections"))

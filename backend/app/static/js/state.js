@@ -4,9 +4,9 @@
 
 const State = {
   // Auth
-  token: localStorage.getItem('sx_token'),
-  me: localStorage.getItem('sx_user'),
-  role: localStorage.getItem('sx_role'),
+  token: Auth.getToken(),
+  me: Auth.getPayload()?.username,
+  role: Auth.getRole(),
 
   // API base URL
   api: (() => {
@@ -56,16 +56,14 @@ const State = {
 
   // Save to localStorage
   persist() {
-    localStorage.setItem('sx_token', this.token || '');
-    localStorage.setItem('sx_user', this.me || '');
-    localStorage.setItem('sx_role', this.role || '');
+    // Only persist non-auth UI state if needed
   },
 
   clear() {
     this.token = null;
     this.me = null;
     this.role = null;
-    ['sx_token','sx_user','sx_role'].forEach(k => localStorage.removeItem(k));
+    Auth.clearToken();
   }
 };
 

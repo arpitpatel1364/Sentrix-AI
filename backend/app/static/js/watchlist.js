@@ -5,7 +5,7 @@
 /* ─── WATCHLIST ─── */
 async function loadWatchlist() {
   try {
-    const persons = await api('/api/wanted');
+    const persons = await api('/api/watchlist/');
     const tb = document.getElementById('watchlist-table');
 
     if (!persons.length) {
@@ -17,7 +17,7 @@ async function loadWatchlist() {
 
     tb.innerHTML = persons.map(p => {
       const initials = p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-      const thumbSrc = p.primary_photo ? `/api/intel-photos/${p.primary_photo}` : null;
+      const thumbSrc = p.primary_photo ? `/api/watchlist/intel-photos/${p.primary_photo}` : null;
 
       return `<tr>
         <td>
@@ -78,7 +78,7 @@ async function addWatchlistPerson() {
 async function deletePerson(id, name) {
   if (!confirm(`Remove "${name}" from watchlist?`)) return;
   try {
-    await api(`/api/wanted/${id}`, { method: 'DELETE' });
+    await api(`/api/watchlist/${id}`, { method: 'DELETE' });
     toast('Removed: ' + name, 'muted');
     loadWatchlist(); loadStats();
     // Close dossier if open for this person
@@ -97,7 +97,7 @@ async function openDossier(person) {
   openModal('modal-dossier');
 
   try {
-    const photos = await api(`/api/wanted/${person.id}/photos`);
+    const photos = await api(`/api/watchlist/${person.id}/photos`);
     renderDossierGallery(photos || []);
   } catch {}
 }
@@ -115,7 +115,7 @@ function renderDossierGallery(photos) {
   for (let i = 0; i < 15; i++) {
     if (photos[i]) {
       html += `<div class="gallery-slot">
-        <img src="/api/intel-photos/${photos[i].id}" loading="lazy">
+        <img src="/api/watchlist/intel-photos/${photos[i].id}" loading="lazy">
         <button class="slot-delete-btn" onclick="deletePhoto('${photos[i].id}')" title="Remove">✕</button>
       </div>`;
     } else {
@@ -148,7 +148,7 @@ async function uploadToDossier() {
 async function deletePhoto(photoId) {
   if (!confirm('Remove this biometric sample?')) return;
   try {
-    await api(`/api/wanted/${State.dossierPersonId}/photos/${photoId}`, { method: 'DELETE' });
+    await api(`/api/watchlist/${State.dossierPersonId}/photos/${photoId}`, { method: 'DELETE' });
     const photos = await api(`/api/wanted/${State.dossierPersonId}/photos`);
     renderDossierGallery(photos || []);
     updateDossierSync(photos.length);

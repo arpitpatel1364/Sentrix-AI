@@ -12,7 +12,7 @@ from sqlalchemy import text
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["Analytics"])
 
 
 @router.get("/analytics/overview")

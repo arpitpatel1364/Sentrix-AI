@@ -7,15 +7,15 @@ const Auth = {
 
   // Store JWT in sessionStorage (clears on tab close — more secure than localStorage)
   setToken(token) {
-    sessionStorage.setItem('sentrix_jwt', token);
+    localStorage.setItem('sentrix_jwt', token);
   },
 
   getToken() {
-    return sessionStorage.getItem('sentrix_jwt');
+    return localStorage.getItem('sentrix_jwt');
   },
 
   clearToken() {
-    sessionStorage.removeItem('sentrix_jwt');
+    localStorage.removeItem('sentrix_jwt');
   },
 
   // Decode JWT payload (no signature verification — server handles that)
