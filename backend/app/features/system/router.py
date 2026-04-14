@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 import time
 import shutil
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from ...core.security import require_admin, get_current_user
 from ...core.database import get_db, _add_user
 from ...core.face_engine import (
@@ -11,25 +13,16 @@ from ...core.config import SNAPSHOTS_DIR, DB_PATH
 from ...core.worker_state import get_live_nodes, WORKER_REGISTRY
 from ...core.orchestrator import orchestrator
 from qdrant_client.models import VectorParams, Distance
-import sqlite3
 import json
 
 router = APIRouter(prefix="/api")
 
 @router.get("/stats")
-async def get_stats(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT COUNT(*) FROM sightings")
-    total_sightings = cur.fetchone()[0]
-    
-    cur.execute("SELECT COUNT(*) FROM sightings WHERE matched = 1")
-    total_matches = cur.fetchone()[0]
-    
-    cur.execute("SELECT COUNT(*) FROM wanted")
-    total_wanted = cur.fetchone()[0]
-    
-    cur.execute("SELECT COUNT(*) FROM object_detections")
-    total_objects = cur.fetchone()[0]
+async def get_stats(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    total_sightings = (await db.execute(text("SELECT COUNT(*) FROM sightings"))).scalar()
+    total_matches = (await db.execute(text("SELECT COUNT(*) FROM sightings WHERE matched = TRUE"))).scalar()
+    total_wanted = (await db.execute(text("SELECT COUNT(*) FROM wanted"))).scalar()
+    total_objects = (await db.execute(text("SELECT COUNT(*) FROM object_detections"))).scalar()
     
     live_nodes = get_live_nodes()
     
@@ -68,9 +61,9 @@ async def start_node(node_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to start node")
     
     # Audit log
-    with sqlite3.connect(DB_PATH) as conn:
-        from ...core.database import log_audit
-        log_audit(conn, user["username"], user["role"], "START_NODE", target=node_id, detail="Detection node manual start")
+    from ...core.database import get_db_conn, log_audit
+    async with get_db_conn() as db:
+        await log_audit(db, user["username"], user["role"], "START_NODE", target=node_id, detail="Detection node manual start")
         
     return {"ok": True}
 
@@ -80,23 +73,24 @@ async def stop_node(node_id: str, user=Depends(require_admin)):
     orchestrator.stop_node(node_id)
     
     # Audit log
-    with sqlite3.connect(DB_PATH) as conn:
-        from ...core.database import log_audit
-        log_audit(conn, user["username"], user["role"], "STOP_NODE", target=node_id, detail="Detection node manual stop")
+    from ...core.database import get_db_conn, log_audit
+    async with get_db_conn() as db:
+        await log_audit(db, user["username"], user["role"], "STOP_NODE", target=node_id, detail="Detection node manual stop")
         
     return {"ok": True}
 
 # ─── CAMERA CONFIGURATION (TOGGLES) ────────────────────────────────────────
 
 @router.get("/cameras/config/{camera_id}")
-async def get_camera_config(camera_id: str, db: sqlite3.Connection = Depends(get_db)):
-    row = db.execute(
-        "SELECT face_enabled, obj_enabled, stream_enabled FROM cameras WHERE camera_id = ?",
-        (camera_id,)
-    ).fetchone()
+async def get_camera_config(camera_id: str, db: AsyncSession = Depends(get_db)):
+    res = await db.execute(
+        text("SELECT face_enabled, obj_enabled, stream_enabled FROM cameras WHERE camera_id = :camera_id"),
+        {"camera_id": camera_id}
+    )
+    row = res.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Camera config not found")
-    return dict(row)
+    return dict(row._mapping)
 
 @router.post("/cameras/config/{camera_id}")
 async def update_camera_config(
@@ -105,26 +99,26 @@ async def update_camera_config(
     obj: int = None,
     stream: int = None,
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     fields = []
-    params = []
+    params = {"camera_id": camera_id}
     if face is not None:
-        fields.append("face_enabled = ?")
-        params.append(face)
+        fields.append("face_enabled = :face")
+        params["face"] = face
     if obj is not None:
-        fields.append("obj_enabled = ?")
-        params.append(obj)
+        fields.append("obj_enabled = :obj")
+        params["obj"] = obj
     if stream is not None:
-        fields.append("stream_enabled = ?")
-        params.append(stream)
+        fields.append("stream_enabled = :stream")
+        params["stream"] = stream
     
     if not fields:
         return {"ok": True, "message": "No changes requested"}
     
-    params.append(camera_id)
-    db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ?", params)
-    db.commit()
+    query = f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = :camera_id"
+    await db.execute(text(query), params)
+    await db.commit()
 
     # Update Registry for Fast Sync
     from ...core.worker_state import WORKER_REGISTRY
@@ -146,14 +140,14 @@ async def global_toggle(
     feature: str, # 'face', 'obj', 'stream'
     enabled: int, # 0 or 1
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     column = f"{feature}_enabled"
     if feature not in ('face', 'obj', 'stream'):
         raise HTTPException(status_code=400, detail="Invalid feature")
     
-    db.execute(f"UPDATE cameras SET {column} = ?", (enabled,))
-    db.commit()
+    await db.execute(text(f"UPDATE cameras SET {column} = :enabled"), {"enabled": enabled})
+    await db.commit()
     
     # Update Registry for Fast Sync
     from ...core.worker_state import WORKER_REGISTRY
@@ -173,23 +167,23 @@ async def system_reset(user=Depends(require_admin)):
         # 1. Clear Memory Registry first to stop accepting new data briefly
         WORKER_REGISTRY.clear()
 
-        with get_db_conn() as db:
+        async with get_db_conn() as db:
             # 2. Purge DB Tables
-            db.execute("DELETE FROM sightings")
-            db.execute("DELETE FROM wanted")
-            db.execute("DELETE FROM users WHERE username != 'admin'")
-            db.execute("DELETE FROM person_photos")
-            db.execute("DELETE FROM object_detections")
-            db.execute("DELETE FROM audit_log")
-            db.execute("DELETE FROM notification_log")
-            db.execute("DELETE FROM camera_stop_requests")
-            db.execute("DELETE FROM alert_rules")
+            await db.execute(text("DELETE FROM sightings"))
+            await db.execute(text("DELETE FROM wanted"))
+            await db.execute(text("DELETE FROM users WHERE username != 'admin'"))
+            await db.execute(text("DELETE FROM person_photos"))
+            await db.execute(text("DELETE FROM object_detections"))
+            await db.execute(text("DELETE FROM audit_log"))
+            await db.execute(text("DELETE FROM notification_log"))
+            await db.execute(text("DELETE FROM camera_stop_requests"))
+            await db.execute(text("DELETE FROM alert_rules"))
             
             # 3. Add default worker
-            _add_user("worker1", "worker123", "worker")
+            await _add_user("worker1", "worker123", "worker")
             
             # Force commit now so tables are empty while we do files
-            db.commit()
+            await db.commit()
 
         # 4. Qdrant Reset
         if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:

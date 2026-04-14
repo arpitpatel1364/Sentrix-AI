@@ -29,11 +29,13 @@ from app.features.roi.router import router as roi_router
 from app.features.system.cleanup import router as cleanup_router
 from app.features.audit_log.router import router as audit_router
 from app.features.stop_requests.router import router as stop_router
+from app.features.clients.router import router as clients_router
+from app.features.inference.router import router as inference_router
 
 async def lifespan(app: FastAPI):
     # Initialize Core
-    init_db()
-    seed_default_users()
+    await init_db()
+    await seed_default_users()
     init_face_engines()
     
     # Init Object Engine for manual analysis
@@ -71,6 +73,8 @@ app.include_router(notifications_router)
 app.include_router(cleanup_router)
 app.include_router(audit_router)
 app.include_router(stop_router)
+app.include_router(clients_router)
+app.include_router(inference_router)
 
 # --- STATIC & SNAPSHOT SERVING ---
 # Ensure these exist before mounting
@@ -84,12 +88,26 @@ app.mount("/api/snapshots", StaticFiles(directory=str(SNAPSHOTS_DIR)), name="sna
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_dashboard():
-    # Use absolute path relative to this file
-    static_file = Path(__file__).resolve().parent / "static" / "index.html"
-    if static_file.exists():
-        return HTMLResponse(static_file.read_text(encoding="utf-8"))
-    return HTMLResponse(f"<h2>index.html not found!</h2>")
+async def root():
+    # Primary entry point — will redirect via JS auth guard if needed
+    static_file = Path(__file__).resolve().parent / "static" / "dashboard.html"
+    return HTMLResponse(static_file.read_text(encoding="utf-8"))
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page():
+    static_file = Path(__file__).resolve().parent / "static" / "login.html"
+    return HTMLResponse(static_file.read_text(encoding="utf-8"))
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page():
+    static_file = Path(__file__).resolve().parent / "static" / "dashboard.html"
+    return HTMLResponse(static_file.read_text(encoding="utf-8"))
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page():
+    static_file = Path(__file__).resolve().parent / "static" / "admin.html"
+    return HTMLResponse(static_file.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     import uvicorn

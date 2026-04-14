@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  sentrix-worker:
+    image: sentrix-worker:latest
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile.worker
+    env_file:
+      - .env
+    ports:
+      - "${MEDIA_SERVER_PORT:-8765}:8765"
+    volumes:
+      # Snapshots stored permanently on the host PC
+      - ./snapshots:/app/snapshots
+      # AI model weights cached on host (avoid re-downloading)
+      - ./models:/app/models
+    restart: unless-stopped
+    # runtime: nvidia          # Uncomment if GPU is available and nvidia-container-toolkit is installed
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

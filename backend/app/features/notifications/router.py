@@ -7,7 +7,8 @@ Configuration stored in DB — admin can set SMTP credentials and test channels.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from ...core.security import require_admin
 from ...core.database import get_db
-import sqlite3
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import json
 import aiohttp
 import asyncio
@@ -19,10 +20,9 @@ router = APIRouter(prefix="/api")
 # ─── NOTIFICATION CONFIG ─────────────────────────────────────────────────────
 
 @router.get("/notifications/config")
-async def get_config(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT key, value FROM notification_config")
-    raw = {r["key"]: r["value"] for r in cur.fetchall()}
+async def get_config(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(text("SELECT key, value FROM notification_config"))
+    raw = {r._mapping["key"]: r._mapping["value"] for r in res.fetchall()}
     # Mask password
     if "smtp_password" in raw:
         raw["smtp_password"] = "••••••••" if raw["smtp_password"] else ""
@@ -31,7 +31,7 @@ async def get_config(user=Depends(require_admin), db: sqlite3.Connection = Depen
 
 @router.post("/notifications/config")
 async def save_config(request: Request, user=Depends(require_admin),
-                      db: sqlite3.Connection = Depends(get_db)):
+                       db: AsyncSession = Depends(get_db)):
     body = await request.json()
     allowed = {
         "smtp_host", "smtp_port", "smtp_user", "smtp_password",
@@ -40,18 +40,18 @@ async def save_config(request: Request, user=Depends(require_admin),
     }
     for key, val in body.items():
         if key in allowed:
-            db.execute("""
-                INSERT INTO notification_config (key, value) VALUES (?, ?)
+            await db.execute(text("""
+                INSERT INTO notification_config (key, value) VALUES (:key, :value)
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value
-            """, (key, str(val)))
-    db.commit()
+            """), {"key": key, "value": str(val)})
+    await db.commit()
     return {"ok": True}
 
 
 @router.post("/notifications/test-email")
-async def test_email(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+async def test_email(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
     """Send a test email using current SMTP config."""
-    cfg = _load_config(db)
+    cfg = await _load_config(db)
     if not cfg.get("smtp_host"):
         raise HTTPException(status_code=400, detail="SMTP not configured")
     try:
@@ -63,21 +63,19 @@ async def test_email(user=Depends(require_admin), db: sqlite3.Connection = Depen
 
 @router.get("/notifications/history")
 async def notification_history(limit: int = 50, user=Depends(require_admin),
-                                db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
+                                db: AsyncSession = Depends(get_db)):
+    res = await db.execute(text("""
         SELECT id, channel, recipient, subject, status, error, sent_at
-        FROM notification_log ORDER BY sent_at DESC LIMIT ?
-    """, (limit,))
-    return [dict(r) for r in cur.fetchall()]
+        FROM notification_log ORDER BY sent_at DESC LIMIT :limit
+    """), {"limit": limit})
+    return [dict(r._mapping) for r in res.fetchall()]
 
 
 # ─── INTERNAL DISPATCH ───────────────────────────────────────────────────────
 
-def _load_config(db: sqlite3.Connection) -> dict:
-    cur = db.cursor()
-    cur.execute("SELECT key, value FROM notification_config")
-    return {r["key"]: r["value"] for r in cur.fetchall()}
+async def _load_config(db: AsyncSession) -> dict:
+    res = await db.execute(text("SELECT key, value FROM notification_config"))
+    return {r._mapping["key"]: r._mapping["value"] for r in res.fetchall()}
 
 
 async def dispatch_notification(rule: dict, event: dict):
@@ -105,10 +103,10 @@ async def dispatch_notification(rule: dict, event: dict):
 
     # Email
     if actions.get("email"):
-        with get_db_conn() as db:
-            cfg = _load_config(db)
+        async with get_db_conn() as db:
+            cfg = await _load_config(db)
             if cfg.get("smtp_host"):
-                asyncio.create_task(_send_email_logged(db, cfg, subject, body))
+                asyncio.create_task(_send_email_logged(cfg, subject, body))
 
     # Webhook
     webhook_url = actions.get("webhook_url", "").strip()
@@ -159,7 +157,7 @@ async def _send_email(cfg: dict, subject: str, body: str):
     await loop.run_in_executor(None, _send)
 
 
-async def _send_email_logged(db, cfg: dict, subject: str, body: str):
+async def _send_email_logged(cfg: dict, subject: str, body: str):
     from ...core.database import get_db_conn
     import uuid
     log_id = str(uuid.uuid4())
@@ -167,17 +165,17 @@ async def _send_email_logged(db, cfg: dict, subject: str, body: str):
     recipients = cfg.get("smtp_to", "")
     try:
         await _send_email(cfg, subject, body)
-        with get_db_conn() as db2:
-            db2.execute("""
+        async with get_db_conn() as db2:
+            await db2.execute(text("""
                 INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'email', ?, ?, 'sent', NULL, ?)
-            """, (log_id, recipients, subject, now))
+                VALUES (:id, 'email', :recipient, :subject, 'sent', NULL, :sent_at)
+            """), {"id": log_id, "recipient": recipients, "subject": subject, "sent_at": now})
     except Exception as e:
-        with get_db_conn() as db2:
-            db2.execute("""
+        async with get_db_conn() as db2:
+            await db2.execute(text("""
                 INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'email', ?, ?, 'failed', ?, ?)
-            """, (log_id, recipients, subject, str(e)[:500], now))
+                VALUES (:id, 'email', :recipient, :subject, 'failed', :error, :sent_at)
+            """), {"id": log_id, "recipient": recipients, "subject": subject, "error": str(e)[:500], "sent_at": now})
 
 
 async def _send_webhook(url: str, payload: dict):
@@ -189,14 +187,26 @@ async def _send_webhook(url: str, payload: dict):
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
                 status_ok = r.status < 400
-        with get_db_conn() as db:
-            db.execute("""
+        async with get_db_conn() as db:
+            await db.execute(text("""
                 INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'webhook', ?, ?, ?, NULL, ?)
-            """, (log_id, url, payload.get("rule","webhook"), "sent" if status_ok else "failed", now))
+                VALUES (:id, 'webhook', :recipient, :subject, :status, NULL, :sent_at)
+            """), {
+                "id": log_id,
+                "recipient": url,
+                "subject": payload.get("rule","webhook"),
+                "status": "sent" if status_ok else "failed",
+                "sent_at": now
+            })
     except Exception as e:
-        with get_db_conn() as db:
-            db.execute("""
+        async with get_db_conn() as db:
+            await db.execute(text("""
                 INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'webhook', ?, ?, 'failed', ?, ?)
-            """, (log_id, url, payload.get("rule","webhook"), str(e)[:500], now))
+                VALUES (:id, 'webhook', :recipient, :subject, 'failed', :error, :sent_at)
+            """), {
+                "id": log_id,
+                "recipient": url,
+                "subject": payload.get("rule","webhook"),
+                "error": str(e)[:500],
+                "sent_at": now
+            })

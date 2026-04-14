@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
 from typing import Optional, List
-import sqlite3
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import os
 import shutil
 import numpy as np
@@ -21,7 +22,7 @@ async def cleanup_records(
     target: str = Query("all", description="Targets: all, sightings, objects"),
     request: Request = None,
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Deletes snapshot records and physical files based on date range and biometric search.
@@ -50,18 +51,18 @@ async def cleanup_records(
         
         # 2. Cleanup Sightings (Biometric)
         if target in ["all", "sightings"]:
-            query = "SELECT id, snapshot_path FROM sightings WHERE timestamp < ?"
-            params = [cutoff_str]
+            query = "SELECT id, snapshot_path FROM sightings WHERE timestamp < :cutoff"
+            params = {"cutoff": cutoff_str}
             
             if person_id:
-                query += " AND person_id = ?"
-                params.append(person_id)
+                query += " AND person_id = :person_id"
+                params["person_id"] = person_id
                 
-            cursor = db.execute(query, params)
-            sightings = cursor.fetchall()
+            res = await db.execute(text(query), params)
+            sightings = res.fetchall()
             
             for s in sightings:
-                sid, path = s["id"], s["snapshot_path"]
+                sid, path = s._mapping["id"], s._mapping["snapshot_path"]
                 # File cleanup
                 full_path = SNAPSHOTS_DIR / path
                 if full_path.exists():
@@ -80,35 +81,35 @@ async def cleanup_records(
                 counts["sightings"] += 1
                 
             # DB deletion
-            delete_query = "DELETE FROM sightings WHERE timestamp < ?"
-            delete_params = [cutoff_str]
+            delete_query = "DELETE FROM sightings WHERE timestamp < :cutoff"
+            delete_params = {"cutoff": cutoff_str}
             if person_id:
-                delete_query += " AND person_id = ?"
-                delete_params.append(person_id)
-            db.execute(delete_query, delete_params)
+                delete_query += " AND person_id = :person_id"
+                delete_params["person_id"] = person_id
+            await db.execute(text(delete_query), delete_params)
 
         # 3. Cleanup Object Detections
         if target in ["all", "objects"]:
             cutoff_space_str = cutoff.strftime("%Y-%m-%d %H:%M:%S")
             
-            query = "SELECT id, snapshot_path FROM object_detections WHERE timestamp < ?"
-            params = [cutoff_space_str]
+            query = "SELECT id, snapshot_path FROM object_detections WHERE timestamp < :cutoff"
+            params = {"cutoff": cutoff_space_str}
             
-            cursor = db.execute(query, params)
-            objects = cursor.fetchall()
+            res = await db.execute(text(query), params)
+            objects = res.fetchall()
             
             for o in objects:
-                oid, path = o["id"], o["snapshot_path"]
+                oid, path = o._mapping["id"], o._mapping["snapshot_path"]
                 full_path = SNAPSHOTS_DIR / path
                 if full_path.exists():
                     full_path.unlink()
                     counts["files_removed"] += 1
                 counts["objects"] += 1
                 
-            db.execute("DELETE FROM object_detections WHERE timestamp < ?", [cutoff_space_str])
+            await db.execute(text("DELETE FROM object_detections WHERE timestamp < :cutoff"), {"cutoff": cutoff_space_str})
 
-        db.commit()
-        write_log(db, username=user["username"], role=user["role"], action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "")
+        await db.commit()
+        await write_log(db, username=user["username"], role=user["role"], action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "")
         return {
             "status": "success",
             "message": f"Cleanup completed for range {time_range}",
@@ -116,14 +117,14 @@ async def cleanup_records(
         }
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 @router.post("/cleanup/biometric/search")
 async def search_biometric_sightings(
     files: List[UploadFile] = File(...),
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Finds sightings and files by searching for matches against uploaded reference photos.
@@ -155,16 +156,16 @@ async def search_biometric_sightings(
                             continue
                             
                         # Fetch metadata from SQLite
-                        cursor = db.execute("SELECT id, camera_id, location, timestamp, snapshot_path, person_name FROM sightings WHERE id = ?", (hit.id,))
-                        r = cursor.fetchone()
+                        res = await db.execute(text("SELECT id, camera_id, location, timestamp, snapshot_path, person_name FROM sightings WHERE id = :id"), {"id": hit.id})
+                        r = res.fetchone()
                         if r:
                             all_results[hit.id] = {
-                                "id": r["id"],
-                                "camera_id": r["camera_id"],
-                                "location": r["location"],
-                                "timestamp": r["timestamp"],
-                                "snapshot": f"/api/snapshots/{r['snapshot_path']}",
-                                "person_name": r["person_name"],
+                                "id": r._mapping["id"],
+                                "camera_id": r._mapping["camera_id"],
+                                "location": r._mapping["location"],
+                                "timestamp": r._mapping["timestamp"],
+                                "snapshot": f"/api/snapshots/{r._mapping['snapshot_path']}",
+                                "person_name": r._mapping["person_name"],
                                 "confidence": round(hit.score * 100, 1)
                             }
                 except Exception as e:
@@ -172,10 +173,10 @@ async def search_biometric_sightings(
 
             # --- SQLite Fallback (if Qdrant fails or is not used) ---
             else:
-                cursor = db.execute("SELECT id, camera_id, location, timestamp, snapshot_path, person_name, embedding FROM sightings")
-                all_sightings = cursor.fetchall()
+                res = await db.execute(text("SELECT id, camera_id, location, timestamp, snapshot_path, person_name, embedding FROM sightings"))
+                all_sightings = res.fetchall()
                 for s in all_sightings:
-                    emb_blob = s["embedding"]
+                    emb_blob = s._mapping["embedding"]
                     if not emb_blob: continue
                     
                     sig = np.frombuffer(emb_blob, dtype=np.float32)
@@ -183,14 +184,14 @@ async def search_biometric_sightings(
                     
                     if sim >= DISCOVERY_THRESHOLD:
                         conf = round(sim * 100, 1)
-                        if s["id"] not in all_results or conf > all_results[s["id"]]["confidence"]:
-                            all_results[s["id"]] = {
-                                "id": s["id"],
-                                "camera_id": s["camera_id"],
-                                "location": s["location"],
-                                "timestamp": s["timestamp"],
-                                "snapshot": f"/api/snapshots/{s['snapshot_path']}",
-                                "person_name": s["person_name"],
+                        if s._mapping["id"] not in all_results or conf > all_results[s._mapping["id"]]["confidence"]:
+                            all_results[s._mapping["id"]] = {
+                                "id": s._mapping["id"],
+                                "camera_id": s._mapping["camera_id"],
+                                "location": s._mapping["location"],
+                                "timestamp": s._mapping["timestamp"],
+                                "snapshot": f"/api/snapshots/{s._mapping['snapshot_path']}",
+                                "person_name": s._mapping["person_name"],
                                 "confidence": conf
                             }
 
@@ -211,7 +212,7 @@ async def purge_biometric_sightings(
     sighting_ids: List[str],
     request: Request = None,
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Permanently deletes a confirmed list of sighting IDs.
@@ -220,12 +221,13 @@ async def purge_biometric_sightings(
         counts = {"purged": 0, "files_removed": 0}
         
         # Fetch snapshot paths for file deletion
-        placeholders = ",".join(["?"] * len(sighting_ids))
-        cursor = db.execute(f"SELECT id, snapshot_path FROM sightings WHERE id IN ({placeholders})", sighting_ids)
-        sightings_to_delete = cursor.fetchall()
+        query = f"SELECT id, snapshot_path FROM sightings WHERE id IN ({','.join([':id'+str(i) for i in range(len(sighting_ids))])})"
+        params = {f"id{i}": sid for i, sid in enumerate(sighting_ids)}
+        res = await db.execute(text(query), params)
+        sightings_to_delete = res.fetchall()
         
         for s in sightings_to_delete:
-            sid, path = s["id"], s["snapshot_path"]
+            sid, path = s._mapping["id"], s._mapping["snapshot_path"]
             
             # 1. File removal
             full_path = SNAPSHOTS_DIR / path
@@ -247,11 +249,12 @@ async def purge_biometric_sightings(
         # 3. DB Deletion
         for i in range(0, len(sighting_ids), 500):
             chunk = sighting_ids[i:i + 500]
-            ph = ",".join(["?"] * len(chunk))
-            db.execute(f"DELETE FROM sightings WHERE id IN ({ph})", chunk)
+            query = f"DELETE FROM sightings WHERE id IN ({','.join([':id'+str(j) for j in range(len(chunk))])})"
+            params = {f"id{j}": sid for j, sid in enumerate(chunk)}
+            await db.execute(text(query), params)
             
-        db.commit()
-        write_log(db, username=user["username"], role=user["role"], action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "")
+        await db.commit()
+        await write_log(db, username=user["username"], role=user["role"], action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "")
 
         return {
             "status": "success",
@@ -260,5 +263,5 @@ async def purge_biometric_sightings(
         }
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Purge failed: {str(e)}")

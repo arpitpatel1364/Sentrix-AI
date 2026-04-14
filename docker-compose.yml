@@ -1,28 +1,49 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  # Centralized Hub and Dashboard
-  server:
+
+  backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.server
+      context: .
+      dockerfile: backend/Dockerfile.server
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend/data:/app/data
-      - ./backend/models:/app/models
-    restart: always
-
-  # Local worker node (optional, can also run on separate machines)
-  worker:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile.worker
-    depends_on:
-      - server
-    devices:
-      - "/dev/video0:/dev/video0" # Allow access to the host webcam
     environment:
-      - SERVER_URL=http://server:8000
-    command: python worker_agent.py --server http://server:8000 --user worker1 --password worker123 --camera 0
-    restart: always
+      DATABASE_URL: postgresql+asyncpg://sentrix:sentrix_pass@postgres:5432/sentrix_db
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: ${SECRET_KEY:-change_this_in_production}
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    volumes:
+      - ./backend:/app/backend
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: sentrix
+      POSTGRES_PASSWORD: sentrix_pass
+      POSTGRES_DB: sentrix_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  postgres_data:
+  qdrant_data:

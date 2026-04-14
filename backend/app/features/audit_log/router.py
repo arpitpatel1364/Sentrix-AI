@@ -1,22 +1,7 @@
 """
 audit_log.py
 ============
-FastAPI router for the Audit Log feature.
-
-Endpoints:
-  GET /api/audit-log         — paginated log, admin only, filter by action
-  GET /api/audit-log/export  — download as CSV
-
-Helper:
-  write_log(db, username, role, action, target, detail, ip)
-    Call this from any other router to record an action.
-
-Wire into app/main.py:
-  from app.features.audit_log.router import router as audit_router
-  app.include_router(audit_router)
-
-Table used: audit_log  (created in database.py)
-Columns:  id, timestamp, username, role, action, target, detail, ip_address
+FastAPI router for the Audit Log feature. Optimized for async PostgreSQL.
 """
 
 import csv
@@ -27,9 +12,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-import sqlite3
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
-from ...core.security import get_current_user, require_admin
+from ...core.security import require_admin
 from ...core.database import get_db
 
 router = APIRouter(prefix="/api")
@@ -38,8 +24,8 @@ router = APIRouter(prefix="/api")
 # ─────────────────────────────────────────────────────────────────────────────
 # write_log — call this from any other router to record an event
 # ─────────────────────────────────────────────────────────────────────────────
-def write_log(
-    db: sqlite3.Connection,
+async def write_log(
+    db: AsyncSession,
     username: str,
     action: str,
     role: str = "",
@@ -48,74 +34,68 @@ def write_log(
     ip: str = "",
 ):
     """
-    Insert one audit log row synchronously.
-
-    Parameters
-    ----------
-    db       : sqlite3 connection from get_db() or get_db_conn()
-    username : who performed the action
-    action   : short verb — e.g. 'login', 'add_camera', 'delete_person'
-    role     : user role at time of action (admin / worker)
-    target   : the object acted on — camera_id, person_id, username, etc.
-    detail   : human-readable sentence describing what happened
-    ip       : client IP (pass request.client.host)
-
-    Example usage in another router:
-        from app.features.audit_log.router import write_log
-        write_log(db, username=user["username"], role=user["role"],
-                  action="delete_person", target=person_id,
-                  detail=f"Deleted {person_name}", ip=request.client.host)
+    Insert one audit log row asynchronously.
     """
     entry_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
-    db.execute(
-        """
+    await db.execute(
+        text("""
         INSERT INTO audit_log (id, timestamp, username, role, action, target, detail, ip_address)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (entry_id, ts, username, role, action, target, detail, ip),
+        VALUES (:id, :timestamp, :username, :role, :action, :target, :detail, :ip)
+        """),
+        {
+            "id": entry_id,
+            "timestamp": ts,
+            "username": username,
+            "role": role,
+            "action": action,
+            "target": target,
+            "detail": detail,
+            "ip": ip
+        },
     )
-    db.commit()
+    await db.commit()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /api/audit-log
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/audit-log")
-def get_audit_log(
+async def get_audit_log(
     action: Optional[str] = Query(None, description="Filter by action type"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     _user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Return paginated audit log. Admin only.
-    Supports filtering by action type (e.g. 'login', 'delete_person').
     """
     conditions = []
-    params = []
+    params = {"limit": limit, "offset": offset}
 
     if action:
-        conditions.append("action = ?")
-        params.append(action)
+        conditions.append("action = :action")
+        params["action"] = action
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
-    total = db.execute(
-        f"SELECT COUNT(*) FROM audit_log {where}", params
-    ).fetchone()[0]
+    count_res = await db.execute(
+        text(f"SELECT COUNT(*) FROM audit_log {where}"), params
+    )
+    total = count_res.scalar()
 
-    rows = db.execute(
-        f"""
+    rows_res = await db.execute(
+        text(f"""
         SELECT id, timestamp, username, role, action, target, detail, ip_address AS ip
         FROM audit_log
         {where}
         ORDER BY timestamp DESC
-        LIMIT ? OFFSET ?
-        """,
-        params + [limit, offset],
-    ).fetchall()
+        LIMIT :limit OFFSET :offset
+        """),
+        params,
+    )
+    rows = rows_res.mappings().all()
 
     return {
         "logs":   [dict(r) for r in rows],
@@ -129,28 +109,29 @@ def get_audit_log(
 # GET /api/audit-log/export  — CSV download
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/audit-log/export")
-def export_audit_log(
+async def export_audit_log(
     action: Optional[str] = Query(None),
     _user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Download the full audit log as a CSV file. Admin only."""
     conditions = []
-    params = []
+    params = {}
     if action:
-        conditions.append("action = ?")
-        params.append(action)
+        conditions.append("action = :action")
+        params["action"] = action
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
-    rows = db.execute(
-        f"""
+    rows_res = await db.execute(
+        text(f"""
         SELECT timestamp, username, role, action, target, detail, ip_address
         FROM audit_log {where}
         ORDER BY timestamp DESC
         LIMIT 50000
-        """,
+        """),
         params,
-    ).fetchall()
+    )
+    rows = rows_res.all()
 
     output = io.StringIO()
     writer = csv.writer(output)

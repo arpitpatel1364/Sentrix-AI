@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control | Sentrix AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/animations.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/pages.css">
+  <style>
+    .app-shell { display: flex; height: 100vh; overflow: hidden; }
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .content-area { flex: 1; overflow-y: auto; padding: 2rem; }
+    .topbar { height: var(--topbar-h); background: var(--surface); border-bottom: 1px solid var(--outline); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; flex-shrink: 0; }
+    .sidebar { width: var(--sidebar-w); background: var(--surface-low); border-right: 1px solid var(--outline); display: flex; flex-direction: column; }
+    .sb-nav-item { display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1.5rem; color: var(--on-surface-muted); cursor: pointer; transition: var(--transition); border-left: 3px solid transparent; font-family: var(--font-body); font-weight: 500; }
+    .sb-nav-item:hover { background: var(--surface-high); color: var(--on-surface); }
+    .sb-nav-item.active { color: var(--primary); background: var(--primary-dim); border-left-color: var(--primary); }
+    
+    .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .health-card { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-lg); padding: 1.5rem; }
+    .health-val { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--primary); margin: 0.5rem 0; }
+    
+    .detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 450px; background: var(--surface); border-left: 1px solid var(--outline); box-shadow: var(--shadow-lg); z-index: 1000; display: none; flex-direction: column; animation: slideInRight 0.3s ease; }
+    .detail-head { padding: 1.5rem; border-bottom: 1px solid var(--outline); display: flex; justify-content: space-between; align-items: center; }
+    .detail-body { padding: 1.5rem; flex: 1; overflow-y: auto; }
+    
+    #copy-reveal { background: var(--surface-low); padding: 1rem; border-radius: 8px; font-family: var(--font-mono); margin-top: 1rem; border: 1px solid var(--outline); position: relative; }
+    .copy-btn { position: absolute; right: 8px; top: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div style="padding: 2rem; border-bottom: 1px solid var(--outline);">
+      <div style="font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; letter-spacing: 0.1em; color: var(--primary);">SENTRIX AI <span style="font-size: 0.6rem; color: var(--red); vertical-align: middle;">ADMIN</span></div>
+    </div>
+    <nav style="flex: 1; padding-top: 1.5rem;">
+      <div class="sb-nav-item active" id="nav-clients" onclick="showPage('clients')">👥 Clients</div>
+      <div class="sb-nav-item" id="nav-workers" onclick="showPage('workers')">🖥️ Workers</div>
+      <div class="sb-nav-item" id="nav-system" onclick="showPage('system')">⚙️ System Health</div>
+      <div class="sb-nav-item" id="nav-models" onclick="showPage('models')">🧠 AI Models</div>
+    </nav>
+    <div style="padding: 1.5rem; border-top: 1px solid var(--outline);">
+      <button onclick="Auth.logout()" class="btn btn-ghost" style="width: 100%; justify-content: flex-start; gap: 0.75rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <h2 id="page-title" style="margin:0; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem;">Client Management</h2>
+      <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--on-surface-muted);">SENTRIX-HUB-V2 // ROOT_ACCESS</div>
+    </header>
+
+    <div id="content-area" class="content-area"></div>
+  </main>
+</div>
+
+<!-- Add Client Modal -->
+<div id="modal-add-client" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width: 500px;">
+    <div class="modal-head">
+      <div class="modal-title">REGISTER NEW CLIENT</div>
+      <button class="modal-close" onclick="closeModal('modal-add-client')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Company / Name</label>
+        <input type="text" id="new-client-name" placeholder="Acme Security Corp">
+      </div>
+      <div class="field">
+        <label>Role Label (Display Name)</label>
+        <input type="text" id="new-client-role-label" placeholder="Security Guard">
+      </div>
+      <div class="field">
+        <label>Permissions Bundle</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-top:0.5rem;">
+          <label class="check-box"><input type="checkbox" checked data-perm="live_monitor"> Live Monitor</label>
+          <label class="check-box"><input type="checkbox" checked data-perm="alert_feed"> Alert Feed</label>
+          <label class="check-box"><input type="checkbox" checked data-perm="sighting_history"> History</label>
+          <label class="check-box"><input type="checkbox" data-perm="watchlist_manager"> Watchlist</label>
+          <label class="check-box"><input type="checkbox" data-perm="analytics"> Analytics</label>
+          <label class="check-box"><input type="checkbox" data-perm="camera_management"> Camera Mgmt</label>
+          <label class="check-box"><input type="checkbox" checked data-perm="settings"> Settings</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-client')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNewClient()">Create Client Instance</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reveal Modal -->
+<div id="modal-reveal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width: 450px;">
+    <div class="modal-head">
+      <div class="modal-title" style="color:var(--green)">✓ CLIENT CREATED SUCCESSFULLY</div>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem; margin-bottom:1.5rem;">Save these credentials now. The worker API key will not be shown again.</p>
+      
+      <div id="reveal-creds"></div>
+      
+      <div style="margin-top:1.5rem; padding:1rem; background:var(--red-dim); border:1px solid var(--red); border-radius:8px; color:var(--red); font-size:0.75rem;">
+        ⚠ <strong>WARNING:</strong> These credentials grant full access to this client's data and worker communication.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" style="width:100%" onclick="closeModal('modal-reveal'); renderClients();">I have saved these credentials</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client Detail Panel -->
+<div id="client-detail-panel" class="detail-panel">
+  <div class="detail-head">
+    <div style="font-weight:800; font-family:var(--font-display); font-size:1.1rem;" id="det-client-name">CLIENT DETAIL</div>
+    <button class="modal-close" onclick="closeDetailPanel()">×</button>
+  </div>
+  <div class="detail-body" id="detail-content"></div>
+</div>
+
+<script src="/static/js/auth.js"></script>
+<script>
+  if (!Auth.guard('admin')) {}
+
+  let activePage = 'clients';
+
+  async function init() {
+    showPage('clients');
+    setInterval(refreshData, 30000); // Auto-refresh every 30s
+  }
+
+  function showPage(page) {
+    activePage = page;
+    document.querySelectorAll('.sb-nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`nav-${page}`).classList.add('active');
+    
+    const titles = { clients:'Client Management', workers:'Worker Registry', system:'System Health', models:'AI Model Status' };
+    document.getElementById('page-title').textContent = titles[page];
+    
+    renderPage(page);
+  }
+
+  function refreshData() {
+    if (activePage === 'workers' || activePage === 'system') renderPage(activePage);
+  }
+
+  function renderPage(page) {
+    const container = document.getElementById('content-area');
+    switch(page) {
+      case 'clients': renderClients(); break;
+      case 'workers': renderWorkers(); break;
+      case 'system': renderSystem(); break;
+      case 'models': renderModels(); break;
+    }
+  }
+
+  async function renderClients() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head">
+        <div><div class="sec-title">ACTIVE CLIENTS</div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-client')">+ Provision New Client</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Client Instance</th><th>Status</th><th>Nodes</th><th>Activity</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody id="clients-table"></tbody>
+        </table>
+      </div>
+    `;
+    
+    try {
+      const res = await fetch('/admin/clients', { headers: Auth.headers() });
+      const clients = await res.json();
+      const tbody = document.getElementById('clients-table');
+      tbody.innerHTML = '';
+      
+      clients.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div style="font-weight:600;">${c.name}</div>
+            <div style="font-family:var(--font-mono); font-size:0.6rem; color:var(--on-surface-muted);">ID: ${c.id}</div>
+          </td>
+          <td><span class="badge ${c.is_active ? 'online' : 'offline'}">${c.is_active ? 'ACTIVE' : 'SUSPENDED'}</span></td>
+          <td class="td-mono">${c.worker_count || 0} Workers</td>
+          <td class="td-mono">${c.detection_count || 0} Detections</td>
+          <td class="td-mono" style="font-size:0.75rem;">${new Date(c.created_at).toLocaleDateString()}</td>
+          <td>
+            <div style="display:flex; gap:0.5rem;">
+              <button class="btn btn-ghost btn-sm" onclick="openClientDetail(${c.id}, '${c.name}')">Manage</button>
+              <button class="btn btn-ghost btn-danger btn-sm" onclick="toggleClientStatus(${c.id}, ${c.is_active})">${c.is_active ? 'Suspend' : 'Activate'}</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch(e) {}
+  }
+
+  async function renderWorkers() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head"><div><div class="sec-title">REGISTERED WORKER NODES</div></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Node Label</th><th>Client Owner</th><th>Status</th><th>Last Seen</th><th>Cameras</th></tr></thead>
+          <tbody id="workers-table"></tbody>
+        </table>
+      </div>
+    `;
+    
+    try {
+      const res = await fetch('/workers/', { headers: Auth.headers() });
+      const workers = await res.json();
+      const tbody = document.getElementById('workers-table');
+      tbody.innerHTML = '';
+      
+      workers.forEach(w => {
+        const diff = Date.now() - new Date(w.last_seen).getTime();
+        const status = diff < 60000 ? 'online' : (diff < 300000 ? 'amber' : 'offline');
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="td-mono">${w.label}</td>
+          <td style="font-weight:600;">${w.client_name || 'System'}</td>
+          <td><span class="status-badge status-${status}">${status}</span></td>
+          <td class="td-mono" style="font-size:0.75rem;">${new Date(w.last_seen).toLocaleString()}</td>
+          <td class="td-mono">${w.camera_count || 0} Nodes</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch(e) {}
+  }
+
+  async function renderSystem() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = '<div class="health-grid" id="system-health">Loading health metrics...</div>';
+    
+    try {
+      const res = await fetch('/system/health', { headers: Auth.headers() });
+      const data = await res.json();
+      const grid = document.getElementById('system-health');
+      grid.innerHTML = '';
+      
+      const parts = [
+        { label: 'Hub CPU', val: `${data.hub.cpu}%`, color: 'primary' },
+        { label: 'Hub RAM', val: `${data.hub.ram}%`, color: 'primary' },
+        { label: 'DB Size', val: data.db.size, color: 'cyan' },
+        { label: 'Qdrant Vectors', val: data.qdrant.vectors_count, color: 'purple' },
+        { label: 'Redis Sessions', val: data.redis.sessions, color: 'amber' },
+        { label: 'Operational Nodes', val: `${data.workers.online} / ${data.workers.total}`, color: 'green' }
+      ];
+      
+      parts.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'health-card';
+        card.innerHTML = `
+          <div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--on-surface-muted); text-transform:uppercase;">${p.label}</div>
+          <div class="health-val" style="color:var(--${p.color})">${p.val}</div>
+        `;
+        grid.appendChild(card);
+      });
+    } catch(e) {}
+  }
+
+  function renderModels() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head"><div><div class="sec-title">AI MODELS & COGNITIVE ENGINE</div></div></div>
+      <div style="max-width:800px;">
+        <div class="panel" style="margin-bottom:1.5rem;">
+          <div class="panel-title">Face Recognition</div>
+          <div class="result-item"><span class="result-label">Base Model</span><span class="td-mono">InsightFace buffalo_l</span></div>
+          <div class="result-item"><span class="result-label">Embedding Size</span><span class="td-mono">512 Dimensions (Float32)</span></div>
+          <div class="result-item"><span class="result-label">Metric</span><span class="td-mono">Cosine Similarity</span></div>
+        </div>
+        <div class="panel" style="margin-bottom:1.5rem;">
+          <div class="panel-title">Object Detection</div>
+          <div class="result-item"><span class="result-label">Framework</span><span class="td-mono">YOLO11m (Medium)</span></div>
+          <div class="result-item"><span class="result-label">Classes</span><span class="td-mono">80 COCO Classes</span></div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function submitNewClient() {
+    const name = document.getElementById('new-client-name').value.trim();
+    const role_label = document.getElementById('new-client-role-label').value.trim();
+    const perms = {};
+    document.querySelectorAll('[data-perm]').forEach(el => perms[el.dataset.perm] = el.checked);
+    perms.role_label = role_label;
+
+    if (!name || !role_label) return alert('Name and Role Label required');
+
+    const res = await fetch('/admin/clients', {
+      method: 'POST',
+      headers: Auth.headers(),
+      body: JSON.stringify({ name, permissions: perms })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      closeModal('modal-add-client');
+      showReveal(data);
+    } else {
+      alert('Failed to create client');
+    }
+  }
+
+  function showReveal(data) {
+    const container = document.getElementById('reveal-creds');
+    container.innerHTML = `
+      <div class="field"><label>Client Email</label><div id="copy-reveal">${data.email}</div></div>
+      <div class="field"><label>Temporary Password</label><div id="copy-reveal">${data.password}</div></div>
+      <div class="field"><label>Worker Registration Key</label><div id="copy-reveal" style="word-break:break-all;">${data.worker_api_key}</div></div>
+    `;
+    openModal('modal-reveal');
+  }
+
+  async function openClientDetail(id, name) {
+    document.getElementById('det-client-name').textContent = name.toUpperCase();
+    const panel = document.getElementById('client-detail-panel');
+    panel.style.display = 'flex';
+    
+    const body = document.getElementById('detail-content');
+    body.innerHTML = 'Loading client intelligence...';
+    
+    try {
+      const res = await fetch(`/admin/clients/${id}`, { headers: Auth.headers() });
+      const data = await res.json();
+      
+      body.innerHTML = `
+        <div class="panel" style="margin-bottom:1.5rem;">
+          <div class="panel-title">SYSTEM ACTIVITY</div>
+          <div class="stat-grid" style="grid-template-columns:1fr 1fr; gap:1rem;">
+            <div class="stat-card" style="padding:1rem;">
+              <div class="stat-label">TODAY</div><div class="stat-val" style="font-size:1.5rem;">${data.detection_count_today || 0}</div>
+            </div>
+            <div class="stat-card" style="padding:1rem;">
+              <div class="stat-label">STATUS</div><div class="stat-val" style="font-size:1.2rem; color:var(--primary);">${(data.info.status || 'ACTIVE').toUpperCase()}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:1.5rem;">
+          <div class="panel-title">WORKER NODES</div>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            ${data.workers.map(w => `
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:0.5rem; background:var(--surface-low); border-radius:4px;">
+                <span>${w.label}</span>
+                <span style="color:var(--green)">ONLINE</span>
+              </div>
+            `).join('') || '<div style="font-size:0.8rem; color:var(--on-surface-muted);">No workers linked.</div>'}
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:100%; margin-top:1rem;" onclick="generateNewWorkerKey(${id})">Issue New Node Key</button>
+        </div>
+
+        <div class="panel" style="border-color:var(--red-dim)">
+          <div class="panel-title" style="color:var(--red)">DANGER ZONE</div>
+          <button class="btn btn-danger btn-sm" style="width:100%;" onclick="deleteClient(${id})">Wipe Client Memory</button>
+        </div>
+      `;
+    } catch(e) {}
+  }
+
+  function closeDetailPanel() { document.getElementById('client-detail-panel').style.display = 'none'; }
+  function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+  init();
+</script>
+
+</body>
+</html>

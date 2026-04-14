@@ -9,7 +9,8 @@ from ...core.database import get_db
 from ...core.config import SNAPSHOTS_DIR
 from ...core.sse_manager import SSE_CONNECTIONS
 from ...core.worker_state import update_worker_heartbeat, WORKER_REGISTRY
-import sqlite3
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import json
 
 router = APIRouter(prefix="/api")
@@ -22,7 +23,7 @@ async def upload_object(
     confidence: float = Form(...),
     file: UploadFile = File(...),
     user=Depends(get_current_user),   # Workers (role=worker) can upload
-    db: sqlite3.Connection = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         # Sanitization & Validation
@@ -57,11 +58,19 @@ async def upload_object(
             f.write(content)
             
         # Save to DB
-        db.execute("""
+        await db.execute(text("""
             INSERT INTO object_detections (id, camera_id, location, timestamp, object_label, confidence, snapshot_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (obj_id, camera_id, location, timestamp, object_label, confidence, f"{camera_id}/{filename}"))
-        db.commit()
+            VALUES (:id, :camera_id, :location, :timestamp, :object_label, :confidence, :snapshot_path)
+        """), {
+            "id": obj_id,
+            "camera_id": camera_id,
+            "location": location,
+            "timestamp": timestamp,
+            "object_label": object_label,
+            "confidence": confidence,
+            "snapshot_path": f"{camera_id}/{filename}"
+        })
+        await db.commit()
 
         # Broadcast SSE Alert to all admin dashboards
         payload = {
@@ -91,16 +100,15 @@ async def upload_object(
         raise HTTPException(status_code=500, detail=f"Object upload failed: {str(e)}")
 
 @router.get("/objects")
-async def get_objects(limit: int = 50, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT COUNT(*) FROM object_detections")
-    total_count = cur.fetchone()[0]
+async def get_objects(limit: int = 50, user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    res_count = await db.execute(text("SELECT COUNT(*) FROM object_detections"))
+    total_count = res_count.scalar()
 
-    cur.execute("""
+    res = await db.execute(text("""
         SELECT id, camera_id, location, timestamp, object_label, confidence, snapshot_path 
-        FROM object_detections ORDER BY timestamp DESC LIMIT ?
-    """, (limit,))
-    rows = [dict(r) for r in cur.fetchall()]
+        FROM object_detections ORDER BY timestamp DESC LIMIT :limit
+    """), {"limit": limit})
+    rows = [dict(r._mapping) for r in res.fetchall()]
     for r in rows:
         r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
     return {"objects": rows, "total_count": total_count}

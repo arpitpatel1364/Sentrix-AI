@@ -1,37 +1,27 @@
 #!/bin/bash
-set -e
+echo "=== Sentrix AI Worker Setup ==="
+echo ""
+read -p "Enter Hub URL (e.g. https://yourserver.com): " HUB_URL
+read -p "Enter your Client API Key: " CLIENT_API_KEY
+read -p "Enter a label for this worker (e.g. Main Entrance): " WORKER_LABEL
+read -p "Enter camera RTSP URLs (comma separated): " CAMERA_URLS
+read -p "Enter camera names (comma separated, same order): " CAMERA_NAMES
+read -p "Media server port (default 8765): " MEDIA_PORT
+MEDIA_PORT=${MEDIA_PORT:-8765}
 
-echo "[*] Sentrix-AI: Worker Setup Starting..."
+cat > .env << EOF
+HUB_URL=${HUB_URL}
+CLIENT_API_KEY=${CLIENT_API_KEY}
+WORKER_LABEL=${WORKER_LABEL}
+CAMERA_URLS=${CAMERA_URLS}
+CAMERA_NAMES=${CAMERA_NAMES}
+MEDIA_SERVER_PORT=${MEDIA_PORT}
+SNAPSHOT_DIR=/app/snapshots
+EOF
 
-echo "[*] Installing system dependencies..."
-sudo apt-get update && sudo apt-get install -y \
-    python3-pip \
-    python3-venv \
-    libgl1-mesa-glx \
-    libglib2.0-0
-
-echo "[*] Creating virtual environment..."
-python3 -m venv venv_worker
-
-echo "[*] Installing Python packages..."
-source venv_worker/bin/activate
-pip install --upgrade pip
-if [ -f "requirements_worker.txt" ]; then
-    pip install -r requirements_worker.txt
-else
-    echo "[!] requirements_worker.txt not found! Installing defaults..."
-    pip install opencv-python requests ultralytics numpy onnxruntime
-fi
-
-echo "[*] Checking for models..."
-mkdir -p models
-if [ ! -f "models/best.onnx" ]; then
-    echo "[!] models/best.onnx not found!"
-else
-    echo "[v] Model found: models/best.onnx"
-fi
-
-echo "[v] Setup Complete!"
-echo "Usage:"
-echo "  source venv_worker/bin/activate"
-echo "  python3 worker_agent.py --server http://<server-ip>:8000 --user <user> --password <pass> --camera 0"
+echo ""
+echo "Configuration saved to .env"
+echo "Starting worker..."
+docker compose -f docker-compose.worker.yml up -d --build
+echo ""
+echo "Worker started. Check status: docker compose -f docker-compose.worker.yml logs -f"

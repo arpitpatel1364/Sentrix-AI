@@ -34,7 +34,8 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-import sqlite3
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from ...core.security import get_current_user, require_admin
 from ...core.database import get_db
@@ -53,7 +54,7 @@ async def create_stop_request(
     camera_id: str = Form(...),
     reason: str = Form(""),
     user=Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Worker calls this when it wants to stop a camera.
@@ -61,40 +62,48 @@ async def create_stop_request(
     worker actually shuts down.
     """
     # Don't create a duplicate if one is already pending
-    existing = db.execute(
+    res = await db.execute(text(
         """
         SELECT id FROM camera_stop_requests
-        WHERE worker_user = ? AND camera_id = ? AND status = 'pending'
-        """,
-        (user["username"], camera_id),
-    ).fetchone()
+        WHERE worker_user = :worker_user AND camera_id = :camera_id AND status = 'pending'
+        """),
+        {"worker_user": user["username"], "camera_id": camera_id},
+    )
+    existing = res.fetchone()
 
     if existing:
-        return {"status": "already_pending", "request_id": existing["id"]}
+        return {"status": "already_pending", "request_id": existing._mapping["id"]}
 
     # Get camera location for display in dashboard
-    cam = db.execute(
-        "SELECT location FROM cameras WHERE camera_id = ?", (camera_id,)
-    ).fetchone()
-    location = cam["location"] if cam else ""
+    cam_res = await db.execute(text(
+        "SELECT location FROM cameras WHERE camera_id = :camera_id"), {"camera_id": camera_id}
+    )
+    cam = cam_res.fetchone()
+    location = cam._mapping["location"] if cam else ""
 
     req_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
 
-    db.execute(
+    await db.execute(text(
         """
         INSERT INTO camera_stop_requests
           (id, camera_id, worker_user, reason, status, requested_at)
-        VALUES (?, ?, ?, ?, 'pending', ?)
-        """,
-        (req_id, camera_id, user["username"], reason.strip(), ts),
+        VALUES (:id, :camera_id, :worker_user, :reason, 'pending', :requested_at)
+        """),
+        {
+            "id": req_id,
+            "camera_id": camera_id,
+            "worker_user": user["username"],
+            "reason": reason.strip(),
+            "requested_at": ts
+        },
     )
-    db.commit()
+    await db.commit()
 
     # Audit log
     try:
         from ...features.audit_log.router import write_log
-        write_log(
+        await write_log(
             db,
             username=user["username"],
             role=user.get("role", "worker"),
@@ -103,8 +112,8 @@ async def create_stop_request(
             detail=f"Stop requested. Reason: {reason[:120]}",
             ip=request.client.host if request.client else "",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Audit log failed: {e}")
 
     # Push SSE notification to all admin dashboards
     await broadcast_alert({
@@ -124,34 +133,35 @@ async def create_stop_request(
 # Worker polls this to know if its request was approved or denied
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/stop-requests/my-status")
-def get_my_stop_status(
+async def get_my_stop_status(
     camera_id: str,
     user=Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Returns the latest stop request status for this worker+camera.
     worker_start.py polls this every 10 seconds.
     """
-    row = db.execute(
+    row_res = await db.execute(text(
         """
         SELECT id, status, reviewed_by, reviewed_at
         FROM camera_stop_requests
-        WHERE worker_user = ? AND camera_id = ?
+        WHERE worker_user = :worker_user AND camera_id = :camera_id
         ORDER BY requested_at DESC
         LIMIT 1
-        """,
-        (user["username"], camera_id),
-    ).fetchone()
+        """),
+        {"worker_user": user["username"], "camera_id": camera_id},
+    )
+    row = row_res.fetchone()
 
     if not row:
         return {"status": "no_request"}
 
     return {
-        "request_id":  row["id"],
-        "status":      row["status"],
-        "reviewed_by": row["reviewed_by"],
-        "reviewed_at": row["reviewed_at"],
+        "request_id":  row._mapping["id"],
+        "status":      row._mapping["status"],
+        "reviewed_by": row._mapping["reviewed_by"],
+        "reviewed_at": row._mapping["reviewed_at"],
     }
 
 
@@ -160,21 +170,21 @@ def get_my_stop_status(
 # Admin lists all requests
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/stop-requests")
-def list_stop_requests(
+async def list_stop_requests(
     status: Optional[str] = None,
     _user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Admin: list all camera stop requests, newest first."""
     conditions = []
-    params = []
+    params = {}
     if status:
-        conditions.append("status = ?")
-        params.append(status)
+        conditions.append("status = :status")
+        params["status"] = status
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
-    rows = db.execute(
+    res = await db.execute(text(
         f"""
         SELECT id,
                worker_user    AS worker_username,
@@ -189,18 +199,20 @@ def list_stop_requests(
         {where}
         ORDER BY requested_at DESC
         LIMIT 300
-        """,
+        """),
         params,
-    ).fetchall()
+    )
+    rows = res.fetchall()
 
     # Enrich with camera location from cameras table
     results = []
     for r in rows:
-        row = dict(r)
-        cam = db.execute(
-            "SELECT location FROM cameras WHERE camera_id = ?", (r["camera_id"],)
-        ).fetchone()
-        row["location"] = cam["location"] if cam else ""
+        row = dict(r._mapping)
+        cam_res = await db.execute(text(
+            "SELECT location FROM cameras WHERE camera_id = :camera_id"), {"camera_id": r._mapping["camera_id"]}
+        )
+        cam = cam_res.fetchone()
+        row["location"] = cam._mapping["location"] if cam else ""
         results.append(row)
 
     return {"requests": results}
@@ -215,48 +227,49 @@ async def approve_stop_request(
     request_id: str,
     req: Request,
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    row = db.execute(
-        "SELECT * FROM camera_stop_requests WHERE id = ?", (request_id,)
-    ).fetchone()
+    res = await db.execute(text(
+        "SELECT * FROM camera_stop_requests WHERE id = :id"), {"id": request_id}
+    )
+    row = res.fetchone()
 
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
-    if row["status"] != "pending":
-        raise HTTPException(status_code=409, detail=f"Already {row['status']}")
+    if row._mapping["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Already {row._mapping['status']}")
 
     ts = datetime.utcnow().isoformat()
-    db.execute(
+    await db.execute(text(
         """
         UPDATE camera_stop_requests
-        SET status = 'approved', reviewed_by = ?, reviewed_at = ?
-        WHERE id = ?
-        """,
-        (user["username"], ts, request_id),
+        SET status = 'approved', reviewed_by = :reviewed_by, reviewed_at = :reviewed_at
+        WHERE id = :id
+        """),
+        {"reviewed_by": user["username"], "reviewed_at": ts, "id": request_id},
     )
-    db.commit()
+    await db.commit()
 
     # Audit
     try:
         from ...features.audit_log.router import write_log
-        write_log(
+        await write_log(
             db,
             username=user["username"],
             role=user.get("role", "admin"),
             action="stop_approve",
-            target=row["camera_id"],
-            detail=f"Approved stop request from worker '{row['worker_user']}'",
+            target=row._mapping["camera_id"],
+            detail=f"Approved stop request from worker '{row._mapping['worker_user']}'",
             ip=req.client.host if req.client else "",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Audit log failed: {e}")
 
     # SSE so the dashboard badge refreshes
     await broadcast_alert({
         "type":        "stop_approved",
-        "camera_id":   row["camera_id"],
-        "worker":      row["worker_user"],
+        "camera_id":   row._mapping["camera_id"],
+        "worker":      row._mapping["worker_user"],
         "approved_by": user["username"],
     })
 
@@ -272,41 +285,42 @@ async def deny_stop_request(
     request_id: str,
     req: Request,
     user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    row = db.execute(
-        "SELECT * FROM camera_stop_requests WHERE id = ?", (request_id,)
-    ).fetchone()
+    res = await db.execute(text(
+        "SELECT * FROM camera_stop_requests WHERE id = :id"), {"id": request_id}
+    )
+    row = res.fetchone()
 
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
-    if row["status"] != "pending":
-        raise HTTPException(status_code=409, detail=f"Already {row['status']}")
+    if row._mapping["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Already {row._mapping['status']}")
 
     ts = datetime.utcnow().isoformat()
-    db.execute(
+    await db.execute(text(
         """
         UPDATE camera_stop_requests
-        SET status = 'denied', reviewed_by = ?, reviewed_at = ?
-        WHERE id = ?
-        """,
-        (user["username"], ts, request_id),
+        SET status = 'denied', reviewed_by = :reviewed_by, reviewed_at = :reviewed_at
+        WHERE id = :id
+        """),
+        {"reviewed_by": user["username"], "reviewed_at": ts, "id": request_id},
     )
-    db.commit()
+    await db.commit()
 
     # Audit
     try:
         from ...features.audit_log.router import write_log
-        write_log(
+        await write_log(
             db,
             username=user["username"],
             role=user.get("role", "admin"),
             action="stop_deny",
-            target=row["camera_id"],
-            detail=f"Denied stop request from worker '{row['worker_user']}'",
+            target=row._mapping["camera_id"],
+            detail=f"Denied stop request from worker '{row._mapping['worker_user']}'",
             ip=req.client.host if req.client else "",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Audit log failed: {e}")
 
     return {"status": "denied"}

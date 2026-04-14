@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Sentrix AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/animations.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/pages.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Specific overrides for Dashboard */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+    .topbar {
+      height: var(--topbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--outline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      flex-shrink: 0;
+    }
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface-low);
+      border-right: 1px solid var(--outline);
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition);
+    }
+    .sb-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.85rem 1.5rem;
+      color: var(--on-surface-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: var(--font-body);
+      font-weight: 500;
+      border-left: 3px solid transparent;
+    }
+    .sb-nav-item:hover {
+      background: var(--surface-high);
+      color: var(--on-surface);
+    }
+    .sb-nav-item.active {
+      color: var(--primary);
+      background: var(--primary-dim);
+      border-left-color: var(--primary);
+    }
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    .camera-tile {
+      background: var(--surface);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      aspect-ratio: 16/10;
+      position: relative;
+    }
+    .camera-stream {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+    .camera-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1rem;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .status-badge {
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .status-online { background: var(--green-dim); color: var(--green); }
+    .status-offline { background: var(--red-dim); color: var(--red); }
+    
+    .alert-card {
+      background: var(--surface);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      animation: slideInRight 0.3s ease;
+    }
+    .alert-thumb {
+      width: 120px;
+      height: 120px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      background: var(--surface-low);
+    }
+    .alert-details {
+      flex: 1;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    
+    /* Chart container */
+    .chart-container {
+      background: var(--surface);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div style="padding: 2rem; border-bottom: 1px solid var(--outline);">
+      <div style="font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; letter-spacing: 0.1em; color: var(--primary);">SENTRIX AI</div>
+      <div id="role-label-display" style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--on-surface-muted); text-transform: uppercase; margin-top: 0.25rem;">—</div>
+    </div>
+    <nav id="sidebar-nav" style="flex: 1; padding-top: 1.5rem;"></nav>
+    <div style="padding: 1.5rem; border-top: 1px solid var(--outline);">
+      <button onclick="Auth.logout()" class="btn btn-ghost" style="width: 100%; justify-content: flex-start; gap: 0.75rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="topbar">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <h2 id="page-title" style="margin:0; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem;">Dashboard</h2>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1.5rem;">
+        <div id="connection-status" style="display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--on-surface-muted);" id="status-dot"></span>
+          <span id="status-text">DISCONNECTED</span>
+        </div>
+        <div style="height: 24px; width: 1px; background: var(--outline);"></div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="user-av" style="width: 32px; height: 32px; font-size: 0.8rem;" id="user-initials">?</div>
+          <span id="client-name-display" style="font-weight: 600; font-size: 0.9rem;">—</span>
+        </div>
+      </div>
+    </header>
+
+    <div id="content-area" class="content-area">
+      <!-- Section content will be injected here -->
+    </div>
+  </main>
+</div>
+
+<!-- Add Person Modal -->
+<div id="modal-add-person" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">REGISTER NEW SUBJECT</div>
+      <button class="modal-close" onclick="closeModal('modal-add-person')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Subject Name</label>
+        <input type="text" id="new-person-name" placeholder="Full Name">
+      </div>
+      <div class="field">
+        <label>Face Photo</label>
+        <div class="upload-zone" onclick="document.getElementById('person-photo').click()">
+          <input type="file" id="person-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+          <div id="photo-preview-placeholder">
+            <div class="upload-icon">⊕</div>
+            <div class="upload-text">Upload clear face photo</div>
+          </div>
+          <img id="photo-preview-img" style="display:none; width: 100%; height: 100%; object-fit: contain;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-person')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNewPerson()" id="submit-person-btn">Enroll Subject</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/auth.js"></script>
+<script>
+  // 1. Auth Guard
+  if (!Auth.guard('client')) {
+    // Redirect handled by guard
+  }
+
+  // State
+  let activePage = 'live';
+  let sseSource = null;
+  let myWorkers = [];
+  let mediaToken = null;
+
+  // Constants
+  const NAV_ITEMS = [
+    { key: 'live_monitor',      label: 'Live Monitor',    icon: '▶',  page: 'live' },
+    { key: 'alert_feed',        label: 'Alert Feed',      icon: '🔔',  page: 'alerts' },
+    { key: 'sighting_history',  label: 'Sighting History',icon: '📋',  page: 'history' },
+    { key: 'watchlist_manager', label: 'Watchlist',       icon: '👤',  page: 'watchlist' },
+    { key: 'analytics',         label: 'Analytics',       icon: '📊',  page: 'analytics' },
+    { key: 'settings',          label: 'Settings',        icon: '⚙',  page: 'settings' },
+  ];
+
+  // Initialize
+  async function init() {
+    const payload = Auth.getPayload();
+    document.getElementById('client-name-display').textContent = payload.client_name || 'Client';
+    document.getElementById('role-label-display').textContent = Auth.getRoleLabel();
+    document.getElementById('user-initials').textContent = (payload.client_name || 'C')[0].toUpperCase();
+
+    buildSidebar();
+    await fetchMediaToken();
+    await fetchWorkers();
+    
+    // Load default page or hash
+    const hash = window.location.hash.replace('#', '');
+    if (hash && NAV_ITEMS.find(i => i.page === hash && Auth.can(i.key))) {
+      showPage(hash);
+    } else {
+      // Find first permitted page
+      const firstPermitted = NAV_ITEMS.find(i => Auth.can(i.key));
+      if (firstPermitted) showPage(firstPermitted.page);
+    }
+  }
+
+  async function fetchMediaToken() {
+    try {
+      const res = await fetch('/auth/media-token', { headers: Auth.headers() });
+      if (res.ok) {
+        const data = await res.json();
+        mediaToken = data.media_token;
+      }
+    } catch (e) {
+      console.error('Failed to fetch media token', e);
+    }
+  }
+
+  async function fetchWorkers() {
+    try {
+      const res = await fetch('/workers/mine', { headers: Auth.headers() });
+      if (res.ok) {
+        myWorkers = await res.json();
+      }
+    } catch (e) {
+      console.error('Failed to fetch workers', e);
+    }
+  }
+
+  function buildSidebar() {
+    const nav = document.getElementById('sidebar-nav');
+    nav.innerHTML = '';
+    
+    let visibleCount = 0;
+    NAV_ITEMS.forEach(item => {
+      if (Auth.can(item.key)) {
+        const el = document.createElement('div');
+        el.className = `sb-nav-item ${activePage === item.page ? 'active' : ''}`;
+        el.id = `nav-${item.page}`;
+        el.innerHTML = `<span style="width: 20px; text-align: center;">${item.icon}</span> ${item.label}`;
+        el.onclick = () => showPage(item.page);
+        nav.appendChild(el);
+        visibleCount++;
+      }
+    });
+
+    if (visibleCount === 0) {
+      nav.innerHTML = '<div style="padding: 1.5rem; font-size: 0.8rem; color: var(--red); opacity: 0.8;">No pages available. Contact administrator.</div>';
+    }
+  }
+
+  function showPage(page) {
+    activePage = page;
+    window.location.hash = page;
+    
+    // Update sidebar UI
+    document.querySelectorAll('.sb-nav-item').forEach(el => el.classList.remove('active'));
+    const activeNav = document.getElementById(`nav-${page}`);
+    if (activeNav) activeNav.classList.add('active');
+
+    // Update Title
+    const item = NAV_ITEMS.find(i => i.page === page);
+    document.getElementById('page-title').textContent = item ? item.label : 'Dashboard';
+
+    // Route to page renderer
+    renderPage(page);
+    
+    // Manage SSE
+    if (page !== 'alerts' && sseSource) {
+      sseSource.close();
+      sseSource = null;
+      updateConnectionStatus('disconnected');
+    } else if (page === 'alerts' && !sseSource) {
+      initAlertSSE();
+    }
+  }
+
+  function renderPage(page) {
+    const container = document.getElementById('content-area');
+    container.innerHTML = '<div class="loading-overlay">Initializing page...</div>';
+
+    switch(page) {
+      case 'live': renderLiveMonitor(); break;
+      case 'alerts': renderAlertFeed(); break;
+      case 'history': renderHistory(); break;
+      case 'watchlist': renderWatchlist(); break;
+      case 'analytics': renderAnalytics(); break;
+      case 'settings': renderSettings(); break;
+    }
+  }
+
+  // --- PAGE RENDERERS ---
+
+  async function renderLiveMonitor() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head">
+        <div>
+          <div class="sec-title">LIVE MONITOR</div>
+          <div class="sec-sub">Real-time surveillance matrix</div>
+        </div>
+      </div>
+      <div id="live-grid" class="camera-grid"></div>
+    `;
+
+    const grid = document.getElementById('live-grid');
+    
+    if (myWorkers.length === 0) {
+      grid.innerHTML = '<div class="empty-state">No workers assigned to your account.</div>';
+      return;
+    }
+
+    for (const worker of myWorkers) {
+      // Fetch health for each worker
+      let status = 'offline';
+      try {
+        const hRes = await fetch(`${worker.media_base_url}/health`);
+        if (hRes.ok) status = 'online';
+      } catch(e) {}
+
+      // Get cameras for this worker
+      const cRes = await fetch(`/cameras/?worker_id=${worker.id}`, { headers: Auth.headers() });
+      if (cRes.ok) {
+        const cameras = await cRes.json();
+        cameras.forEach((cam, idx) => {
+          const tile = document.createElement('div');
+          tile.className = 'camera-tile';
+          const streamUrl = status === 'online' 
+            ? `${worker.media_base_url}/stream/${idx}?token=${mediaToken}`
+            : '';
+            
+          tile.innerHTML = `
+            ${status === 'online' 
+              ? `<img class="camera-stream" src="${streamUrl}" onerror="this.src='/static/img/no-signal.jpg'">`
+              : `<div class="camera-stream" style="display:flex;align-items:center;justify-content:center;color:var(--red);">OFFLINE</div>`}
+            <div class="camera-info">
+              <div>
+                <div style="color:white; font-weight:700; font-size:0.9rem; text-shadow: 0 1px 4px rgba(0,0,0,0.5);">${cam.name}</div>
+                <div style="font-family:var(--font-mono); font-size:0.6rem; color:rgba(255,255,255,0.7);">${worker.label}</div>
+              </div>
+              <span class="status-badge status-${status}">${status}</span>
+            </div>
+          `;
+          grid.appendChild(tile);
+        });
+      }
+    }
+  }
+
+  function renderAlertFeed() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head">
+        <div>
+          <div class="sec-title">ACTIVE ALERT FEED</div>
+          <div class="sec-sub">Real-time biometric detection events</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('feed-list').innerHTML=''">Clear Feed</button>
+      </div>
+      <div id="feed-list" style="max-width: 800px; margin: 0 auto;"></div>
+    `;
+    
+    // SSE is initialized by showPage
+  }
+
+  async function renderHistory() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head">
+        <div>
+          <div class="sec-title">SIGHTING HISTORY</div>
+          <div class="sec-sub">Historical detection archive</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th>Snapshot</th>
+              <th>Label</th>
+              <th>Confidence</th>
+              <th>Camera</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="history-table-body">
+            <tr><td colspan="5" style="text-align:center; padding:3rem;">Loading history...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    try {
+      const res = await fetch('/sightings/?limit=20', { headers: Auth.headers() });
+      const data = await res.json();
+      const sightings = data.sightings || [];
+      const tbody = document.getElementById('history-table-body');
+      tbody.innerHTML = '';
+
+      
+      if (sightings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:3rem;">No history found.</td></tr>';
+        return;
+      }
+
+      sightings.forEach(s => {
+        // Find worker to build snapshot URL
+        const worker = myWorkers.find(w => w.id === s.worker_id);
+        const snapUrl = worker 
+          ? `${worker.media_base_url}/snapshots/${s.snapshot_path}?token=${mediaToken}`
+          : null;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${snapUrl ? `<img src="${snapUrl}" style="height:40px; border-radius:4px;">` : 'N/A'}</td>
+          <td><span class="badge ${s.person_name === 'Unknown' ? 'badge-ghost' : 'badge-primary'}">${s.person_name}</span></td>
+          <td class="td-mono">${(s.confidence * 100).toFixed(1)}%</td>
+          <td>${s.camera_name || 'Unknown'}</td>
+          <td class="td-mono" style="font-size:0.75rem;">${new Date(s.timestamp).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function renderWatchlist() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head">
+        <div>
+          <div class="sec-title">WATCHLIST MANAGER</div>
+          <div class="sec-sub">Manage tracked subjects</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-person')">+ Register Subject</button>
+      </div>
+      <div class="table-wrap">
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th>Subject Name</th>
+              <th>Enrolled Date</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="watchlist-table-body"></tbody>
+        </table>
+      </div>
+    `;
+    loadWatchlist();
+  }
+
+  async function loadWatchlist() {
+    const tbody = document.getElementById('watchlist-table-body');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:3rem;">Loading watchlist...</td></tr>';
+    
+    try {
+      const res = await fetch('/watchlist/', { headers: Auth.headers() });
+      const items = await res.json();
+      tbody.innerHTML = '';
+      
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:3rem;">Watchlist is empty.</td></tr>';
+        return;
+      }
+
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight:600;">${item.person_name}</td>
+          <td class="td-mono" style="font-size:0.8rem; color:var(--on-surface-muted);">${new Date(item.created_at).toLocaleDateString()}</td>
+          <td style="text-align:right">
+            <button class="btn btn-ghost btn-danger btn-sm" onclick="deleteFromWatchlist(${item.id}, '${item.qdrant_vector_id}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--red);">Error loading watchlist.</td></tr>';
+    }
+  }
+
+  async function renderAnalytics() {
+    const container = document.getElementById('content-area');
+    container.innerHTML = `
+      <div class="sec-head">
+        <div>
+          <div class="sec-title">PERFORMANCE ANALYTICS</div>
+          <div class="sec-sub">System-wide detection trends</div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="chart-container">
+          <div class="panel-title" style="margin-bottom:1rem">Detections (Last 7 Days)</div>
+          <canvas id="chart-daily-detections"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="panel-title" style="margin-bottom:1rem">Activity Heatmap</div>
+          <canvas id="chart-activity-heatmap"></canvas>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="chart-container">
+          <div class="panel-title" style="margin-bottom:1rem">Top Detected Subjects</div>
+          <canvas id="chart-top-persons"></canvas>
+        </div>
+        <div class="chart-container">
+          <div class="panel-title" style="margin-bottom:1rem">Camera Distribution</div>
+          <canvas id="chart-camera-dist"></canvas>
+        </div>
+      </div>
+    `;
+
+    try {
+      const res = await fetch('/sightings/analytics', { headers: Auth.headers() });
+      const data = await res.json();
+      initAnalyticsCharts(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function initAnalyticsCharts(data) {
+    // 1. Daily Bar Chart
+    new Chart(document.getElementById('chart-daily-detections'), {
+      type: 'bar',
+      data: {
+        labels: data.daily?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Total Detections',
+          data: data.daily?.counts || [12, 19, 3, 5, 2, 3, 7],
+          backgroundColor: 'rgba(77, 124, 255, 0.6)',
+          borderColor: 'rgba(77, 124, 255, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    // 2. Top Persons (Horizontal Bar)
+    new Chart(document.getElementById('chart-top-persons'), {
+      type: 'bar',
+      data: {
+        labels: data.top_persons?.labels || ['Unknown', 'John Doe', 'Jane Smith'],
+        datasets: [{
+          label: 'Sighting Count',
+          data: data.top_persons?.counts || [145, 22, 12],
+          backgroundColor: 'rgba(0, 210, 255, 0.6)',
+          indexAxis: 'y'
+        }]
+      },
+      options: { responsive: true }
+    });
+
+    // 3. Camera Dist (Pie)
+    new Chart(document.getElementById('chart-camera-dist'), {
+      type: 'pie',
+      data: {
+        labels: data.camera_dist?.labels || ['Entrance', 'Lobby', 'Parking'],
+        datasets: [{
+          data: data.camera_dist?.counts || [45, 25, 30],
+          backgroundColor: ['#4d7cff', '#00d2ff', '#9d7cff', '#00e676']
+        }]
+      },
+      options: { responsive: true }
+    });
+    
+    // 4. Activity (Line)
+    new Chart(document.getElementById('chart-activity-heatmap'), {
+      type: 'line',
+      data: {
+        labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+        datasets: [{
+          label: 'Activity by Hour',
+          data: data.hourly?.counts || Array.from({length: 24}, () => Math.floor(Math.random()*20)),
+          borderColor: '#4d7cff',
+          tension: 0.4
+        }]
+      },
+      options: { responsive: true }
+    });
+  }
+
+  function renderSettings() {
+    const container = document.getElementById('content-area');
+    const roleLabel = Auth.getRoleLabel();
+    const canManageCameras = Auth.can('camera_management');
+
+    container.innerHTML = `
+      <div class="sec-head">
+        <div>
+          <div class="sec-title">SETTINGS</div>
+          <div class="sec-sub">Account & system preferences</div>
+        </div>
+      </div>
+      
+      <div style="max-width: 800px;">
+        <!-- Account -->
+        <div class="panel" style="margin-bottom: 2rem;">
+          <div class="panel-title">Your Account</div>
+          <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--surface-low); border-radius: 8px;">
+            <div style="font-size: 0.8rem; color: var(--on-surface-muted);">Active Role</div>
+            <div style="font-weight: 700; color: var(--primary);">${roleLabel}</div>
+          </div>
+          <div class="field">
+            <label>New Password</label>
+            <input type="password" id="set-pass" placeholder="••••••••">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="changePassword()">Update Security Key</button>
+        </div>
+
+        <!-- Notifications -->
+        <div class="panel" style="margin-bottom: 2rem;">
+          <div class="panel-title">Notifications</div>
+          <div class="field">
+            <label>Webhook URL (Discord/Slack/Custom)</label>
+            <input type="text" id="set-webhook" placeholder="https://hooks.example.com/...">
+          </div>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+              <input type="checkbox" id="set-alert-match" checked> Alert on Face Match
+            </label>
+            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+              <input type="checkbox" id="set-alert-unknown"> Alert on Unknown Subject
+            </label>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:1rem" onclick="saveNotifySettings()">Save Preferences</button>
+        </div>
+
+        <!-- Camera Management -->
+        ${canManageCameras ? `
+        <div class="panel" style="margin-bottom: 2rem;">
+          <div class="panel-title">Camera Management</div>
+          <div id="settings-camera-list" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;"></div>
+          <div style="padding:1rem; border:1px dashed var(--outline); border-radius:8px;">
+            <div style="font-weight:600; margin-bottom:1rem;">Add New Camera</div>
+            <div class="two-col">
+              <div class="field"><label>Name</label><input type="text" id="cam-name" placeholder="Front Entrance"></div>
+              <div class="field"><label>Worker</label><select id="cam-worker-id"></select></div>
+            </div>
+            <div class="field"><label>RTSP URL</label><input type="text" id="cam-rtsp" placeholder="rtsp://admin:pass@192.168.1.10:554/live"></div>
+            <button class="btn btn-primary btn-sm" onclick="addCamera()">Register Camera</button>
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Workers -->
+        <div class="panel">
+          <div class="panel-title">Operational Workers</div>
+          <div id="settings-worker-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
+        </div>
+      </div>
+    `;
+
+    if (canManageCameras) {
+      loadSettingsCameras();
+      const select = document.getElementById('cam-worker-id');
+      myWorkers.forEach(w => {
+        const opt = document.createElement('option');
+        opt.value = w.id;
+        opt.textContent = w.label;
+        select.appendChild(opt);
+      });
+    }
+    loadSettingsWorkers();
+  }
+
+  async function loadSettingsCameras() {
+    const list = document.getElementById('settings-camera-list');
+    list.innerHTML = 'Loading cameras...';
+    try {
+      const res = await fetch('/cameras/', { headers: Auth.headers() });
+      const cams = await res.json();
+      list.innerHTML = '';
+      cams.forEach(c => {
+        const el = document.createElement('div');
+        el.style = 'display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:var(--surface-low); border-radius:8px; border:1px solid var(--outline);';
+        el.innerHTML = `
+          <div>
+            <div style="font-weight:700;">${c.name}</div>
+            <div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--on-surface-muted);">RTSP: •••••••••••••••</div>
+          </div>
+          <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteCamera(${c.id})">Delete</button>
+        `;
+        list.appendChild(el);
+      });
+    } catch(e) {}
+  }
+
+  async function loadSettingsWorkers() {
+    const list = document.getElementById('settings-worker-list');
+    list.innerHTML = '';
+    myWorkers.forEach(async w => {
+      let status = 'offline';
+      try {
+        const hRes = await fetch(`${w.media_base_url}/health`);
+        if (hRes.ok) status = 'online';
+      } catch(e) {}
+      
+      const el = document.createElement('div');
+      el.style = 'display:flex; justify-content:space-between; align-items:center; padding:1rem; background:var(--surface-low); border-radius:8px;';
+      el.innerHTML = `
+        <div>
+          <div style="font-weight:700;">${w.label}</div>
+          <div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--on-surface-muted);">Last Seen: ${new Date(w.last_seen || Date.now()).toLocaleTimeString()}</div>
+        </div>
+        <span class="status-badge status-${status}">${status}</span>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  // --- ACTIONS ---
+
+  function initAlertSSE() {
+    if (sseSource) sseSource.close();
+    
+    updateConnectionStatus('connecting');
+    sseSource = new EventSource(`/sse/events?token=${Auth.getToken()}`);
+    
+    sseSource.onopen = () => {
+      updateConnectionStatus('connected');
+    };
+    
+    sseSource.onerror = (e) => {
+      updateConnectionStatus('reconnecting');
+    };
+    
+    sseSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (activePage === 'alerts') {
+        addAlertCard(data);
+      }
+    };
+  }
+
+  function updateConnectionStatus(status) {
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    if (!dot || !text) return;
+    
+    switch(status) {
+      case 'connected': 
+        dot.style.background = 'var(--green)';
+        text.textContent = 'LIVE CONNECTION';
+        break;
+      case 'connecting':
+      case 'reconnecting':
+        dot.style.background = 'var(--amber)';
+        text.textContent = 'RECONNECTING...';
+        break;
+      case 'disconnected':
+        dot.style.background = 'var(--red)';
+        text.textContent = 'DISCONNECTED';
+        break;
+    }
+  }
+
+  function addAlertCard(data) {
+    const feed = document.getElementById('feed-list');
+    if (!feed) return;
+
+    const card = document.createElement('div');
+    card.className = 'alert-card';
+    card.innerHTML = `
+      <img src="${data.snapshot_url}" class="alert-thumb" onerror="this.src='/static/img/no-signal.jpg'">
+      <div class="alert-details">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <span class="badge ${data.person_name === 'Unknown' ? 'badge-ghost' : 'badge-primary'}" style="font-size:0.9rem;">${data.person_name}</span>
+            <div style="font-size:0.75rem; color:var(--on-surface-muted); margin-top:0.25rem;">Detected at <strong>${data.camera_name}</strong></div>
+          </div>
+          <span class="badge" style="font-family:var(--font-mono); border:1px solid var(--outline);">${(data.confidence * 100).toFixed(0)}% Match</span>
+        </div>
+        <div style="margin-top:1rem; font-family:var(--font-mono); font-size:0.65rem; color:var(--on-surface-muted);">
+          REF: ${data.timestamp.split('T')[1].split('.')[0]} • ${data.worker_label}
+        </div>
+      </div>
+    `;
+    feed.prepend(card);
+    
+    // Max 50 cards
+    if (feed.children.length > 50) {
+      feed.removeChild(feed.lastChild);
+    }
+  }
+
+  // Watchlist Actions
+  function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+  function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('photo-preview-img').src = e.target.result;
+        document.getElementById('photo-preview-img').style.display = 'block';
+        document.getElementById('photo-preview-placeholder').style.display = 'none';
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+
+  async function submitNewPerson() {
+    const name = document.getElementById('new-person-name').value.trim();
+    const photoInput = document.getElementById('person-photo');
+    const btn = document.getElementById('submit-person-btn');
+
+    if (!name || !photoInput.files[0]) {
+      alert('Subject name and photo are required.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Enrolling...';
+
+    try {
+      // 1. Pick a worker to compute embedding (arbitrarily pick first online worker)
+      const worker = myWorkers[0]; // Simplified: ideally find an online one
+      if (!worker) throw new Error('No operational worker found to process biometric data.');
+
+      const formData = new FormData();
+      formData.append('file', photoInput.files[0]);
+
+      const embRes = await fetch(`${worker.media_base_url}/compute-embedding?token=${mediaToken}`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!embRes.ok) throw new Error('Worker failed to process face photo. Ensure 1 clear face is visible.');
+      const { embedding } = await embRes.json();
+
+      // 2. Upsert to Qdrant
+      const qdRes = await fetch('/qdrant/upsert', {
+        method: 'POST',
+        headers: Auth.headers(),
+        body: JSON.stringify({ person_name: name, embedding })
+      });
+      if (!qdRes.ok) throw new Error('Database failed to accept biometric vector.');
+      const { vector_id } = await qdRes.json();
+
+      // 3. Save to Watchlist
+      const wlRes = await fetch('/watchlist/', {
+        method: 'POST',
+        headers: Auth.headers(),
+        body: JSON.stringify({ person_name: name, qdrant_vector_id: vector_id })
+      });
+      if (!wlRes.ok) throw new Error('Failed to save watchlist record.');
+
+      closeModal('modal-add-person');
+      loadWatchlist();
+      // Reset form
+      document.getElementById('new-person-name').value = '';
+      photoInput.value = '';
+      document.getElementById('photo-preview-img').style.display = 'none';
+      document.getElementById('photo-preview-placeholder').style.display = 'block';
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enroll Subject';
+    }
+  }
+
+  async function deleteFromWatchlist(id, vectorId) {
+    if (!confirm('Permanently remove this subject from intelligence archive?')) return;
+    try {
+      await fetch(`/watchlist/${id}`, { method: 'DELETE', headers: Auth.headers() });
+      await fetch(`/qdrant/vectors/${vectorId}`, { method: 'DELETE', headers: Auth.headers() });
+      loadWatchlist();
+    } catch (e) { alert('Delete failed.'); }
+  }
+
+  // Settings Actions
+  async function addCamera() {
+    const name = document.getElementById('cam-name').value;
+    const worker_id = document.getElementById('cam-worker-id').value;
+    const rtsp_url = document.getElementById('cam-rtsp').value;
+    
+    if (!name || !rtsp_url) return alert('Name and RTSP URL required.');
+    
+    const res = await fetch('/cameras/', {
+      method: 'POST',
+      headers: Auth.headers(),
+      body: JSON.stringify({ name, worker_id: parseInt(worker_id), rtsp_url })
+    });
+    
+    if (res.ok) {
+      loadSettingsCameras();
+      document.getElementById('cam-name').value = '';
+      document.getElementById('cam-rtsp').value = '';
+    } else {
+      const d = await res.json(); alert(d.detail || 'Failed');
+    }
+  }
+
+  async function deleteCamera(id) {
+    if (confirm('Delete camera?')) {
+      await fetch(`/cameras/${id}`, { method: 'DELETE', headers: Auth.headers() });
+      loadSettingsCameras();
+    }
+  }
+
+  // Init
+  init();
+
+</script>
+
+</body>
+</html>

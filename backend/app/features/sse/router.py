@@ -2,34 +2,36 @@ from fastapi import APIRouter, Depends, Request
 import asyncio
 import json
 from sse_starlette.sse import EventSourceResponse
-from ...core.security import require_admin
-from ...core.sse_manager import SSE_CONNECTIONS
+from ...core.security import get_current_user
+from ...core.sse_manager import add_connection, remove_connection
+import uuid
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/sse")
 
-@router.get("/stream")
-async def sse_stream(request: Request, user=Depends(require_admin)):
+@router.get("/events")
+async def sse_events(request: Request, user=Depends(get_current_user)):
+    """
+    SSE connection opened by client dashboard or admin dashboard.
+    """
     queue = asyncio.Queue()
-    if user["username"] not in SSE_CONNECTIONS:
-        SSE_CONNECTIONS[user["username"]] = []
-    SSE_CONNECTIONS[user["username"]].append(queue)
+    
+    # Target is either "admin" or the client_id string
+    target = "admin" if user["role"] == "admin" else str(user.get("client_id"))
+    
+    await add_connection(target, queue)
 
     async def generator():
-        yield {"event": "connected", "data": json.dumps({"user": user["username"]})}
+        yield {"event": "connected", "data": json.dumps({"role": user["role"], "client_id": str(user.get("client_id"))})}
         try:
             while True:
                 if await request.is_disconnected():
                     break
                 try:
                     payload = await asyncio.wait_for(queue.get(), timeout=15.0)
-                    yield {"event": "alert", "data": json.dumps(payload)}
+                    yield {"event": payload.get("event", "detection"), "data": json.dumps(payload.get("data", payload))}
                 except asyncio.TimeoutError:
                     yield {"event": "ping", "data": "{}"}
         finally:
-            if user["username"] in SSE_CONNECTIONS:
-                if queue in SSE_CONNECTIONS[user["username"]]:
-                    SSE_CONNECTIONS[user["username"]].remove(queue)
-                if not SSE_CONNECTIONS[user["username"]]:
-                    SSE_CONNECTIONS.pop(user["username"])
+            await remove_connection(target, queue)
 
     return EventSourceResponse(generator())

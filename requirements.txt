@@ -7,6 +7,7 @@ sse-starlette==1.8.2
 requests==2.31.0
 bcrypt==4.1.3
 python-jose[cryptography]==3.3.0
+python-dotenv==1.0.1
 
 # --- AI & VISION ---
 opencv-python==4.9.0.80
@@ -18,6 +19,11 @@ Pillow==10.3.0
 
 # --- DATABASE & STORAGE ---
 qdrant-client==1.9.1
+asyncpg==0.29.0
+aiosqlite==0.20.0
+sqlalchemy[asyncio]==2.0.29
+alembic==1.13.1
+redis[asyncio]==5.0.3
 
 # --- STREAMING ---
 static-ffmpeg==2.5

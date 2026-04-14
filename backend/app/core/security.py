@@ -14,9 +14,16 @@ def _verify_password(plain: str, hashed: str) -> bool:
     except Exception:
         return False
 
-def _create_token(username: str, role: str) -> str:
+def _create_token(username: str, role: str, client_id: str = None, permissions: dict = None) -> str:
     expire = datetime.utcnow() + timedelta(hours=TOKEN_EXPIRE_HOURS)
-    return jwt.encode({"sub": username, "role": role, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    payload = {
+        "sub": username,
+        "role": role,
+        "client_id": client_id,
+        "permissions": permissions or {},
+        "exp": expire
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def _decode_token(token: str) -> dict:
     try:
@@ -37,7 +44,12 @@ def get_current_user(
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     data = _decode_token(token)
-    return {"username": data["sub"], "role": data["role"]}
+    return {
+        "username": data["sub"],
+        "role": data["role"],
+        "client_id": data.get("client_id"),
+        "permissions": data.get("permissions", {})
+    }
 
 def require_admin(user=Depends(get_current_user)):
     if user["role"] != "admin":

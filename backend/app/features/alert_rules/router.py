@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from ...core.security import require_admin
 from ...core.database import get_db
 from ...core.sse_manager import broadcast_alert
-import sqlite3
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import uuid
 import json
 from datetime import datetime
@@ -20,13 +21,12 @@ router = APIRouter(prefix="/api")
 # ─── RULE CRUD ───────────────────────────────────────────────────────────────
 
 @router.get("/alert-rules")
-async def list_rules(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
+async def list_rules(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(text("""
         SELECT id, name, rule_type, camera_id, conditions, actions, enabled, created_at
         FROM alert_rules ORDER BY created_at DESC
-    """)
-    rules = [dict(r) for r in cur.fetchall()]
+    """))
+    rules = [dict(r._mapping) for r in res.fetchall()]
     for r in rules:
         r["conditions"] = json.loads(r["conditions"]) if r["conditions"] else {}
         r["actions"]    = json.loads(r["actions"])    if r["actions"]    else {}
@@ -35,7 +35,7 @@ async def list_rules(user=Depends(require_admin), db: sqlite3.Connection = Depen
 
 @router.post("/alert-rules")
 async def create_rule(request: Request, user=Depends(require_admin),
-                      db: sqlite3.Connection = Depends(get_db)):
+                      db: AsyncSession = Depends(get_db)):
     body = await request.json()
     name      = body.get("name", "").strip()
     rule_type = body.get("rule_type", "")  # wanted_match | object_detected | loitering | any_face
@@ -52,90 +52,95 @@ async def create_rule(request: Request, user=Depends(require_admin),
 
     rule_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
-    db.execute("""
+    await db.execute(text("""
         INSERT INTO alert_rules (id, name, rule_type, camera_id, conditions, actions, enabled, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-    """, (rule_id, name, rule_type, camera_id,
-          json.dumps(conditions), json.dumps(actions), now))
-    db.commit()
+        VALUES (:id, :name, :rule_type, :camera_id, :conditions, :actions, 1, :created_at)
+    """), {
+        "id": rule_id,
+        "name": name,
+        "rule_type": rule_type,
+        "camera_id": camera_id,
+        "conditions": json.dumps(conditions),
+        "actions": json.dumps(actions),
+        "created_at": now
+    })
+    await db.commit()
     return {"ok": True, "id": rule_id}
 
 
 @router.put("/alert-rules/{rule_id}")
 async def update_rule(rule_id: str, request: Request,
-                      user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+                      user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
     body = await request.json()
-    cur = db.cursor()
-    cur.execute("SELECT id FROM alert_rules WHERE id = ?", (rule_id,))
-    if not cur.fetchone():
+    res = await db.execute(text("SELECT id FROM alert_rules WHERE id = :id"), {"id": rule_id})
+    if not res.fetchone():
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    fields, vals = [], []
+    fields, params = [], {"id": rule_id}
     for key in ("name", "rule_type", "camera_id"):
         if key in body:
-            fields.append(f"{key} = ?")
-            vals.append(body[key])
+            fields.append(f"{key} = :{key}")
+            params[key] = body[key]
     if "conditions" in body:
-        fields.append("conditions = ?")
-        vals.append(json.dumps(body["conditions"]))
+        fields.append("conditions = :conditions")
+        params["conditions"] = json.dumps(body["conditions"])
     if "actions" in body:
-        fields.append("actions = ?")
-        vals.append(json.dumps(body["actions"]))
+        fields.append("actions = :actions")
+        params["actions"] = json.dumps(body["actions"])
     if "enabled" in body:
-        fields.append("enabled = ?")
-        vals.append(1 if body["enabled"] else 0)
+        fields.append("enabled = :enabled")
+        params["enabled"] = 1 if body["enabled"] else 0
 
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    vals.append(rule_id)
-    db.execute(f"UPDATE alert_rules SET {', '.join(fields)} WHERE id = ?", vals)
-    db.commit()
+    query = f"UPDATE alert_rules SET {', '.join(fields)} WHERE id = :id"
+    await db.execute(text(query), params)
+    await db.commit()
     return {"ok": True}
 
 
 @router.delete("/alert-rules/{rule_id}")
 async def delete_rule(rule_id: str, user=Depends(require_admin),
-                      db: sqlite3.Connection = Depends(get_db)):
-    db.execute("DELETE FROM alert_rules WHERE id = ?", (rule_id,))
-    db.commit()
+                      db: AsyncSession = Depends(get_db)):
+    await db.execute(text("DELETE FROM alert_rules WHERE id = :id"), {"id": rule_id})
+    await db.commit()
     return {"ok": True}
 
 
 @router.patch("/alert-rules/{rule_id}/toggle")
 async def toggle_rule(rule_id: str, user=Depends(require_admin),
-                      db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT enabled FROM alert_rules WHERE id = ?", (rule_id,))
-    row = cur.fetchone()
+                      db: AsyncSession = Depends(get_db)):
+    res = await db.execute(text("SELECT enabled FROM alert_rules WHERE id = :id"), {"id": rule_id})
+    row = res.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Rule not found")
-    new_state = 0 if row["enabled"] else 1
-    db.execute("UPDATE alert_rules SET enabled = ? WHERE id = ?", (new_state, rule_id))
-    db.commit()
+    new_state = 0 if row._mapping["enabled"] else 1
+    await db.execute(text("UPDATE alert_rules SET enabled = :state WHERE id = :id"), {"state": new_state, "id": rule_id})
+    await db.commit()
     return {"ok": True, "enabled": bool(new_state)}
 
 
 # ─── RULE EVALUATION (called internally from workers/sightings) ──────────────
 
-def _load_active_rules(db: sqlite3.Connection, camera_id: str = None):
+async def _load_active_rules(db: AsyncSession, camera_id: str = None):
     """Load all enabled rules, optionally filtered by camera."""
-    cur = db.cursor()
     if camera_id:
-        cur.execute("""
+        res = await db.execute(text("""
             SELECT * FROM alert_rules
-            WHERE enabled=1 AND (camera_id='' OR camera_id=?)
-        """, (camera_id,))
+            WHERE enabled=1 AND (camera_id='' OR camera_id=:camera_id)
+        """), {"camera_id": camera_id})
     else:
-        cur.execute("SELECT * FROM alert_rules WHERE enabled=1")
-    rules = [dict(r) for r in cur.fetchall()]
+        res = await db.execute(text("SELECT * FROM alert_rules WHERE enabled=1"))
+    
+    rules = [dict(r._mapping) for r in res.fetchall()]
     for r in rules:
         r["conditions"] = json.loads(r["conditions"]) if r["conditions"] else {}
         r["actions"]    = json.loads(r["actions"])    if r["actions"]    else {}
     return rules
 
 
-async def evaluate_rules(event: dict, db: sqlite3.Connection):
+async def evaluate_rules(event: dict, db: AsyncSession):
     """
     Evaluate all active rules against a detection event.
     event keys: type, camera_id, matched, confidence, person_name,
@@ -149,7 +154,7 @@ async def evaluate_rules(event: dict, db: sqlite3.Connection):
     object_label = event.get("object_label", "")
     timestamp   = event.get("timestamp", datetime.utcnow().isoformat())
 
-    rules = _load_active_rules(db, camera_id)
+    rules = await _load_active_rules(db, camera_id)
 
     for rule in rules:
         cond    = rule["conditions"]

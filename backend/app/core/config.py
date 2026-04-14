@@ -3,6 +3,7 @@ from pathlib import Path
 
 # --- Auth Configuration ---
 SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-production-please-123")
+MEDIA_SECRET_KEY = os.getenv("MEDIA_SECRET_KEY", "sentrix-media-secret-999")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 
@@ -18,6 +19,9 @@ DATA_DIR = BASE_DIR / "data"
 SNAPSHOTS_DIR = DATA_DIR / "snapshots"
 INTEL_DIR = DATA_DIR / "intel_photos"
 DB_PATH = DATA_DIR / "cctv.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
 
 # Ensure directories exist
 MODELS_DIR.mkdir(exist_ok=True)

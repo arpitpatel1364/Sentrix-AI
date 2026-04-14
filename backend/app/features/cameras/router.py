@@ -4,178 +4,205 @@ Handles full CRUD for camera registrations, location assignment,
 and per-camera metadata (stream URL, description, status).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from ...core.security import require_admin, get_current_user
-from ...core.database import get_db
-from ..audit_log.router import write_log
-from ...core.worker_state import WORKER_REGISTRY, get_live_nodes
-import sqlite3
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update, delete, func, and_
 
-router = APIRouter(prefix="/api")
+from ...core.dependencies import get_current_user, require_admin
+from ...core.database import get_db
+from ...core.models import Camera, Sighting, Worker
+from ..audit_log.router import write_log
+from ...core.worker_state import get_live_nodes
 
+router = APIRouter(prefix="/cameras")
 
 # ─── CAMERA CRUD ────────────────────────────────────────────────────────────
 
-@router.get("/cameras")
-async def list_cameras(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("""
-        SELECT id, camera_id, name, location, description, stream_url,
-               floor_plan_x, floor_plan_y, roi, added_by, added_at,
-               face_enabled, obj_enabled, stream_enabled
-        FROM cameras ORDER BY added_at DESC
-    """)
-    cameras = [dict(r) for r in cur.fetchall()]
+@router.get("/")
+async def list_cameras(user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    List cameras. Clients see only their own cameras. Admins see everything.
+    """
+    query = select(Camera).order_by(Camera.added_at.desc())
+    if user["role"] == "client":
+        query = query.where(Camera.client_id == user["client_id"])
+    
+    result = await db.execute(query)
+    cameras = result.scalars().all()
 
     live_nodes = get_live_nodes()
-    id_to_key = {n["camera_id"]: n["id"] for n in live_nodes} # node_key is in "id"
+    id_to_key = {n["camera_id"]: n["id"] for n in live_nodes}
 
-    # Attach live status and node_key
+    output = []
     for cam in cameras:
-        cam["online"] = cam["camera_id"] in id_to_key
-        cam["node_key"] = id_to_key.get(cam["camera_id"])
+        # Latest sighting for this camera
+        sighting_query = (
+            select(Sighting)
+            .where(Sighting.camera_id == cam.camera_id)
+            .order_by(Sighting.timestamp.desc())
+            .limit(1)
+        )
+        s_res = await db.execute(sighting_query)
+        last_sighting = s_res.scalar_one_or_none()
 
-        # Attach latest sighting for this camera
-        cur.execute("""
-            SELECT timestamp, matched, person_name, confidence
-            FROM sightings WHERE camera_id = ?
-            ORDER BY timestamp DESC LIMIT 1
-        """, (cam["camera_id"],))
-        last = cur.fetchone()
-        cam["last_seen"] = dict(last) if last else None
+        # Detections today
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        count_res = await db.execute(
+            select(func.count(Sighting.id))
+            .where(Sighting.camera_id == cam.camera_id)
+            .where(Sighting.timestamp >= today_start)
+        )
+        detections_today = count_res.scalar()
 
-        # ROI is already in cam["roi"] from the main SELECT, just need to parse it
-        cam["roi"] = json.loads(cam["roi"]) if cam.get("roi") else None
+        cam_dict = {
+            "id": str(cam.id),
+            "camera_id": cam.camera_id,
+            "name": cam.name,
+            "location": cam.location,
+            "description": cam.description,
+            "stream_url": cam.stream_url,
+            "floor_plan_x": cam.floor_plan_x,
+            "floor_plan_y": cam.floor_plan_y,
+            "roi": json.loads(cam.roi) if cam.roi else None,
+            "added_by": cam.added_by,
+            "added_at": cam.added_at,
+            "face_enabled": bool(cam.face_enabled),
+            "obj_enabled": bool(cam.obj_enabled),
+            "stream_enabled": bool(cam.stream_enabled),
+            "online": cam.camera_id in id_to_key,
+            "node_key": id_to_key.get(cam.camera_id),
+            "last_seen": {
+                "timestamp": last_sighting.timestamp,
+                "matched": last_sighting.matched,
+                "person_name": last_sighting.person_name,
+                "confidence": last_sighting.confidence
+            } if last_sighting else None,
+            "detections_today": detections_today,
+            "client_id": str(cam.client_id)
+        }
+        output.append(cam_dict)
 
-        # Count detections today
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        cur.execute("""
-            SELECT COUNT(*) FROM sightings
-            WHERE camera_id = ? AND timestamp LIKE ?
-        """, (cam["camera_id"], f"{today}%"))
-        cam["detections_today"] = cur.fetchone()[0]
+    return output
 
-        # Convert integers to bools
-        cam["face_enabled"]   = bool(cam.get("face_enabled", 1))
-        cam["obj_enabled"]    = bool(cam.get("obj_enabled", 1))
-        cam["stream_enabled"] = bool(cam.get("stream_enabled", 1))
-
-    return cameras
-
-
-@router.post("/cameras")
-async def add_camera(request: Request, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+@router.post("/")
+async def add_camera(request: Request, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Registers a new camera. 
+    """
     body = await request.json()
-    camera_id   = body.get("camera_id", "").strip()
+    camera_id   = body.get("camera_id", "").strip() or f"cam_{uuid.uuid4().hex[:8]}"
     name        = body.get("name", "").strip()
     location    = body.get("location", "").strip()
     description = body.get("description", "").strip()
     stream_url  = body.get("stream_url", "").strip()
-    floor_x     = body.get("floor_plan_x", 50.0)
-    floor_y     = body.get("floor_plan_y", 50.0)
-    face_en     = body.get("face_enabled", True)
-    obj_en      = body.get("obj_enabled", True)
-    strm_en     = body.get("stream_enabled", True)
+    worker_id   = body.get("worker_id")
+    
+    # Determine client_id
+    target_client_id = user["client_id"]
+    if user["role"] == "admin":
+        target_client_id = body.get("client_id")
+        if not target_client_id:
+            raise HTTPException(status_code=400, detail="client_id is required for admin to add a camera")
+        try:
+            target_client_id = uuid.UUID(target_client_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid client_id format")
+    elif not target_client_id:
+        raise HTTPException(status_code=403, detail="User not associated with a client")
 
-    if not camera_id or not name:
-        raise HTTPException(status_code=400, detail="camera_id and name are required")
-
-    cur = db.cursor()
-    cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
-    if cur.fetchone():
-        raise HTTPException(status_code=409, detail="Camera ID already exists")
+    if not name:
+        raise HTTPException(status_code=400, detail="Camera name is required")
 
     cam_pk = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
-    db.execute("""
-        INSERT INTO cameras
-          (id, camera_id, name, location, description, stream_url, floor_plan_x, floor_plan_y, added_by, added_at, face_enabled, obj_enabled, stream_enabled)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (cam_pk, camera_id, name, location, description, stream_url,
-          floor_x, floor_y, user["username"], now, 1 if face_en else 0, 1 if obj_en else 0, 1 if strm_en else 0))
-    db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=request.client.host)
+    
+    new_cam = Camera(
+        id=cam_pk,
+        camera_id=camera_id,
+        name=name,
+        location=location,
+        description=description,
+        stream_url=stream_url,
+        added_by=user["username"],
+        added_at=now,
+        face_enabled=1,
+        obj_enabled=1,
+        stream_enabled=1,
+        client_id=target_client_id,
+        worker_id=uuid.UUID(worker_id) if worker_id else None
+    )
+    db.add(new_cam)
+    await db.commit()
+    
+    await write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' for client {target_client_id}", ip=request.client.host)
     return {"ok": True, "id": cam_pk, "camera_id": camera_id}
 
-
-@router.put("/cameras/{camera_id}")
+@router.put("/{camera_id}")
 async def update_camera(camera_id: str, request: Request,
-                        user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+                        user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     body = await request.json()
-    cur = db.cursor()
-    cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Camera not found")
+    
+    query = select(Camera).where(Camera.camera_id == camera_id)
+    if user["role"] == "client":
+        query = query.where(Camera.client_id == user["client_id"])
+    
+    res = await db.execute(query)
+    cam = res.scalar_one_or_none()
+    if not cam:
+        raise HTTPException(status_code=404, detail="Camera not found or access denied")
 
-    fields, vals = [], []
+    # Update fields
     for key in ("name", "location", "description", "stream_url", "floor_plan_x", "floor_plan_y", "face_enabled", "obj_enabled", "stream_enabled"):
         if key in body:
-            fields.append(f"{key} = ?")
+            val = body[key]
             if key.endswith("_enabled"):
-                vals.append(1 if body[key] else 0)
-            else:
-                vals.append(body[key])
+                val = 1 if val else 0
+            setattr(cam, key, val)
 
-    if not fields:
-        raise HTTPException(status_code=400, detail="No fields to update")
-
-    vals.append(camera_id)
-    db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ?", vals)
-    db.commit()
+    await db.commit()
     return {"ok": True}
 
+@router.delete("/{camera_id}")
+async def delete_camera(camera_id: str, request: Request, user=Depends(get_current_user),
+                        db: AsyncSession = Depends(get_db)):
+    # Note: camera_id here refers to the primary key 'id' in the JS call deleteCamera(id)
+    query = select(Camera).where(Camera.id == camera_id)
+    if user["role"] == "client":
+        query = query.where(Camera.client_id == user["client_id"])
+    
+    res = await db.execute(query)
+    cam = res.scalar_one_or_none()
+    if not cam:
+        raise HTTPException(status_code=404, detail="Camera not found or access denied")
 
-@router.delete("/cameras/{camera_id}")
-async def delete_camera(camera_id: str, request: Request, user=Depends(require_admin),
-                        db: sqlite3.Connection = Depends(get_db)):
-    cur = db.cursor()
-    cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
-    if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Camera not found")
-
-    db.execute("DELETE FROM cameras WHERE camera_id = ?", (camera_id,))
-    db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=camera_id, detail=f"Removed camera {camera_id}", ip=request.client.host)
+    await db.delete(cam)
+    await db.commit()
+    
+    await write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=str(cam.camera_id), detail=f"Removed camera {cam.camera_id}", ip=request.client.host)
     return {"ok": True}
 
-
-@router.put("/cameras/{camera_id}/position")
+@router.put("/{camera_id}/position")
 async def update_camera_position(camera_id: str, request: Request,
-                                  user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+                                  user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Update floor-plan pin coordinates (0-100 percent)."""
     body = await request.json()
     x = body.get("x", 50.0)
     y = body.get("y", 50.0)
-    db.execute("UPDATE cameras SET floor_plan_x = ?, floor_plan_y = ? WHERE camera_id = ?",
-               (x, y, camera_id))
-    db.commit()
-    return {"ok": True}
-
-
-@router.post("/cameras/config/{camera_id}")
-async def set_camera_config_flags(
-    camera_id: str,
-    face: int = None,
-    obj: int = None,
-    stream: int = None,
-    user=Depends(require_admin),
-    db: sqlite3.Connection = Depends(get_db)
-):
-    """Legacy/Quick toggle for camera features (face, obj, stream)."""
-    from ...core.worker_state import update_worker_config
-
-    updates = {}
-    if face is not None:   updates["face_enabled"] = bool(face)
-    if obj is not None:    updates["obj_enabled"] = bool(obj)
-    if stream is not None: updates["stream_enabled"] = bool(stream)
-
-    if not updates:
-        raise HTTPException(status_code=400, detail="No config fields provided")
-
-    update_worker_config(camera_id, updates)
-    write_log(db, username=user["username"], role=user["role"], action="camera_config", target=camera_id, detail=f"Updated config flags: {updates}")
     
-    return {"ok": True, "updated": updates}
+    query = select(Camera).where(Camera.camera_id == camera_id)
+    if user["role"] == "client":
+        query = query.where(Camera.client_id == user["client_id"])
+        
+    res = await db.execute(query)
+    cam = res.scalar_one_or_none()
+    if not cam:
+        raise HTTPException(status_code=404, detail="Camera not found or access denied")
+        
+    cam.floor_plan_x = x
+    cam.floor_plan_y = y
+    await db.commit()
+    return {"ok": True}
