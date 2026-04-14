@@ -76,20 +76,21 @@ if (State.role === 'null' || State.role === 'undefined' || !State.role) State.ro
 
 /* Page titles map */
 const PAGE_META = {
-  overview:       ['OVERVIEW',            '// TACTICAL INTELLIGENCE DASHBOARD'],
-  'live-feed':    ['LIVE MONITOR',         '// DIRECT NEURAL LINK TO CAMERA NODES'],
-  sightings:      ['FACE SIGHTINGS',       '// BIOMETRIC ACTIVITY LOG'],
-  objects:        ['OBJECT DETECTIONS',    '// AUTOMATED ITEM RECOGNITION LOG'],
-  analytics:      ['ANALYTICS',            '// DETECTION TRENDS & METRICS'],
-  watchlist:      ['INTELLIGENCE ARCHIVE', '// SUBJECT REGISTRY'],
+  overview:       ['OPERATIONAL OVERVIEW', '// REAL-TIME SYSTEM INTELLIGENCE'],
+  'live-feed':    ['MESH LIVE MONITOR',    '// DIRECT NEURAL LINK TO NODES'],
+  sightings:      ['SIGHTING HISTORY',     '// BIOMETRIC ACTIVITY LOG'],
+  objects:        ['OBJECT RECOGNITION',    '// CLASSIFIED DETECTION FEED'],
+  analytics:      ['TACTICAL ANALYTICS',   '// TRENDS & PERFORMANCE METRICS'],
+  watchlist:      ['WATCHLIST AUDIT',      '// HIGH-VALUE TARGET REGISTRY'],
   search:         ['BIOMETRIC LOOKUP',     '// REVERSE FACE IDENTIFICATION'],
   analysis:       ['FRAME ANALYSIS',       '// COGNITIVE INFERENCE ENGINE'],
-  cameras:        ['CAMERA MANAGEMENT',    '// REGISTER & CONFIGURE NODES'],
+  cameras:        ['NODE TOPOLOGY',        '// FIELD SENSORS & CAMERAS'],
   map:            ['LIVE MAP',             '// CAMERA POSITIONS & STATUS'],
   'alert-rules':  ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
-  workers:        ['WORKER NODES',         '// ACTIVE FIELD INTELLIGENCE NODES'],
-  users:          ['USER ACCOUNTS',        '// OPERATOR ACCESS REGISTRY'],
+  workers:        ['WORKER NODES',         '// ACTIVE FIELD INTEL NODES'],
+  users:          ['OPERATOR ACCOUNTS',    '// USER ACCESS REGISTRY'],
   system:         ['SYSTEM CONTROL',       '// CONFIGURATION & MAINTENANCE'],
   audit:          ['AUDIT LOG',            '// SYSTEM ACTIVITY TRAIL'],
   'stop-requests':['STOP REQUESTS',        '// WORKER CAMERA SHUTDOWN APPROVALS'],
+  settings:       ['SYSTEM CONFIG',       '// CLIENT PERMISSIONS & ACCESS']
 };

@@ -1,14 +1,14 @@
 import os
 import uuid
 import json
-import sqlite3
+import json
 import numpy as np
 import cv2
 from pathlib import Path
 from typing import Optional, List, Dict
 from datetime import datetime
 
-from .config import MODELS_DIR, DATA_DIR, SIMILARITY_THRESHOLD, DB_PATH, DEVICE
+from .config import MODELS_DIR, DATA_DIR, SIMILARITY_THRESHOLD, DEVICE
 
 try:
     import insightface
@@ -110,23 +110,8 @@ def match_wanted(embedding: np.ndarray) -> Optional[dict]:
         except Exception as e:
             print(f"Qdrant search error: {e}")
             
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT p.person_id, p.embedding, w.name 
-            FROM person_photos p JOIN wanted w ON p.person_id = w.id
-        """)
-        rows = cur.fetchall()
-        
-    best_score, best_person = 0.0, None
-    for r in rows:
-        score = cosine_sim(embedding, np.frombuffer(r["embedding"], dtype=np.float32))
-        if score > best_score:
-            best_score, best_person = score, {"id": r["person_id"], "name": r["name"]}
-                
-    if best_score >= SIMILARITY_THRESHOLD and best_person:
-        return {"person": best_person, "confidence": round(best_score * 100, 1)}
+    # Legacy SQLite fallback removed. Watchlist matching is now primarily Qdrant-based.
+    # Postgres-based fallback can be added here if needed using SQLAlchemy.
     return None
 
 def bytes_to_cv2(data: bytes) -> np.ndarray:

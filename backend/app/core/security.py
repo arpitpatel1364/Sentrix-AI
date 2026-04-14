@@ -3,8 +3,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi import Request, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import sqlite3
-from .config import SECRET_KEY, ALGORITHM, TOKEN_EXPIRE_HOURS, DB_PATH
+from .config import SECRET_KEY, ALGORITHM, TOKEN_EXPIRE_HOURS
 
 security = HTTPBearer(auto_error=False)
 

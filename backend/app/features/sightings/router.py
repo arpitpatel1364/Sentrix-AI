@@ -28,9 +28,9 @@ async def list_sightings(
     query = select(Sighting).order_by(Sighting.timestamp.desc()).limit(limit)
     count_query = select(func.count(Sighting.id))
     
-    if user["role"] == "client":
-        query = query.where(Sighting.client_id == user["client_id"])
-        count_query = count_query.where(Sighting.client_id == user["client_id"])
+    if user.role == "client":
+        query = query.where(Sighting.client_id == user.client_id)
+        count_query = count_query.where(Sighting.client_id == user.client_id)
     
     res = await db.execute(query)
     rows = res.scalars().all()
@@ -68,7 +68,7 @@ async def get_analytics(
     Consolidated analytics for dashboard.
     Returns daily trends, top persons, and camera stats.
     """
-    client_id = user.get("client_id")
+    client_id = user.client_id
     
     # 1. Daily trends (last 7 days)
     daily_labels = []

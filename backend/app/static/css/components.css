@@ -189,7 +189,6 @@ input[type=file] {
   border-radius: var(--radius-xl);
   padding: 1.75rem;
   box-shadow: var(--shadow-md);
-  border: 1px solid var(--outline);
   position: relative;
   overflow: hidden;
   transition: transform var(--transition), box-shadow var(--transition);
@@ -240,7 +239,6 @@ input[type=file] {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--outline);
   transition: transform var(--transition), box-shadow var(--transition);
 }
 .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
@@ -292,7 +290,6 @@ input[type=file] {
   border-radius: var(--radius-xl);
   padding: 2rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--outline);
 }
 
 .panel-title {
@@ -322,7 +319,6 @@ input[type=file] {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  border: 1px solid var(--outline);
 }
 
 table { width: 100%; border-collapse: collapse; }
@@ -336,12 +332,10 @@ thead th {
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  border-bottom: 1px solid var(--outline);
 }
 
 tbody td {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--outline);
   font-size: 0.875rem;
   vertical-align: middle;
 }
@@ -354,7 +348,6 @@ tbody tr:hover td { background: var(--surface-low); }
   height: 44px;
   border-radius: var(--radius-sm);
   object-fit: cover;
-  border: 1px solid var(--outline);
 }
 
 /* ─── MODALS ─── */
@@ -381,7 +374,6 @@ tbody tr:hover td { background: var(--surface-low); }
   max-width: 520px;
   box-shadow: var(--shadow-lg);
   position: relative;
-  border: 1px solid var(--outline-strong);
   animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -444,7 +436,6 @@ tbody tr:hover td { background: var(--surface-low); }
   justify-content: space-between;
   gap: 1rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--outline);
 }
 .result-item:last-child { border-bottom: none; }
 .result-label { font-size: 0.78rem; color: var(--on-surface-muted); font-weight: 500; flex-shrink: 0; }
@@ -503,7 +494,6 @@ tbody tr:hover td { background: var(--surface-low); }
   border-radius: var(--radius-md);
   overflow: hidden;
   position: relative;
-  border: 1px solid var(--outline);
   cursor: pointer;
   transition: all var(--transition);
 }

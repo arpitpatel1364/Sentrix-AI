@@ -15,61 +15,23 @@
   <link rel="stylesheet" href="/static/css/pages.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* Specific overrides for Dashboard */
+    /* Specific overrides for Dashboard to match index.html feel */
     .app-shell {
       display: flex;
       height: 100vh;
       overflow: hidden;
     }
-    .main-content {
+    .main-area {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      background: var(--background);
     }
-    .content-area {
+    .pages {
       flex: 1;
       overflow-y: auto;
-      padding: 2rem;
-    }
-    .topbar {
-      height: var(--topbar-h);
-      background: var(--surface);
-      border-bottom: 1px solid var(--outline);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 2rem;
-      flex-shrink: 0;
-    }
-    .sidebar {
-      width: var(--sidebar-w);
-      background: var(--surface-low);
-      border-right: 1px solid var(--outline);
-      display: flex;
-      flex-direction: column;
-      transition: var(--transition);
-    }
-    .sb-nav-item {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.85rem 1.5rem;
-      color: var(--on-surface-muted);
-      cursor: pointer;
-      transition: var(--transition);
-      font-family: var(--font-body);
-      font-weight: 500;
-      border-left: 3px solid transparent;
-    }
-    .sb-nav-item:hover {
-      background: var(--surface-high);
-      color: var(--on-surface);
-    }
-    .sb-nav-item.active {
-      color: var(--primary);
-      background: var(--primary-dim);
-      border-left-color: var(--primary);
+      padding: 2.5rem;
     }
     .camera-grid {
       display: grid;
@@ -79,10 +41,17 @@
     .camera-tile {
       background: var(--surface);
       border: 1px solid var(--outline);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-xl);
       overflow: hidden;
       aspect-ratio: 16/10;
       position: relative;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition);
+    }
+    .camera-tile:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary);
     }
     .camera-stream {
       width: 100%;
@@ -95,8 +64,8 @@
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 1rem;
-      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      padding: 1.25rem;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
@@ -105,125 +74,131 @@
       padding: 0.25rem 0.6rem;
       border-radius: 4px;
       font-family: var(--font-mono);
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       text-transform: uppercase;
-      font-weight: 700;
+      font-weight: 800;
+      letter-spacing: 0.05em;
     }
-    .status-online { background: var(--green-dim); color: var(--green); }
-    .status-offline { background: var(--red-dim); color: var(--red); }
-    
-    .alert-card {
-      background: var(--surface);
-      border: 1px solid var(--outline);
-      border-radius: var(--radius-md);
-      padding: 1rem;
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      animation: slideInRight 0.3s ease;
-    }
-    .alert-thumb {
-      width: 120px;
-      height: 120px;
-      border-radius: var(--radius-sm);
-      object-fit: cover;
-      background: var(--surface-low);
-    }
-    .alert-details {
-      flex: 1;
-    }
+    .status-online { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-dim); }
+    .status-offline { background: var(--surface-high); color: var(--on-surface-muted); border: 1px solid var(--outline); }
     
     .loading-overlay {
       position: absolute;
       inset: 0;
       background: var(--surface);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 100;
+      gap: 1rem;
     }
-    
-    /* Chart container */
-    .chart-container {
-      background: var(--surface);
-      border: 1px solid var(--outline);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--primary-dim);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
     }
   </style>
 </head>
 <body>
 
-<div class="app-shell">
+<div class="app-shell" id="app">
   <!-- Sidebar -->
   <aside class="sidebar">
-    <div style="padding: 2rem; border-bottom: 1px solid var(--outline);">
-      <div style="font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; letter-spacing: 0.1em; color: var(--primary);">SENTRIX AI</div>
-      <div id="role-label-display" style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--on-surface-muted); text-transform: uppercase; margin-top: 0.25rem;">—</div>
+    <div class="sb-header">
+      <div class="sb-brand">
+        <div class="sb-logo-icon">SX</div>
+        <div>
+          <div class="sb-wordmark">SENTRIX</div>
+          <div class="sb-sub">ADVANCED VISION SUITE</div>
+        </div>
+      </div>
     </div>
-    <nav id="sidebar-nav" style="flex: 1; padding-top: 1.5rem;"></nav>
-    <div style="padding: 1.5rem; border-top: 1px solid var(--outline);">
-      <button onclick="Auth.logout()" class="btn btn-ghost" style="width: 100%; justify-content: flex-start; gap: 0.75rem;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-        Logout
+
+    <div class="sb-status">
+      <div class="sb-dot" id="status-dot"></div>
+      <span class="sb-status-text" id="status-text">CONNECTING…</span>
+      <span class="sb-node-count" id="sb-node-count">0 NODES</span>
+    </div>
+
+    <nav class="sb-nav" id="sidebar-nav">
+      <!-- Nav items injected here -->
+    </nav>
+
+    <div class="sb-footer">
+      <div class="user-av" id="user-initials">?</div>
+      <div class="user-details">
+        <div class="user-name" id="client-name-display">—</div>
+        <div class="user-role-label" id="role-label-display">CLIENT</div>
+      </div>
+      <button class="logout-btn" onclick="Auth.logout()" title="Logout">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>LOGOUT</span>
       </button>
     </div>
+
+    <!-- Floating Toggle -->
+    <button class="sb-toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
   </aside>
 
-  <!-- Main Content -->
-  <main class="main-content">
+  <!-- Main Area -->
+  <div class="main-area">
     <header class="topbar">
-      <div style="display: flex; align-items: center; gap: 1rem;">
-        <h2 id="page-title" style="margin:0; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem;">Dashboard</h2>
-      </div>
-      <div style="display: flex; align-items: center; gap: 1.5rem;">
-        <div id="connection-status" style="display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem;">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--on-surface-muted);" id="status-dot"></span>
-          <span id="status-text">DISCONNECTED</span>
+      <div class="topbar-left">
+        <div>
+          <div class="page-title" id="page-title">DASHBOARD</div>
+          <div class="breadcrumb" id="topbar-sub">// TACTICAL INTELLIGENCE INTERFACE</div>
         </div>
-        <div style="height: 24px; width: 1px; background: var(--outline);"></div>
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <div class="user-av" style="width: 32px; height: 32px; font-size: 0.8rem;" id="user-initials">?</div>
-          <span id="client-name-display" style="font-weight: 600; font-size: 0.9rem;">—</span>
+      </div>
+      <div class="topbar-right">
+        <span class="sys-time" id="sys-time">--:--:--</span>
+        <div id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <span class="theme-icon" id="theme-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+          <span id="theme-label">DARK</span>
         </div>
       </div>
     </header>
 
-    <div id="content-area" class="content-area">
-      <!-- Section content will be injected here -->
+    <div class="pages" id="content-area">
+      <!-- Content injected here -->
     </div>
-  </main>
+  </div>
 </div>
 
 <!-- Add Person Modal -->
-<div id="modal-add-person" class="modal-overlay" style="display:none">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div class="modal-title">REGISTER NEW SUBJECT</div>
-      <button class="modal-close" onclick="closeModal('modal-add-person')">×</button>
+<div class="modal-overlay" id="modal-add-person">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-add-person')">✕</button>
+    <div class="modal-title">REGISTER NEW SUBJECT</div>
+    <div class="form-group">
+      <label class="form-label">Subject Name</label>
+      <input type="text" id="new-person-name" placeholder="Full Name">
     </div>
-    <div class="modal-body">
-      <div class="field">
-        <label>Subject Name</label>
-        <input type="text" id="new-person-name" placeholder="Full Name">
-      </div>
-      <div class="field">
-        <label>Face Photo</label>
-        <div class="upload-zone" onclick="document.getElementById('person-photo').click()">
-          <input type="file" id="person-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
-          <div id="photo-preview-placeholder">
-            <div class="upload-icon">⊕</div>
-            <div class="upload-text">Upload clear face photo</div>
-          </div>
-          <img id="photo-preview-img" style="display:none; width: 100%; height: 100%; object-fit: contain;">
+    <div class="form-group">
+      <label class="form-label">Face Photo</label>
+      <div class="upload-zone" onclick="document.getElementById('person-photo').click()">
+        <input type="file" id="person-photo" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+        <div id="photo-preview-placeholder">
+          <div class="upload-icon">⊕</div>
+          <div class="upload-text">Upload clear face photo</div>
         </div>
+        <img id="photo-preview-img" style="display:none; width: 100%; height: auto; border-radius: var(--radius-md);">
       </div>
     </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeModal('modal-add-person')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitNewPerson()" id="submit-person-btn">Enroll Subject</button>
-    </div>
+    <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="submitNewPerson()" id="submit-person-btn">Enroll Subject</button>
   </div>
 </div>
 
@@ -242,12 +217,12 @@
 
   // Constants
   const NAV_ITEMS = [
-    { key: 'live_monitor',      label: 'Live Monitor',    icon: '▶',  page: 'live' },
-    { key: 'alert_feed',        label: 'Alert Feed',      icon: '🔔',  page: 'alerts' },
-    { key: 'sighting_history',  label: 'Sighting History',icon: '📋',  page: 'history' },
-    { key: 'watchlist_manager', label: 'Watchlist',       icon: '👤',  page: 'watchlist' },
-    { key: 'analytics',         label: 'Analytics',       icon: '📊',  page: 'analytics' },
-    { key: 'settings',          label: 'Settings',        icon: '⚙',  page: 'settings' },
+    { key: 'live_monitor',      label: 'Live Monitor',    page: 'live',      icon: `<svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>` },
+    { key: 'alert_feed',        label: 'Alert Feed',      page: 'alerts',    icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` },
+    { key: 'sighting_history',  label: 'Sighting History',page: 'history',   icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s3-7 11-7 11 7 11 7-3 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>` },
+    { key: 'watchlist_manager', label: 'Watchlist',       page: 'watchlist', icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
+    { key: 'analytics',         label: 'Analytics',       page: 'analytics', icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="3" height="18"/><rect x="11" y="8" width="3" height="13"/><rect x="4" y="13" width="3" height="8"/></svg>` },
+    { key: 'settings',          label: 'Settings',        page: 'settings',  icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` },
   ];
 
   // Initialize
@@ -258,6 +233,9 @@
     document.getElementById('user-initials').textContent = (payload.client_name || 'C')[0].toUpperCase();
 
     buildSidebar();
+    startClock();
+    applyInitialTheme();
+    
     await fetchMediaToken();
     await fetchWorkers();
     
@@ -270,6 +248,37 @@
       const firstPermitted = NAV_ITEMS.find(i => Auth.can(i.key));
       if (firstPermitted) showPage(firstPermitted.page);
     }
+  }
+
+  function startClock() {
+    const el = document.getElementById('sys-time');
+    const update = () => el.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+    update();
+    setInterval(update, 1000);
+  }
+
+  function applyInitialTheme() {
+    const saved = localStorage.getItem('sx-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    const label = document.getElementById('theme-label');
+    if (label) label.textContent = saved.toUpperCase();
+  }
+
+  function toggleTheme() {
+    const curr = document.documentElement.getAttribute('data-theme');
+    const next = curr === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('sx-theme', next);
+    document.getElementById('theme-label').textContent = next.toUpperCase();
+    
+    const icon = document.getElementById('theme-icon');
+    icon.innerHTML = next === 'dark' 
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+  }
+
+  function toggleSidebar() {
+    document.querySelector('.app-shell').classList.toggle('collapsed');
   }
 
   async function fetchMediaToken() {
@@ -289,6 +298,7 @@
       const res = await fetch('/workers/mine', { headers: Auth.headers() });
       if (res.ok) {
         myWorkers = await res.json();
+        document.getElementById('sb-node-count').textContent = `${myWorkers.length} NODES`;
       }
     } catch (e) {
       console.error('Failed to fetch workers', e);
@@ -299,53 +309,58 @@
     const nav = document.getElementById('sidebar-nav');
     nav.innerHTML = '';
     
-    let visibleCount = 0;
     NAV_ITEMS.forEach(item => {
       if (Auth.can(item.key)) {
         const el = document.createElement('div');
-        el.className = `sb-nav-item ${activePage === item.page ? 'active' : ''}`;
+        el.className = `nav-item ${activePage === item.page ? 'active' : ''}`;
         el.id = `nav-${item.page}`;
-        el.innerHTML = `<span style="width: 20px; text-align: center;">${item.icon}</span> ${item.label}`;
+        el.innerHTML = `${item.icon} <span class="nav-label">${item.label}</span>`;
         el.onclick = () => showPage(item.page);
         nav.appendChild(el);
-        visibleCount++;
       }
     });
-
-    if (visibleCount === 0) {
-      nav.innerHTML = '<div style="padding: 1.5rem; font-size: 0.8rem; color: var(--red); opacity: 0.8;">No pages available. Contact administrator.</div>';
-    }
   }
 
   function showPage(page) {
     activePage = page;
     window.location.hash = page;
     
-    // Update sidebar UI
-    document.querySelectorAll('.sb-nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const activeNav = document.getElementById(`nav-${page}`);
     if (activeNav) activeNav.classList.add('active');
 
-    // Update Title
     const item = NAV_ITEMS.find(i => i.page === page);
-    document.getElementById('page-title').textContent = item ? item.label : 'Dashboard';
+    document.getElementById('page-title').textContent = item ? item.label.toUpperCase() : 'DASHBOARD';
+    document.getElementById('topbar-sub').textContent = `// TACTICAL INTELLIGENCE DASHBOARD > ${item ? item.label.toUpperCase() : 'OVERVIEW'}`;
 
-    // Route to page renderer
     renderPage(page);
     
-    // Manage SSE
     if (page !== 'alerts' && sseSource) {
       sseSource.close();
       sseSource = null;
-      updateConnectionStatus('disconnected');
+      updateConnectionStatus(false);
     } else if (page === 'alerts' && !sseSource) {
       initAlertSSE();
     }
   }
 
+  function updateConnectionStatus(ok) {
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    if (!dot || !text) return;
+    
+    if (ok) {
+      dot.className = 'sb-dot';
+      text.textContent = 'SYSTEM ACTIVE';
+    } else {
+      dot.className = 'sb-dot offline';
+      text.textContent = 'CONNECTION LOST';
+    }
+  }
+
   function renderPage(page) {
     const container = document.getElementById('content-area');
-    container.innerHTML = '<div class="loading-overlay">Initializing page...</div>';
+    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div><div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--primary); letter-spacing:0.1em;">INITIALIZING PAGE…</div></div>`;
 
     switch(page) {
       case 'live': renderLiveMonitor(); break;
@@ -365,28 +380,27 @@
       <div class="sec-head">
         <div>
           <div class="sec-title">LIVE MONITOR</div>
-          <div class="sec-sub">Real-time surveillance matrix</div>
+          <div class="sec-sub">// REAL-TIME SURVEILLANCE MATRIX</div>
         </div>
       </div>
       <div id="live-grid" class="camera-grid"></div>
     `;
 
     const grid = document.getElementById('live-grid');
-    
     if (myWorkers.length === 0) {
       grid.innerHTML = '<div class="empty-state">No workers assigned to your account.</div>';
       return;
     }
 
+    updateConnectionStatus(true);
+
     for (const worker of myWorkers) {
-      // Fetch health for each worker
       let status = 'offline';
       try {
         const hRes = await fetch(`${worker.media_base_url}/health`);
         if (hRes.ok) status = 'online';
       } catch(e) {}
 
-      // Get cameras for this worker
       const cRes = await fetch(`/cameras/?worker_id=${worker.id}`, { headers: Auth.headers() });
       if (cRes.ok) {
         const cameras = await cRes.json();
@@ -400,11 +414,11 @@
           tile.innerHTML = `
             ${status === 'online' 
               ? `<img class="camera-stream" src="${streamUrl}" onerror="this.src='/static/img/no-signal.jpg'">`
-              : `<div class="camera-stream" style="display:flex;align-items:center;justify-content:center;color:var(--red);">OFFLINE</div>`}
+              : `<div class="camera-stream" style="display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted);"><div style="text-align:center"><div style="font-size:1.5rem;margin-bottom:0.5rem">◎</div><div style="font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.1em">DATA LINK OFFLINE</div></div></div>`}
             <div class="camera-info">
               <div>
-                <div style="color:white; font-weight:700; font-size:0.9rem; text-shadow: 0 1px 4px rgba(0,0,0,0.5);">${cam.name}</div>
-                <div style="font-family:var(--font-mono); font-size:0.6rem; color:rgba(255,255,255,0.7);">${worker.label}</div>
+                <div style="color:white; font-weight:700; font-family:var(--font-display); font-size:0.95rem; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">${cam.name.toUpperCase()}</div>
+                <div style="font-family:var(--font-mono); font-size:0.6rem; color:rgba(255,255,255,0.6); letter-spacing:0.05em; margin-top:0.2rem;">NODE: ${worker.label.toUpperCase()}</div>
               </div>
               <span class="status-badge status-${status}">${status}</span>
             </div>
@@ -421,14 +435,14 @@
       <div class="sec-head">
         <div>
           <div class="sec-title">ACTIVE ALERT FEED</div>
-          <div class="sec-sub">Real-time biometric detection events</div>
+          <div class="sec-sub">// REAL-TIME BIOMETRIC DETECTION EVENTS</div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('feed-list').innerHTML=''">Clear Feed</button>
+        <div class="sec-actions">
+           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('feed-list').innerHTML=''">Clear Feed</button>
+        </div>
       </div>
-      <div id="feed-list" style="max-width: 800px; margin: 0 auto;"></div>
+      <div id="feed-list" style="display:flex; flex-direction:column; gap:1rem; max-width:900px; margin:0 auto;"></div>
     `;
-    
-    // SSE is initialized by showPage
   }
 
   async function renderHistory() {
@@ -437,7 +451,7 @@
       <div class="sec-head">
         <div>
           <div class="sec-title">SIGHTING HISTORY</div>
-          <div class="sec-sub">Historical detection archive</div>
+          <div class="sec-sub">// HISTORICAL BIOMETRIC ARCHIVE</div>
         </div>
       </div>
       <div class="table-wrap">
@@ -445,34 +459,32 @@
           <thead>
             <tr>
               <th>Snapshot</th>
-              <th>Label</th>
+              <th>Identity</th>
               <th>Confidence</th>
-              <th>Camera</th>
-              <th>Time</th>
+              <th>Origin Node</th>
+              <th>Timestamp</th>
             </tr>
           </thead>
           <tbody id="history-table-body">
-            <tr><td colspan="5" style="text-align:center; padding:3rem;">Loading history...</td></tr>
+            <tr><td colspan="5" style="text-align:center; padding:3rem; color:var(--on-surface-muted);">Initialising stream archive…</td></tr>
           </tbody>
         </table>
       </div>
     `;
 
     try {
-      const res = await fetch('/sightings/?limit=20', { headers: Auth.headers() });
+      const res = await fetch('/sightings/?limit=30', { headers: Auth.headers() });
       const data = await res.json();
       const sightings = data.sightings || [];
       const tbody = document.getElementById('history-table-body');
       tbody.innerHTML = '';
 
-      
       if (sightings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:3rem;">No history found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:3rem; color:var(--on-surface-muted);">No records found in current segment.</td></tr>';
         return;
       }
 
       sightings.forEach(s => {
-        // Find worker to build snapshot URL
         const worker = myWorkers.find(w => w.id === s.worker_id);
         const snapUrl = worker 
           ? `${worker.media_base_url}/snapshots/${s.snapshot_path}?token=${mediaToken}`
@@ -480,11 +492,11 @@
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${snapUrl ? `<img src="${snapUrl}" style="height:40px; border-radius:4px;">` : 'N/A'}</td>
-          <td><span class="badge ${s.person_name === 'Unknown' ? 'badge-ghost' : 'badge-primary'}">${s.person_name}</span></td>
-          <td class="td-mono">${(s.confidence * 100).toFixed(1)}%</td>
-          <td>${s.camera_name || 'Unknown'}</td>
-          <td class="td-mono" style="font-size:0.75rem;">${new Date(s.timestamp).toLocaleString()}</td>
+          <td>${snapUrl ? `<img src="${snapUrl}" class="td-img" style="border-radius:var(--radius-sm);">` : '<div class="td-img" style="background:var(--surface-high); display:flex; align-items:center; justify-content:center; font-size:0.6rem;">N/A</div>'}</td>
+          <td><span class="badge ${s.person_name === 'Unknown' ? '' : 'badge-match'}" style="font-size:0.7rem; padding:0.35rem 0.75rem;">${s.person_name.toUpperCase()}</span></td>
+          <td class="td-mono" style="color:var(--primary); font-weight:700;">${(s.confidence * 100).toFixed(1)}%</td>
+          <td style="font-weight:600; font-size:0.82rem;">${(s.camera_name || 'UNK').toUpperCase()}</td>
+          <td class="td-mono">${new Date(s.timestamp).toLocaleString('en-GB', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:false})}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -499,17 +511,19 @@
       <div class="sec-head">
         <div>
           <div class="sec-title">WATCHLIST MANAGER</div>
-          <div class="sec-sub">Manage tracked subjects</div>
+          <div class="sec-sub">// SUBJECT INTELLIGENCE REGISTRY</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-person')">+ Register Subject</button>
+        <div class="sec-actions">
+           <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-person')">+ ADD TARGET</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table style="width:100%">
           <thead>
             <tr>
-              <th>Subject Name</th>
-              <th>Enrolled Date</th>
-              <th style="text-align:right">Actions</th>
+              <th>Subject Alias</th>
+              <th>Enlistment Date</th>
+              <th style="text-align:right">Operational Actions</th>
             </tr>
           </thead>
           <tbody id="watchlist-table-body"></tbody>
@@ -521,31 +535,32 @@
 
   async function loadWatchlist() {
     const tbody = document.getElementById('watchlist-table-body');
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:3rem;">Loading watchlist...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:3rem; color:var(--on-surface-muted);">Retrieving subject dossiers…</td></tr>';
     
     try {
       const res = await fetch('/watchlist/', { headers: Auth.headers() });
+      if (!res.ok) throw new Error();
       const items = await res.json();
       tbody.innerHTML = '';
       
       if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:3rem;">Watchlist is empty.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:3rem; color:var(--on-surface-muted);">Registry is currently empty.</td></tr>';
         return;
       }
 
       items.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="font-weight:600;">${item.person_name}</td>
-          <td class="td-mono" style="font-size:0.8rem; color:var(--on-surface-muted);">${new Date(item.created_at).toLocaleDateString()}</td>
+          <td style="font-weight:700; font-size:0.95rem; color:var(--on-surface);">${item.person_name.toUpperCase()}</td>
+          <td class="td-mono">${new Date(item.created_at).toLocaleDateString()}</td>
           <td style="text-align:right">
-            <button class="btn btn-ghost btn-danger btn-sm" onclick="deleteFromWatchlist(${item.id}, '${item.qdrant_vector_id}')">Delete</button>
+            <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteFromWatchlist(${item.id}, '${item.qdrant_vector_id}')">TERMINATE PROFILE</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
     } catch (e) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--red);">Error loading watchlist.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--red); padding:3rem;">ERROR: FAILED TO RETRIEVE WATCHLIST DATA</td></tr>';
     }
   }
 
@@ -554,28 +569,36 @@
     container.innerHTML = `
       <div class="sec-head">
         <div>
-          <div class="sec-title">PERFORMANCE ANALYTICS</div>
-          <div class="sec-sub">System-wide detection trends</div>
+          <div class="sec-title">SYSTEM ANALYTICS</div>
+          <div class="sec-sub">// DETECTION TRENDS & ENGINE PERFORMANCE</div>
         </div>
       </div>
-      <div class="two-col">
-        <div class="chart-container">
-          <div class="panel-title" style="margin-bottom:1rem">Detections (Last 7 Days)</div>
-          <canvas id="chart-daily-detections"></canvas>
-        </div>
-        <div class="chart-container">
-          <div class="panel-title" style="margin-bottom:1rem">Activity Heatmap</div>
-          <canvas id="chart-activity-heatmap"></canvas>
-        </div>
+      <div id="analytics-stats-strip" style="display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; margin-bottom:2rem;">
+         <div class="panel" style="padding:1.5rem; text-align:center;">
+            <div class="stat-label">TOTAL SIGHTINGS</div>
+            <div class="stat-val" style="font-size:2.4rem; color:var(--primary);" id="stat-total-sightings">—</div>
+         </div>
+         <div class="panel" style="padding:1.5rem; text-align:center;">
+            <div class="stat-label">TARGET MATCHES</div>
+            <div class="stat-val" style="font-size:2.4rem; color:var(--red);" id="stat-total-matches">—</div>
+         </div>
+         <div class="panel" style="padding:1.5rem; text-align:center;">
+            <div class="stat-label">ACTIVE NODES</div>
+            <div class="stat-val" style="font-size:2.4rem; color:var(--green);" id="stat-active-nodes">—</div>
+         </div>
+         <div class="panel" style="padding:1.5rem; text-align:center;">
+            <div class="stat-label">CONFIDENCE AVG</div>
+            <div class="stat-val" style="font-size:2.4rem; color:var(--cyan);" id="stat-avg-conf">—</div>
+         </div>
       </div>
-      <div class="two-col">
-        <div class="chart-container">
-          <div class="panel-title" style="margin-bottom:1rem">Top Detected Subjects</div>
-          <canvas id="chart-top-persons"></canvas>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+        <div class="panel">
+          <div class="panel-title">Detection Frequency (24h)</div>
+          <div style="height:300px"><canvas id="chart-daily-detections"></canvas></div>
         </div>
-        <div class="chart-container">
-          <div class="panel-title" style="margin-bottom:1rem">Camera Distribution</div>
-          <canvas id="chart-camera-dist"></canvas>
+        <div class="panel">
+          <div class="panel-title">Subject distribution</div>
+          <div style="height:300px"><canvas id="chart-top-persons"></canvas></div>
         </div>
       </div>
     `;
@@ -584,147 +607,127 @@
       const res = await fetch('/sightings/analytics', { headers: Auth.headers() });
       const data = await res.json();
       initAnalyticsCharts(data);
+      
+      // Fill stats
+      document.getElementById('stat-total-sightings').textContent = data.summary?.total || 0;
+      document.getElementById('stat-total-matches').textContent = data.summary?.matches || 0;
+      document.getElementById('stat-active-nodes').textContent = myWorkers.length;
+      document.getElementById('stat-avg-conf').textContent = ((data.summary?.avg_conf || 0)*100).toFixed(0) + '%';
     } catch (e) {
-      console.error(e);
+      console.error('Analytics failed', e);
     }
   }
 
   function initAnalyticsCharts(data) {
-    // 1. Daily Bar Chart
     new Chart(document.getElementById('chart-daily-detections'), {
-      type: 'bar',
-      data: {
-        labels: data.daily?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-          label: 'Total Detections',
-          data: data.daily?.counts || [12, 19, 3, 5, 2, 3, 7],
-          backgroundColor: 'rgba(77, 124, 255, 0.6)',
-          borderColor: 'rgba(77, 124, 255, 1)',
-          borderWidth: 1
-        }]
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
-    });
-
-    // 2. Top Persons (Horizontal Bar)
-    new Chart(document.getElementById('chart-top-persons'), {
-      type: 'bar',
-      data: {
-        labels: data.top_persons?.labels || ['Unknown', 'John Doe', 'Jane Smith'],
-        datasets: [{
-          label: 'Sighting Count',
-          data: data.top_persons?.counts || [145, 22, 12],
-          backgroundColor: 'rgba(0, 210, 255, 0.6)',
-          indexAxis: 'y'
-        }]
-      },
-      options: { responsive: true }
-    });
-
-    // 3. Camera Dist (Pie)
-    new Chart(document.getElementById('chart-camera-dist'), {
-      type: 'pie',
-      data: {
-        labels: data.camera_dist?.labels || ['Entrance', 'Lobby', 'Parking'],
-        datasets: [{
-          data: data.camera_dist?.counts || [45, 25, 30],
-          backgroundColor: ['#4d7cff', '#00d2ff', '#9d7cff', '#00e676']
-        }]
-      },
-      options: { responsive: true }
-    });
-    
-    // 4. Activity (Line)
-    new Chart(document.getElementById('chart-activity-heatmap'), {
       type: 'line',
       data: {
-        labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+        labels: data.daily?.labels || [],
         datasets: [{
-          label: 'Activity by Hour',
-          data: data.hourly?.counts || Array.from({length: 24}, () => Math.floor(Math.random()*20)),
+          label: 'Detections',
+          data: data.daily?.counts || [],
           borderColor: '#4d7cff',
+          backgroundColor: 'rgba(77,124,255,0.1)',
+          fill: true,
           tension: 0.4
         }]
       },
-      options: { responsive: true }
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(128,128,128,0.1)' } }, x: { grid: { display: false } } }
+      }
+    });
+
+    new Chart(document.getElementById('chart-top-persons'), {
+      type: 'doughnut',
+      data: {
+        labels: data.top_persons?.labels || [],
+        datasets: [{
+          data: data.top_persons?.counts || [],
+          backgroundColor: ['#4d7cff', '#00d2ff', '#9d7cff', '#00e676', '#ff4d4d'],
+          borderWidth: 0
+        }]
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: { legend: { position: 'right', labels: { color: '#707a9e', font: { family: 'Inter' } } } }
+      }
     });
   }
 
-  function renderSettings() {
+  async function renderSettings() {
     const container = document.getElementById('content-area');
-    const roleLabel = Auth.getRoleLabel();
     const canManageCameras = Auth.can('camera_management');
 
     container.innerHTML = `
       <div class="sec-head">
         <div>
-          <div class="sec-title">SETTINGS</div>
-          <div class="sec-sub">Account & system preferences</div>
+          <div class="sec-title">SYSTEM SETTINGS</div>
+          <div class="sec-sub">// ACCOUNT & OPERATIONAL PREFERENCES</div>
         </div>
       </div>
       
-      <div style="max-width: 800px;">
-        <!-- Account -->
-        <div class="panel" style="margin-bottom: 2rem;">
-          <div class="panel-title">Your Account</div>
-          <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--surface-low); border-radius: 8px;">
-            <div style="font-size: 0.8rem; color: var(--on-surface-muted);">Active Role</div>
-            <div style="font-weight: 700; color: var(--primary);">${roleLabel}</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem; max-width:1200px;">
+        <div style="display:flex; flex-direction:column; gap:2rem;">
+          <div class="panel">
+            <div class="panel-title">OPERATOR IDENTITY</div>
+            <div style="margin-bottom: 2rem; padding: 1.25rem; background: var(--surface-low); border-radius: var(--radius-md); border:1px solid var(--outline);">
+              <div style="font-size: 0.65rem; font-family:var(--font-mono); color: var(--on-surface-muted); text-transform:uppercase; margin-bottom:0.4rem;">Operational Role</div>
+              <div style="font-weight: 800; font-size:1.1rem; color: var(--primary); letter-spacing:0.05em;">${Auth.getRoleLabel().toUpperCase()}</div>
+            </div>
+            <div class="field">
+              <label>Update Authorization Key</label>
+              <div class="password-wrapper">
+                <input type="password" id="set-pass" placeholder="••••••••">
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('set-pass', 'eye-icon-settings')" tabindex="-1">
+                  <svg id="eye-icon-settings" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="width:100%" onclick="changePassword()">DEPLOY NEW KEY</button>
           </div>
-          <div class="field">
-            <label>New Password</label>
-            <div class="password-wrapper">
-              <input type="password" id="set-pass" placeholder="••••••••">
-              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('set-pass', 'eye-icon-settings')" tabindex="-1">
-                <svg id="eye-icon-settings" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-              </button>
+
+          <div class="panel">
+            <div class="panel-title">COMMUNICATIONS</div>
+            <div class="field">
+              <label>External Webhook Dispatch (Slack/Discord)</label>
+              <input type="text" id="set-webhook" placeholder="https://hooks.example.com/...">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem;">
+              <label style="display:flex; align-items:center; gap:0.75rem; cursor:pointer; font-size:0.85rem; font-weight:600;">
+                <input type="checkbox" id="set-alert-match" checked> SIGNAL ON TARGET MATCH
+              </label>
+              <label style="display:flex; align-items:center; gap:0.75rem; cursor:pointer; font-size:0.85rem; font-weight:600;">
+                <input type="checkbox" id="set-alert-unknown"> SIGNAL ON UNKNOWN SUBJECT
+              </label>
+            </div>
+            <button class="btn btn-primary btn-sm" style="width:100%" onclick="saveNotifySettings()">COMMIT PREFERENCES</button>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:2rem;">
+          ${canManageCameras ? `
+          <div class="panel">
+            <div class="panel-title">NODE MANAGEMENT</div>
+            <div id="settings-camera-list" style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem;"></div>
+            <div style="padding:1.5rem; border:1px dashed var(--outline-strong); border-radius:var(--radius-lg); background:var(--surface-low);">
+              <div style="font-weight:800; font-size:0.8rem; margin-bottom:1.25rem; letter-spacing:0.05em; color:var(--on-surface);">REGISTER NEW CAMERA NODE</div>
+              <div class="field"><label>Node Label</label><input type="text" id="cam-name" placeholder="E.g. Loading Dock B"></div>
+              <div class="field"><label>Assignment Worker</label><select id="cam-worker-id" style="font-family:var(--font-mono); font-size:0.85rem;"></select></div>
+              <div class="field"><label>Data Stream (RTSP/HTTP)</label><input type="text" id="cam-rtsp" placeholder="rtsp://admin:key@192.168.1.50:554/ch1"></div>
+              <button class="btn btn-primary btn-sm" style="width:100%" onclick="addCamera()">PROVISION NODE</button>
             </div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="changePassword()">Update Security Key</button>
-        </div>
-
-        <!-- Notifications -->
-        <div class="panel" style="margin-bottom: 2rem;">
-          <div class="panel-title">Notifications</div>
-          <div class="field">
-            <label>Webhook URL (Discord/Slack/Custom)</label>
-            <input type="text" id="set-webhook" placeholder="https://hooks.example.com/...">
+          ` : `
+          <div class="panel">
+            <div class="panel-title">OPERATIONAL NODES</div>
+            <div id="settings-worker-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
           </div>
-          <div style="display:flex; flex-direction:column; gap:0.5rem;">
-            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-              <input type="checkbox" id="set-alert-match" checked> Alert on Face Match
-            </label>
-            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-              <input type="checkbox" id="set-alert-unknown"> Alert on Unknown Subject
-            </label>
-          </div>
-          <button class="btn btn-primary btn-sm" style="margin-top:1rem" onclick="saveNotifySettings()">Save Preferences</button>
-        </div>
-
-        <!-- Camera Management -->
-        ${canManageCameras ? `
-        <div class="panel" style="margin-bottom: 2rem;">
-          <div class="panel-title">Camera Management</div>
-          <div id="settings-camera-list" style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;"></div>
-          <div style="padding:1rem; border:1px dashed var(--outline); border-radius:8px;">
-            <div style="font-weight:600; margin-bottom:1rem;">Add New Camera</div>
-            <div class="two-col">
-              <div class="field"><label>Name</label><input type="text" id="cam-name" placeholder="Front Entrance"></div>
-              <div class="field"><label>Worker</label><select id="cam-worker-id"></select></div>
-            </div>
-            <div class="field"><label>RTSP URL</label><input type="text" id="cam-rtsp" placeholder="rtsp://admin:pass@192.168.1.10:554/live"></div>
-            <button class="btn btn-primary btn-sm" onclick="addCamera()">Register Camera</button>
-          </div>
-        </div>
-        ` : ''}
-
-        <!-- Workers -->
-        <div class="panel">
-          <div class="panel-title">Operational Workers</div>
-          <div id="settings-worker-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
+          `}
         </div>
       </div>
     `;
@@ -735,29 +738,35 @@
       myWorkers.forEach(w => {
         const opt = document.createElement('option');
         opt.value = w.id;
-        opt.textContent = w.label;
+        opt.textContent = w.label.toUpperCase();
         select.appendChild(opt);
       });
+    } else {
+      loadSettingsWorkers();
     }
-    loadSettingsWorkers();
   }
 
   async function loadSettingsCameras() {
     const list = document.getElementById('settings-camera-list');
-    list.innerHTML = 'Loading cameras...';
+    list.innerHTML = '<div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--on-surface-muted);">SYNCING NODES…</div>';
     try {
       const res = await fetch('/cameras/', { headers: Auth.headers() });
       const cams = await res.json();
       list.innerHTML = '';
+      if (cams.length === 0) list.innerHTML = '<div style="font-size:0.8rem; color:var(--on-surface-muted); padding:1rem; text-align:center;">No active nodes found.</div>';
       cams.forEach(c => {
         const el = document.createElement('div');
-        el.style = 'display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:var(--surface-low); border-radius:8px; border:1px solid var(--outline);';
+        el.className = 'result-item';
+        el.style.background = 'var(--surface-low)';
+        el.style.padding = '0.85rem 1.25rem';
+        el.style.borderRadius = 'var(--radius-md)';
+        el.style.border = '1px solid var(--outline)';
         el.innerHTML = `
           <div>
-            <div style="font-weight:700;">${c.name}</div>
-            <div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--on-surface-muted);">RTSP: •••••••••••••••</div>
+            <div style="font-weight:700; font-size:0.85rem;">${c.name.toUpperCase()}</div>
+            <div style="font-family:var(--font-mono); font-size:0.6rem; color:var(--on-surface-muted); margin-top:2px;">STREAM: SECURED_CHANNEL</div>
           </div>
-          <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteCamera(${c.id})">Delete</button>
+          <button class="btn btn-ghost btn-sm btn-danger" style="padding:0.4rem 0.75rem; font-size:0.65rem;" onclick="deleteCamera(${c.id})">TERMINATE</button>
         `;
         list.appendChild(el);
       });
@@ -767,7 +776,7 @@
   async function loadSettingsWorkers() {
     const list = document.getElementById('settings-worker-list');
     list.innerHTML = '';
-    myWorkers.forEach(async w => {
+    for(const w of myWorkers) {
       let status = 'offline';
       try {
         const hRes = await fetch(`${w.media_base_url}/health`);
@@ -775,33 +784,29 @@
       } catch(e) {}
       
       const el = document.createElement('div');
-      el.style = 'display:flex; justify-content:space-between; align-items:center; padding:1rem; background:var(--surface-low); border-radius:8px;';
+      el.className = 'result-item';
+      el.style.background = 'var(--surface-low)';
+      el.style.padding = '1rem 1.25rem';
+      el.style.borderRadius = 'var(--radius-md)';
+      el.style.border = '1px solid var(--outline)';
       el.innerHTML = `
         <div>
-          <div style="font-weight:700;">${w.label}</div>
-          <div style="font-family:var(--font-mono); font-size:0.65rem; color:var(--on-surface-muted);">Last Seen: ${new Date(w.last_seen || Date.now()).toLocaleTimeString()}</div>
+          <div style="font-weight:800; font-size:0.9rem;">${w.label.toUpperCase()}</div>
+          <div style="font-family:var(--font-mono); font-size:0.6rem; color:var(--on-surface-muted); margin-top:3px;">LAST SEEN @ ${new Date(w.last_seen || Date.now()).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', hour12:false})}</div>
         </div>
         <span class="status-badge status-${status}">${status}</span>
       `;
       list.appendChild(el);
-    });
+    }
   }
 
   // --- ACTIONS ---
 
   function initAlertSSE() {
     if (sseSource) sseSource.close();
+    updateConnectionStatus(false);
     
-    updateConnectionStatus('connecting');
     sseSource = new EventSource(`/sse/events?token=${Auth.getToken()}`);
-    
-    sseSource.onopen = () => {
-      updateConnectionStatus('connected');
-    };
-    
-    sseSource.onerror = (e) => {
-      updateConnectionStatus('reconnecting');
-    };
     
     sseSource.onmessage = (event) => {
       const data = JSON.parse(event.data);

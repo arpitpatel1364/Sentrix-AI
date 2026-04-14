@@ -8,6 +8,7 @@ from ..workers.router import validate_worker_key
 from ...core.face_engine import QDRANT_CLIENT, QDRANT_AVAILABLE
 from ...core.sse_manager import broadcast_alert, SSE_CONNECTIONS
 from qdrant_client.models import PointStruct
+from ...core.worker_state import update_worker_heartbeat
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -22,6 +23,12 @@ async def inference_result(
     request: Request = None # To get authorization header if needed
 ):
     client_id, _ = auth
+    
+    # Register heartbeat
+    camera_id = payload.get("camera_id") # UUID or alias
+    worker_id = payload.get("worker_id")
+    # For now, we use the camera_id as the node_key in the registry
+    update_worker_heartbeat(camera_id, client_id=str(client_id))
     # We need the API key for the media token. 
     # It's in the Authorization header.
     auth_header = request.headers.get("Authorization", "")

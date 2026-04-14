@@ -3,13 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from ...core.database import get_db
 from ...core.models import Worker, WorkerKey, Client, Camera
-from ...core.security import get_current_user, require_admin
+from ...core.dependencies import get_current_user, require_admin
 import uuid
 import bcrypt
 from datetime import datetime
 from typing import List, Optional
 
-router = APIRouter(prefix="/api/workers", tags=["Workers"])
+router = APIRouter(prefix="/workers", tags=["Workers"])
 
 async def get_client_by_api_key(api_key: str, db: AsyncSession):
     # Performance fix: We should ideally have a key prefix or a fast lookup table.
@@ -147,10 +147,10 @@ async def list_my_workers(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user["role"] != "client" or not user.get("client_id"):
+    if user.role != "client" or not user.client_id:
         raise HTTPException(status_code=403, detail="Only clients can access this")
     
-    client_id = user["client_id"]
+    client_id = user.client_id
     result = await db.execute(select(Worker).where(Worker.client_id == client_id))
     workers = result.scalars().all()
     

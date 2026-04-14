@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 import asyncio
 import json
 from sse_starlette.sse import EventSourceResponse
-from ...core.security import get_current_user
+from ...core.dependencies import get_current_user
 from ...core.sse_manager import add_connection, remove_connection
 import uuid
 
@@ -16,12 +16,12 @@ async def sse_events(request: Request, user=Depends(get_current_user)):
     queue = asyncio.Queue()
     
     # Target is either "admin" or the client_id string
-    target = "admin" if user["role"] == "admin" else str(user.get("client_id"))
+    target = "admin" if user.role == "admin" else str(user.client_id)
     
     await add_connection(target, queue)
 
     async def generator():
-        yield {"event": "connected", "data": json.dumps({"role": user["role"], "client_id": str(user.get("client_id"))})}
+        yield {"event": "connected", "data": json.dumps({"role": user.role, "client_id": str(user.client_id)})}
         try:
             while True:
                 if await request.is_disconnected():

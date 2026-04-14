@@ -90,7 +90,7 @@ async def delete_user(username: str, request: Request, _admin=Depends(require_ad
     await write_log(db, username=_admin.username, role=_admin.role, action="delete_user", target=username, detail=f"Deleted user {username}", ip=request.client.host)
     return {"ok": True}
 
-@router.post("/auth/issue-credentials")
+@router.post("/issue-credentials")
 async def issue_credentials(
     request: Request,
     body: dict,
@@ -164,7 +164,7 @@ async def issue_credentials(
         "qdrant_collection": qdrant_collection
     }
 
-@router.post("/auth/validate-worker-key")
+@router.post("/validate-worker-key")
 async def validate_worker_key(
     client_id: uuid.UUID = Depends(get_worker_client_id),
     db: AsyncSession = Depends(get_db)
@@ -179,7 +179,7 @@ async def validate_worker_key(
         "qdrant_collection": client.qdrant_collection
     }
 
-@router.get("/auth/media-token")
+@router.get("/media-token")
 async def get_media_token(
     current_user = Depends(get_current_user)
 ):
@@ -192,9 +192,9 @@ async def get_media_token(
     
     expires = datetime.utcnow() + timedelta(minutes=15)
     payload = {
-        "sub": current_user["username"],
-        "client_id": current_user.get("client_id"),
-        "role": current_user["role"],
+        "sub": current_user.username,
+        "client_id": str(current_user.client_id) if current_user.client_id else None,
+        "role": current_user.role,
         "exp": expires
     }
     token = jwt.encode(payload, MEDIA_SECRET_KEY, algorithm=ALGORITHM)

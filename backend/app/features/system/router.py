@@ -3,13 +3,13 @@ import time
 import shutil
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from ...core.security import require_admin, get_current_user
+from ...core.dependencies import get_current_user, require_admin
 from ...core.database import get_db, _add_user
 from ...core.face_engine import (
     QDRANT_AVAILABLE
 )
 from ...core import face_engine
-from ...core.config import SNAPSHOTS_DIR, DB_PATH
+from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import get_live_nodes, WORKER_REGISTRY
 from ...core.orchestrator import orchestrator
 from qdrant_client.models import VectorParams, Distance
@@ -63,7 +63,7 @@ async def start_node(node_id: str, user=Depends(get_current_user)):
     # Audit log
     from ...core.database import get_db_conn, log_audit
     async with get_db_conn() as db:
-        await log_audit(db, user["username"], user["role"], "START_NODE", target=node_id, detail="Detection node manual start")
+        await log_audit(db, user.username, user.role, "START_NODE", target=node_id, detail="Detection node manual start")
         
     return {"ok": True}
 
@@ -75,7 +75,7 @@ async def stop_node(node_id: str, user=Depends(require_admin)):
     # Audit log
     from ...core.database import get_db_conn, log_audit
     async with get_db_conn() as db:
-        await log_audit(db, user["username"], user["role"], "STOP_NODE", target=node_id, detail="Detection node manual stop")
+        await log_audit(db, user.username, user.role, "STOP_NODE", target=node_id, detail="Detection node manual stop")
         
     return {"ok": True}
 
@@ -210,3 +210,12 @@ async def system_reset(user=Depends(require_admin)):
         return {"ok": True, "message": "System reset successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
+@router.get("/active-users")
+async def active_users(user=Depends(get_current_user)):
+    """
+    Returns live nodes. Clients only see their own nodes.
+    """
+    # Use model-based user object
+    client_id = str(user.client_id) if user.role == "client" else None
+    live_nodes = get_live_nodes(client_id=client_id)
+    return {"nodes": live_nodes}

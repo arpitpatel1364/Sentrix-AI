@@ -2,10 +2,9 @@ import os
 import sys
 import subprocess
 import time
-import sqlite3
 from pathlib import Path
 from typing import Dict, List, Optional
-from .config import BASE_DIR, DB_PATH
+from .config import BASE_DIR
 
 class WorkerOrchestrator:
     _instance = None
@@ -35,26 +34,12 @@ class WorkerOrchestrator:
         return sys.executable
 
     def load_nodes_from_db(self) -> List[Dict]:
-        nodes = []
-        try:
-            with sqlite3.connect(DB_PATH) as conn:
-                conn.row_factory = sqlite3.Row
-                cur = conn.cursor()
-                # We need camera_id, name, location, and stream_url.
-                # Since worker_agent needs a user/pass, we'll use 'admin' credentials for now 
-                # or assume the orchestrator has access to default worker credentials.
-                cur.execute("SELECT camera_id, name, location, stream_url FROM cameras")
-                for row in cur.fetchall():
-                    nodes.append({
-                        "id": row["camera_id"],
-                        "location": row["location"] or "Unknown",
-                        "camera": row["stream_url"] or "0",
-                        "user": "admin", # Default for internal orchestrator
-                        "pass": "admin123" # Default for internal orchestrator
-                    })
-        except Exception as e:
-            print(f"[ORCH] Database error: {e}")
-        return nodes
+        """
+        Legacy SQLite node loading. 
+        In SaaS mode, workers are external and self-registered. 
+        Local orchestration is currently disabled or pending migration to Postgres.
+        """
+        return []
 
     def start_node(self, node_id: str) -> bool:
         # Check if already running and healthy

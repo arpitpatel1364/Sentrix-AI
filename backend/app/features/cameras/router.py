@@ -28,8 +28,8 @@ async def list_cameras(user=Depends(get_current_user), db: AsyncSession = Depend
     List cameras. Clients see only their own cameras. Admins see everything.
     """
     query = select(Camera).order_by(Camera.added_at.desc())
-    if user["role"] == "client":
-        query = query.where(Camera.client_id == user["client_id"])
+    if user.role == "client":
+        query = query.where(Camera.client_id == user.client_id)
     
     result = await db.execute(query)
     cameras = result.scalars().all()
@@ -102,8 +102,8 @@ async def add_camera(request: Request, user=Depends(get_current_user), db: Async
     worker_id   = body.get("worker_id")
     
     # Determine client_id
-    target_client_id = user["client_id"]
-    if user["role"] == "admin":
+    target_client_id = user.client_id
+    if user.role == "admin":
         target_client_id = body.get("client_id")
         if not target_client_id:
             raise HTTPException(status_code=400, detail="client_id is required for admin to add a camera")
@@ -127,7 +127,7 @@ async def add_camera(request: Request, user=Depends(get_current_user), db: Async
         location=location,
         description=description,
         stream_url=stream_url,
-        added_by=user["username"],
+        added_by=user.username,
         added_at=now,
         face_enabled=1,
         obj_enabled=1,
@@ -138,7 +138,7 @@ async def add_camera(request: Request, user=Depends(get_current_user), db: Async
     db.add(new_cam)
     await db.commit()
     
-    await write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' for client {target_client_id}", ip=request.client.host)
+    await write_log(db, username=user.username, role=user.role, action="add_camera", target=camera_id, detail=f"Registered camera '{name}' for client {target_client_id}", ip=request.client.host)
     return {"ok": True, "id": cam_pk, "camera_id": camera_id}
 
 @router.put("/{camera_id}")
@@ -147,8 +147,8 @@ async def update_camera(camera_id: str, request: Request,
     body = await request.json()
     
     query = select(Camera).where(Camera.camera_id == camera_id)
-    if user["role"] == "client":
-        query = query.where(Camera.client_id == user["client_id"])
+    if user.role == "client":
+        query = query.where(Camera.client_id == user.client_id)
     
     res = await db.execute(query)
     cam = res.scalar_one_or_none()
@@ -171,8 +171,8 @@ async def delete_camera(camera_id: str, request: Request, user=Depends(get_curre
                         db: AsyncSession = Depends(get_db)):
     # Note: camera_id here refers to the primary key 'id' in the JS call deleteCamera(id)
     query = select(Camera).where(Camera.id == camera_id)
-    if user["role"] == "client":
-        query = query.where(Camera.client_id == user["client_id"])
+    if user.role == "client":
+        query = query.where(Camera.client_id == user.client_id)
     
     res = await db.execute(query)
     cam = res.scalar_one_or_none()
@@ -182,7 +182,7 @@ async def delete_camera(camera_id: str, request: Request, user=Depends(get_curre
     await db.delete(cam)
     await db.commit()
     
-    await write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=str(cam.camera_id), detail=f"Removed camera {cam.camera_id}", ip=request.client.host)
+    await write_log(db, username=user.username, role=user.role, action="delete_camera", target=str(cam.camera_id), detail=f"Removed camera {cam.camera_id}", ip=request.client.host)
     return {"ok": True}
 
 @router.put("/{camera_id}/position")
@@ -194,8 +194,8 @@ async def update_camera_position(camera_id: str, request: Request,
     y = body.get("y", 50.0)
     
     query = select(Camera).where(Camera.camera_id == camera_id)
-    if user["role"] == "client":
-        query = query.where(Camera.client_id == user["client_id"])
+    if user.role == "client":
+        query = query.where(Camera.client_id == user.client_id)
         
     res = await db.execute(query)
     cam = res.scalar_one_or_none()
