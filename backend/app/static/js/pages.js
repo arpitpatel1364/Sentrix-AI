@@ -168,7 +168,7 @@ async function loadWorkers() {
    ══════════════════════════════════════════ */
 async function loadUsers() {
   try {
-    const users = await api('/api/users');
+    const users = await api('/api/auth/users');
     const tb = document.getElementById('users-table');
     tb.innerHTML = users.map(u => `
       <tr>
@@ -204,7 +204,7 @@ async function addUser() {
   if (!u || !p) { err.style.display='block'; err.textContent='All fields required'; return; }
   btn.disabled=true; btn.textContent='Creating…'; err.style.display='none';
   try {
-    await api('/api/users', { method: 'POST', body: JSON.stringify({ username: u, password: p, role: r }) });
+    await api('/api/auth/users', { method: 'POST', body: JSON.stringify({ username: u, password: p, role: r }) });
     closeModal('modal-add-user');
     toast('Operator created: ' + u, 'amber');
     loadUsers();
@@ -215,7 +215,7 @@ async function addUser() {
 async function deleteUser(username) {
   if (!confirm(`Delete account "${username}"?`)) return;
   try {
-    await api(`/api/users/${username}`, { method: 'DELETE' });
+    await api(`/api/auth/users/${username}`, { method: 'DELETE' });
     toast('Account removed: ' + username, 'muted');
     loadUsers();
   } catch (e) { toast('Error: ' + e.message, 'red'); }

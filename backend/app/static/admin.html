@@ -506,10 +506,10 @@
 
     if (!name || !role_label) return alert('Name and Role Label required');
 
-    const res = await fetch('/admin/clients', {
+    const res = await fetch('/api/admin/clients', {
       method: 'POST',
       headers: Auth.headers(),
-      body: JSON.stringify({ name, permissions: perms })
+      body: JSON.stringify({ name: name, permissions: perms })
     });
 
     if (res.ok) {
@@ -541,7 +541,7 @@
     const nextStatus = currentlyActive ? 'suspended' : 'active';
     if (!confirm(`CONFIRM: ${currentlyActive ? 'SUSPEND' : 'ACTIVATE'} INSTANCE ACCESS?`)) return;
     
-    await fetch(`/admin/clients/${id}`, {
+    await fetch(`/api/admin/clients/${id}`, {
       method: 'PATCH',
       headers: Auth.headers(),
       body: JSON.stringify({ status: nextStatus })
@@ -558,7 +558,7 @@
     body.innerHTML = '<div style="display:flex; justify-content:center; padding-top:4rem;"><div class="spinner"></div></div>';
     
     try {
-      const res = await fetch(`/admin/clients/${id}`, { headers: Auth.headers() });
+      const res = await fetch(`/api/admin/clients/${id}`, { headers: Auth.headers() });
       const data = await res.json();
       
       body.innerHTML = `
@@ -598,6 +598,35 @@
 
   function copyToClipboard(text) { navigator.clipboard.writeText(text); alert('COPIED TO SYSTEM CLIPBOARD'); }
   function closeDetailPanel() { document.getElementById('client-detail-panel').style.display = 'none'; }
+  async function generateNewWorkerKey(id) {
+    if (!confirm('ISSUE NEW GLOBAL WORKER KEY? EXISTING KEYS REMAIN ACTIVE.')) return;
+    try {
+      const res = await fetch(`/api/admin/clients/${id}/workers/add-key`, {
+        method: 'POST',
+        headers: Auth.headers(),
+        body: JSON.stringify({ label: 'Additional Worker Node' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert('NEW WORKER KEY: ' + data.client_api_key);
+      }
+    } catch(e) { alert('Worker key generation failed'); }
+  }
+
+  async function deleteClient(id) {
+    if (!confirm('WARNING: PERMANENTLY PURGE THIS INSTANCE? THIS CANNOT BE UNDONE.')) return;
+    try {
+      const res = await fetch(`/api/admin/clients/${id}`, { 
+        method: 'DELETE',
+        headers: Auth.headers()
+      });
+      if (res.ok) {
+        closeDetailPanel();
+        renderClients();
+      }
+    } catch(e) { alert('Purge failed'); }
+  }
+
   function openModal(id) { document.getElementById(id).style.display = 'flex'; }
   function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 

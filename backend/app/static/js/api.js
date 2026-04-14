@@ -54,7 +54,7 @@ async function api(path, opts = {}) {
 async function checkBackend() {
   try {
     const headers = State.token ? { 'Authorization': `Bearer ${State.token}` } : {};
-    const res = await fetch(`${State.api}/api/stats`, { headers });
+    const res = await fetch(`${State.api}/api/system/stats`, { headers });
     updateConnectionStatus(res.ok || res.status === 401);
   } catch {
     updateConnectionStatus(false);
