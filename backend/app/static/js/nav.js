@@ -33,18 +33,24 @@ function showPage(id, navEl) {
 
   // Lazy-load data for specific pages
   const loaders = {
-    watchlist:       loadWatchlist,
-    workers:         loadWorkers,
-    users:           loadUsers,
-    system:          loadSystem,
-    analytics:       loadAnalytics,
-    cameras:         loadCameras,
-    map:             loadMap,
-    'alert-rules':   () => { loadRules(); if (!State.cameras.length) loadCameras(); },
-    audit:           loadAuditLog,
-    'stop-requests': loadStopRequests,
+    watchlist:       'loadWatchlist',
+    workers:         'loadWorkers',
+    users:           'loadUsers',
+    system:          'loadSystem',
+    analytics:       'loadAnalytics',
+    cameras:         'loadCameras',
+    map:             'loadMap',
+    'alert-rules':   () => { if (typeof loadRules === 'function') loadRules(); if (!State.cameras.length && typeof loadCameras === 'function') loadCameras(); },
+    audit:           'loadAuditLog',
+    'stop-requests': 'loadStopRequests',
   };
-  if (loaders[id]) loaders[id]();
+
+  const loader = loaders[id];
+  if (typeof loader === 'function') {
+    loader();
+  } else if (typeof loader === 'string' && typeof window[loader] === 'function') {
+    window[loader]();
+  }
 
   // Live monitoring pages
   if (id === 'live-feed' || id === 'overview') {

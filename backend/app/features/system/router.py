@@ -254,7 +254,7 @@ async def update_camera_config(
             
     return {"ok": True}
 
-@router.post("/system/global-toggle")
+@router.post("/global-toggle")
 async def global_toggle(
     feature: str, # 'face', 'obj', 'stream'
     enabled: int, # 0 or 1
@@ -277,7 +277,7 @@ async def global_toggle(
         
     return {"ok": True, "message": f"Global {feature} set to {enabled}"}
 
-@router.post("/system/reset")
+@router.post("/reset")
 async def system_reset(user=Depends(require_admin)):
     from ...core.database import get_db_conn
     from ...core.worker_state import WORKER_REGISTRY

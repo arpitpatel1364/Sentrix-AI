@@ -59,6 +59,12 @@ app.add_middleware(
 # --- API Route Grouping (All under /api) ---
 api_app = FastAPI(title="Sentrix-AI API")
 
+# Compatibility redirects for cached frontends (Added before mounting)
+@api_app.get("/active-users", include_in_schema=False)
+async def legacy_active_users_sub():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/system/active-users")
+
 # Core & Feature Routers
 api_app.include_router(auth_router)
 api_app.include_router(watchlist_router)
@@ -80,6 +86,12 @@ api_app.include_router(clients_router)
 api_app.include_router(inference_router, prefix="/inference")
 
 app.mount("/api", api_app)
+
+# Fallback redirect on main app just in case
+@app.get("/api/active-users", include_in_schema=False)
+async def legacy_active_users_main():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/system/active-users")
 
 # --- STATIC & SNAPSHOT SERVING ---
 # Ensure these exist before mounting

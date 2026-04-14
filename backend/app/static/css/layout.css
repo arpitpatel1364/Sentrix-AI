@@ -1,6 +1,15 @@
-/* ══════════════════════════════════════════
    LAYOUT — Sidebar, Topbar, Pages
    ══════════════════════════════════════════ */
+
+/* ─── SCROLLBARS ─── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { 
+  background: var(--surface-highest); 
+  border: 2px solid var(--background); 
+  border-radius: 4px; 
+}
+::-webkit-scrollbar-thumb:hover { background: var(--primary-dim); }
 
 /* ─── APP SHELL ─── */
 .app-shell {
@@ -15,7 +24,10 @@
 
 /* ─── SIDEBAR ─── */
 .sidebar {
-  background: var(--surface-low);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -236,7 +248,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--background);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 150;
   flex-shrink: 0;
   gap: 1rem;
 }

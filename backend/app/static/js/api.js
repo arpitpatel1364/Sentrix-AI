@@ -25,7 +25,7 @@ async function api(path, opts = {}) {
     if (res.status === 401) {
       if (State.token) {
         toast('Session expired — please log in again', 'red');
-        doLogout();
+        Auth.logout();
       }
       throw new Error('Unauthorized');
     }

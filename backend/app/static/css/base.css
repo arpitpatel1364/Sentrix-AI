@@ -28,21 +28,14 @@ h1, h2, h3, h4,
   letter-spacing: -0.02em;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--surface-highest);
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--outline-strong); }
-
 /* Links */
 a { color: var(--primary); text-decoration: none; }
 
 /* Code / Mono */
 code, .mono { font-family: var(--font-mono); }
 
+/* Selection */
+::selection { background: var(--primary-dim); color: var(--primary); }
+
 /* Visibility helpers */
-#app, #login-screen { display: none; }
 .hidden { display: none !important; }

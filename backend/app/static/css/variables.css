@@ -50,6 +50,18 @@
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
+  /* ─── Glassmorphism ─── */
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-blur: blur(12px);
+
+  /* ─── Gradients ─── */
+  --grad-primary: linear-gradient(135deg, #1f33aa, #3b4ec2);
+  --grad-cyan:    linear-gradient(135deg, #006b8a, #009cb8);
+  --grad-red:     linear-gradient(135deg, #c0182a, #f04d5d);
+  --grad-green:   linear-gradient(135deg, #00703c, #00b360);
+  --grad-dark:    linear-gradient(135deg, #10141f, #1a1f2e);
+
   --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -86,4 +98,14 @@
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.7);
+
+  /* ─── Glassmorphism (Dark) ─── */
+  --glass: rgba(16, 20, 31, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  /* ─── Gradients (Dark) ─── */
+  --grad-primary: linear-gradient(135deg, #4d7cff, #6e94ff);
+  --grad-cyan:    linear-gradient(135deg, #00d2ff, #24e5ff);
+  --grad-red:     linear-gradient(135deg, #ff4d4d, #ff7171);
+  --grad-green:   linear-gradient(135deg, #00e676, #33ff9e);
 }
