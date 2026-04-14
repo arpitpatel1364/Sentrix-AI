@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-router = APIRouter(prefix="/qdrant", tags=["Inference"])
+router = APIRouter(prefix="/api", tags=["Inference"])
 
 @router.post("/inference/result")
 async def inference_result(
@@ -82,7 +82,7 @@ async def inference_result(
 
     return {"received": True}
 
-@router.post("/search")
+@router.post("/qdrant/search")
 async def qdrant_search(
     payload: dict,
     auth: tuple = Depends(validate_worker_key),
@@ -117,7 +117,7 @@ async def qdrant_search(
 
     return {"matched": False}
 
-@router.post("/upsert")
+@router.post("/qdrant/upsert")
 async def qdrant_upsert(
     payload: dict,
     user=Depends(get_current_user),
@@ -147,7 +147,7 @@ async def qdrant_upsert(
     
     raise HTTPException(status_code=500, detail="Qdrant unavailable")
 
-@router.delete("/vectors/{vector_id}")
+@router.delete("/qdrant/vectors/{vector_id}")
 async def qdrant_delete(
     vector_id: str,
     user=Depends(get_current_user),

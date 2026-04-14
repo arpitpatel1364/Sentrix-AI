@@ -11,6 +11,15 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
+import torch
+
+# Fix for PyTorch 2.6+ weights_only security change
+try:
+    import ultralytics.nn.tasks
+    if hasattr(torch.serialization, 'add_safe_globals'):
+        torch.serialization.add_safe_globals([ultralytics.nn.tasks.WorldModel])
+except ImportError:
+    pass
 
 load_dotenv()
 
@@ -22,9 +31,10 @@ SNAPSHOT_DIR = os.getenv("SNAPSHOT_DIR", "/app/snapshots")
 CAMERA_URLS = os.getenv("CAMERA_URLS", "0").split(",")
 CAMERA_NAMES = os.getenv("CAMERA_NAMES", "Camera 1").split(",")
 
-# Fallback models (will be copied into container)
-FACE_MODEL_PATH = "/app/models/best.onnx"
-OBJ_MODEL_PATH = "/app/models/yolov8s-worldv2.pt"
+# Paths relative to this script
+BASE_DIR = Path(__file__).resolve().parent
+FACE_MODEL_PATH = str(BASE_DIR / "models" / "best.onnx")
+OBJ_MODEL_PATH = str(BASE_DIR / "models" / "yolov8s-worldv2.pt")
 
 import json
 HUB_CAMERA_MAPPING = json.loads(os.getenv("HUB_CAMERA_MAPPING", "{}"))

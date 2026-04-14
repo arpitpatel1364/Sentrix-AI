@@ -25,17 +25,68 @@ redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 async def init_db():
     """Initialize database tables using raw SQL (transitioning to SQLAlchemy)."""
+    # 0. Clients table (MUST BE FIRST because of Foreign Keys)
     async with engine.begin() as conn:
-        # User table
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS clients (
+                id UUID PRIMARY KEY,
+                name TEXT NOT NULL,
+                status TEXT DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                permissions JSONB NOT NULL DEFAULT '{}',
+                qdrant_collection TEXT
+            )
+        """))
+
+    # 1. User table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS users (
                 username TEXT PRIMARY KEY,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL
+                role TEXT NOT NULL,
+                client_id UUID REFERENCES clients(id) ON DELETE SET NULL
+            )
+        """))
+    
+    # Manual fixes in separate transactions to avoid aborting the whole process
+    async with engine.connect() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE SET NULL"))
+            await conn.commit()
+        except Exception: await conn.rollback()
+
+    # 2. Worker Keys table
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS worker_keys (
+                id UUID PRIMARY KEY,
+                client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                api_key_hash TEXT NOT NULL,
+                label TEXT NOT NULL,
+                last_seen TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
 
-        # Sightings table
+    # 3. Workers table
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS workers (
+                id UUID PRIMARY KEY,
+                client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                worker_key_id UUID NOT NULL REFERENCES worker_keys(id),
+                label TEXT NOT NULL,
+                ip_address TEXT,
+                media_base_url TEXT,
+                last_seen TIMESTAMP,
+                status TEXT DEFAULT 'offline',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+
+    # 4. Sightings table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS sightings (
                 id TEXT PRIMARY KEY,
@@ -48,33 +99,58 @@ async def init_db():
                 person_id TEXT,
                 person_name TEXT,
                 confidence REAL,
-                embedding BYTEA
+                embedding BYTEA,
+                client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+                worker_id UUID REFERENCES workers(id) ON DELETE SET NULL
             )
         """))
+    
+    async with engine.connect() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE sightings ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE CASCADE"))
+            await conn.execute(text("ALTER TABLE sightings ADD COLUMN IF NOT EXISTS worker_id UUID REFERENCES workers(id) ON DELETE SET NULL"))
+            await conn.commit()
+        except Exception: await conn.rollback()
 
-        # Wanted table
+    # 5. Watchlist table (formerly wanted)
+    async with engine.begin() as conn:
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS wanted (
+            CREATE TABLE IF NOT EXISTS watchlist (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 added_by TEXT,
+                added_at TEXT,
+                client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+                qdrant_vector_id TEXT
+            )
+        """))
+    
+    async with engine.connect() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE IF EXISTS wanted RENAME TO watchlist"))
+            await conn.commit()
+        except Exception: await conn.rollback()
+        
+        try:
+            await conn.execute(text("ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE CASCADE"))
+            await conn.execute(text("ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS qdrant_vector_id TEXT"))
+            await conn.commit()
+        except Exception: await conn.rollback()
+
+    # 6. Person photos table
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS person_photos (
+                id TEXT PRIMARY KEY,
+                person_id TEXT NOT NULL REFERENCES watchlist(id) ON DELETE CASCADE,
+                embedding BYTEA NOT NULL,
+                snapshot_path TEXT,
                 added_at TEXT
             )
         """))
 
-        # Person photos table
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS person_photos (
-                id TEXT PRIMARY KEY,
-                person_id TEXT NOT NULL,
-                embedding BYTEA NOT NULL,
-                snapshot_path TEXT,
-                added_at TEXT,
-                FOREIGN KEY(person_id) REFERENCES wanted(id) ON DELETE CASCADE
-            )
-        """))
-
-        # Object detections table
+    # 7. Object detections table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS object_detections (
                 id TEXT PRIMARY KEY,
@@ -87,16 +163,30 @@ async def init_db():
             )
         """))
 
-        # Camera configs table
+    # 8. ROI table (formerly camera_configs)
+    async with engine.begin() as conn:
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS camera_configs (
+            CREATE TABLE IF NOT EXISTS roi (
                 id TEXT PRIMARY KEY,
                 roi TEXT,
-                location TEXT
+                location TEXT,
+                client_id UUID REFERENCES clients(id) ON DELETE CASCADE
             )
         """))
+    
+    async with engine.connect() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE IF EXISTS camera_configs RENAME TO roi"))
+            await conn.commit()
+        except Exception: await conn.rollback()
+        
+        try:
+            await conn.execute(text("ALTER TABLE roi ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE CASCADE"))
+            await conn.commit()
+        except Exception: await conn.rollback()
 
-        # Cameras table
+    # 9. Cameras table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS cameras (
                 id           TEXT PRIMARY KEY,
@@ -113,11 +203,21 @@ async def init_db():
                 status       TEXT DEFAULT 'active',
                 face_enabled INTEGER DEFAULT 1,
                 obj_enabled  INTEGER DEFAULT 1,
-                stream_enabled INTEGER DEFAULT 1
+                stream_enabled INTEGER DEFAULT 1,
+                client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+                worker_id UUID REFERENCES workers(id) ON DELETE SET NULL
             )
         """))
+    
+    async with engine.connect() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE CASCADE"))
+            await conn.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS worker_id UUID REFERENCES workers(id) ON DELETE SET NULL"))
+            await conn.commit()
+        except Exception: await conn.rollback()
 
-        # Alert rules table
+    # 10. Alert rules table (Update created_at type if needed)
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS alert_rules (
                 id         TEXT PRIMARY KEY,
@@ -127,11 +227,12 @@ async def init_db():
                 conditions TEXT DEFAULT '{}',
                 actions    TEXT DEFAULT '{}',
                 enabled    INTEGER DEFAULT 1,
-                created_at TEXT
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
 
-        # Notification config table
+    # 11. Notification config table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS notification_config (
                 key   TEXT PRIMARY KEY,
@@ -139,7 +240,8 @@ async def init_db():
             )
         """))
 
-        # Notification log table
+    # 12. Notification log table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS notification_log (
                 id        TEXT PRIMARY KEY,
@@ -152,7 +254,8 @@ async def init_db():
             )
         """))
 
-        # Audit log table
+    # 13. Audit log table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS audit_log (
                 id         TEXT PRIMARY KEY,
@@ -166,7 +269,8 @@ async def init_db():
             )
         """))
 
-        # Camera stop requests table
+    # 14. Camera stop requests table
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS camera_stop_requests (
                 id           TEXT PRIMARY KEY,
@@ -180,7 +284,8 @@ async def init_db():
             )
         """))
 
-        # Indexes for fast queries
+    # Indexes for fast queries
+    async with engine.begin() as conn:
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sightings_person_id   ON sightings(person_id)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sightings_camera      ON sightings(camera_id)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sightings_ts          ON sightings(timestamp)"))

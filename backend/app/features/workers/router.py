@@ -9,7 +9,7 @@ import bcrypt
 from datetime import datetime
 from typing import List, Optional
 
-router = APIRouter(prefix="/workers", tags=["Workers"])
+router = APIRouter(prefix="/api/workers", tags=["Workers"])
 
 async def get_client_by_api_key(api_key: str, db: AsyncSession):
     # Performance fix: We should ideally have a key prefix or a fast lookup table.
@@ -112,7 +112,7 @@ async def register_worker(
         "camera_mapping": camera_mapping
     }
 
-@router.post("/workers/{worker_id}/heartbeat")
+@router.post("/{worker_id}/heartbeat")
 async def worker_heartbeat(
     worker_id: uuid.UUID,
     payload: dict,
@@ -142,7 +142,7 @@ async def worker_heartbeat(
     await db.commit()
     return {"ok": True}
 
-@router.get("/workers/mine")
+@router.get("/mine")
 async def list_my_workers(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -168,7 +168,7 @@ async def list_my_workers(
         })
     return output
 
-@router.get("/workers/")
+@router.get("/")
 async def list_all_workers(
     _admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db)

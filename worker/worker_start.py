@@ -8,16 +8,32 @@ import subprocess
 from dotenv import load_dotenv
 from pathlib import Path
 
+import argparse
+
 # Load environment variables
 load_dotenv()
 
-HUB_URL = os.getenv("HUB_URL")
-CLIENT_API_KEY = os.getenv("CLIENT_API_KEY")
-WORKER_LABEL = os.getenv("WORKER_LABEL")
-MEDIA_SERVER_PORT = os.getenv("MEDIA_SERVER_PORT", "8765")
+# Setup Argument Parser
+parser = argparse.ArgumentParser(description="Sentrix-AI Worker Node Startup")
+parser.add_argument("--hub-url", default=os.getenv("HUB_URL"), help="Hub URL (e.g. http://localhost:8000)")
+parser.add_argument("--api-key", default=os.getenv("CLIENT_API_KEY"), help="Worker API Key")
+parser.add_argument("--label", default=os.getenv("WORKER_LABEL"), help="Human-readable label for this node")
+parser.add_argument("--media-port", default=os.getenv("MEDIA_SERVER_PORT", "8765"), help="Local port for media server")
+args = parser.parse_args()
+
+HUB_URL = args.hub_url
+CLIENT_API_KEY = args.api_key
+WORKER_LABEL = args.label
+MEDIA_SERVER_PORT = args.media_port
 CAMERA_URLS = os.getenv("CAMERA_URLS", "")
 CAMERA_NAMES = os.getenv("CAMERA_NAMES", "")
-SNAPSHOT_DIR = os.getenv("SNAPSHOT_DIR", "/app/snapshots")
+SNAPSHOT_DIR = os.getenv("SNAPSHOT_DIR")
+if not SNAPSHOT_DIR:
+    SNAPSHOT_DIR = str(Path(__file__).resolve().parent.parent / "data" / "snapshots")
+ 
+# Default to local data dir instead of /app in non-docker env
+if not Path(SNAPSHOT_DIR).is_absolute():
+    SNAPSHOT_DIR = str(Path(__file__).resolve().parent.parent / "data" / "snapshots")
 
 # Global state
 worker_data = {
@@ -119,6 +135,8 @@ def start_worker_agent():
     
     import json
     os.environ["HUB_CAMERA_MAPPING"] = json.dumps(worker_data.get("camera_mapping", {}))
+    
+    os.environ["SNAPSHOT_DIR"] = str(SNAPSHOT_DIR)
     
     subprocess.Popen([sys.executable, "worker/worker_agent.py"])
 

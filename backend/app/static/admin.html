@@ -325,11 +325,63 @@
   function showReveal(data) {
     const container = document.getElementById('reveal-creds');
     container.innerHTML = `
-      <div class="field"><label>Client Email</label><div id="copy-reveal">${data.email}</div></div>
-      <div class="field"><label>Temporary Password</label><div id="copy-reveal">${data.password}</div></div>
-      <div class="field"><label>Worker Registration Key</label><div id="copy-reveal" style="word-break:break-all;">${data.worker_api_key}</div></div>
+      <div class="field"><label>Client Email</label>
+        <div id="copy-reveal">${data.email}<button class="btn btn-ghost btn-sm copy-btn" onclick="copyToClipboard('${data.email}')">📋</button></div>
+      </div>
+      <div class="field"><label>Temporary Password</label>
+        <div id="copy-reveal">${data.password}<button class="btn btn-ghost btn-sm copy-btn" onclick="copyToClipboard('${data.password}')">📋</button></div>
+      </div>
+      <div class="field"><label>Worker Registration Key</label>
+        <div id="copy-reveal" style="word-break:break-all;">${data.worker_api_key}<button class="btn btn-ghost btn-sm copy-btn" onclick="copyToClipboard('${data.worker_api_key}')">📋</button></div>
+      </div>
     `;
     openModal('modal-reveal');
+  }
+
+  async function toggleClientStatus(id, currentlyActive) {
+    const nextStatus = currentlyActive ? 'suspended' : 'active';
+    if (!confirm(`Are you sure you want to ${currentlyActive ? 'SUSPEND' : 'ACTIVATE'} this client?`)) return;
+    
+    const res = await fetch(`/admin/clients/${id}`, {
+      method: 'PATCH',
+      headers: Auth.headers(),
+      body: JSON.stringify({ status: nextStatus })
+    });
+    if (res.ok) renderClients();
+  }
+
+  async function deleteClient(id) {
+    if (!confirm("CRITICAL: This will suspend the client and delete their facial vector collection. This cannot be undone. Proceed?")) return;
+    const res = await fetch(`/admin/clients/${id}`, {
+      method: 'DELETE',
+      headers: Auth.headers()
+    });
+    if (res.ok) {
+      closeDetailPanel();
+      renderClients();
+    }
+  }
+
+  async function generateNewWorkerKey(clientId) {
+    const label = prompt("Enter a label for this worker node (e.g. 'Warehouse A')", "Additional Worker");
+    if (!label) return;
+
+    const res = await fetch(`/admin/clients/${clientId}/workers/add-key`, {
+      method: 'POST',
+      headers: Auth.headers(),
+      body: JSON.stringify({ label })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      alert(`NEW WORKER KEY ISSUED:\n\n${data.client_api_key}\n\nSAVE THIS NOW. It will not be shown again.`);
+      copyToClipboard(data.client_api_key);
+    }
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    alert('Copied to clipboard!');
   }
 
   async function openClientDetail(id, name) {

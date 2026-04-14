@@ -19,7 +19,13 @@ DATA_DIR = BASE_DIR / "data"
 SNAPSHOTS_DIR = DATA_DIR / "snapshots"
 INTEL_DIR = DATA_DIR / "intel_photos"
 DB_PATH = DATA_DIR / "cctv.db"
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
+# DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
+# Use this format for PostgreSQL
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql+asyncpg://postgres:arpit123@localhost:8080/sentrix_admin_db"
+)
+
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 

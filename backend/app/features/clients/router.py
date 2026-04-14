@@ -34,29 +34,38 @@ async def list_clients(
         .group_by(Worker.client_id)
         .subquery()
     )
+    sighting_counts = (
+        select(Sighting.client_id, func.count(Sighting.id).label("count"))
+        .group_by(Sighting.client_id)
+        .subquery()
+    )
 
     query = (
         select(
             Client,
             func.coalesce(camera_counts.c.count, 0).label("camera_count"),
-            func.coalesce(worker_counts.c.count, 0).label("worker_count")
+            func.coalesce(worker_counts.c.count, 0).label("worker_count"),
+            func.coalesce(sighting_counts.c.count, 0).label("detection_count")
         )
         .outerjoin(camera_counts, Client.id == camera_counts.c.client_id)
         .outerjoin(worker_counts, Client.id == worker_counts.c.client_id)
+        .outerjoin(sighting_counts, Client.id == sighting_counts.c.client_id)
     )
 
     result = await db.execute(query)
     rows = result.all()
 
     output = []
-    for client, cam_count, work_count in rows:
+    for client, cam_count, work_count, sighting_count in rows:
         output.append({
             "id": str(client.id),
             "name": client.name,
             "status": client.status,
+            "is_active": client.status == "active",
             "permissions": client.permissions,
             "camera_count": cam_count,
             "worker_count": work_count,
+            "detection_count": sighting_count,
             "created_at": client.created_at.isoformat() if client.created_at else None
         })
     
@@ -73,10 +82,10 @@ async def create_client(
     Provision new client + user + worker_key + qdrant_collection.
     Returns credentials (once only).
     """
-    client_name = body.get("client_name")
+    client_name = body.get("client_name") or body.get("name")
     perms = body.get("permissions", {})
     if not client_name:
-        raise HTTPException(status_code=400, detail="client_name required")
+        raise HTTPException(status_code=400, detail="client_name or name required")
 
     # 1. Create Client
     client_id = uuid.uuid4()
@@ -132,7 +141,7 @@ async def create_client(
         "client_id": str(client_id),
         "email": email,
         "password": password,
-        "client_api_key": api_key,
+        "worker_api_key": api_key, # Match frontend expectation
         "qdrant_collection": qdrant_collection
     }
 
