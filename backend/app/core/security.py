@@ -29,28 +29,3 @@ def _decode_token(token: str) -> dict:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-def get_current_user(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> dict:
-    token = None
-    if credentials:
-        token = credentials.credentials
-    else:
-        # EventSource can't set headers — accept token as query param for SSE
-        token = request.query_params.get("token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    data = _decode_token(token)
-    return {
-        "username": data["sub"],
-        "role": data["role"],
-        "client_id": data.get("client_id"),
-        "permissions": data.get("permissions", {})
-    }
-
-def require_admin(user=Depends(get_current_user)):
-    if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin only")
-    return user

@@ -15,7 +15,7 @@ from ...core.orchestrator import orchestrator
 from qdrant_client.models import VectorParams, Distance
 import json
 
-router = APIRouter(tags=["System"])
+router = APIRouter(prefix="/system", tags=["System"])
 
 @router.get("/health")
 async def get_health(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
@@ -76,13 +76,55 @@ async def proxy_stream(node_key: str, user=Depends(get_current_user), db: AsyncS
 
 
 @router.get("/stats")
-async def get_stats(user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
-    total_sightings = (await db.execute(text("SELECT COUNT(*) FROM sightings"))).scalar()
-    total_matches = (await db.execute(text("SELECT COUNT(*) FROM sightings WHERE matched = TRUE"))).scalar()
-    total_watchlist = (await db.execute(text("SELECT COUNT(*) FROM watchlist"))).scalar()
-    total_objects = (await db.execute(text("SELECT COUNT(*) FROM object_detections"))).scalar()
+async def get_stats(user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Returns high-level statistics.
+    Admins see global totals. Clients see only their own totals.
+    """
+    is_admin = user.role == "admin"
+    client_id = user.client_id
     
-    live_nodes = get_live_nodes()
+    where_clause = ""
+    params = {}
+    
+    if not is_admin:
+        if not client_id:
+            raise HTTPException(status_code=403, detail="Client user has no associated client ID")
+        where_clause = "WHERE client_id = :cid"
+        params = {"cid": client_id}
+
+    # Count Sightings
+    total_sightings = (await db.execute(
+        text(f"SELECT COUNT(*) FROM sightings {where_clause}"), params
+    )).scalar()
+    
+    # Count Matches
+    match_where = "WHERE matched = TRUE"
+    if not is_admin:
+        match_where += " AND client_id = :cid"
+    total_matches = (await db.execute(
+        text(f"SELECT COUNT(*) FROM sightings {match_where}"), params
+    )).scalar()
+    
+    # Count Watchlist
+    total_watchlist = (await db.execute(
+        text(f"SELECT COUNT(*) FROM watchlist {where_clause}"), params
+    )).scalar()
+    
+    # Count Objects (Need to join with cameras if client_id missing in table)
+    if is_admin:
+        total_objects = (await db.execute(text("SELECT COUNT(*) FROM object_detections"))).scalar()
+    else:
+        # Join with cameras to filter by client_id
+        total_objects = (await db.execute(
+            text("""
+                SELECT COUNT(*) FROM object_detections od
+                JOIN cameras c ON od.camera_id = c.camera_id
+                WHERE c.client_id = :cid
+            """), params
+        )).scalar()
+    
+    live_nodes = get_live_nodes(client_id=None if is_admin else str(client_id))
     
     return {
         "total_sightings": total_sightings,
@@ -95,10 +137,29 @@ async def get_stats(user=Depends(require_admin), db: AsyncSession = Depends(get_
 # ─── MESH CONTROL ───────────────────────────────────────────────────────────
 
 @router.get("/mesh/status")
-async def mesh_status(user=Depends(require_admin)):
+async def mesh_status(user=Depends(get_current_user)):
+    """
+    Returns the status of the orchestration mesh.
+    Clients only see status for their own nodes.
+    """
+    is_admin = user.role == "admin"
+    client_id = str(user.client_id) if not is_admin else None
+    
+    full_status = orchestrator.get_status()
+    
+    if is_admin:
+        display_status = full_status
+    else:
+        # Filter status to only include nodes belonging to this client
+        # Node keys in orchestrator status are usually 'username:camera_id'
+        display_status = {}
+        for key, val in full_status.items():
+            if key.startswith(f"{user.username}:"):
+                display_status[key] = val
+                
     return {
-        "status": orchestrator.get_status(),
-        "mesh_active": any(orchestrator.get_status().values())
+        "status": display_status,
+        "mesh_active": any(display_status.values())
     }
 
 @router.post("/mesh/start")

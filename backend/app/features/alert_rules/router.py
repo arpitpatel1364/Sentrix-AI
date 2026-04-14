@@ -6,7 +6,7 @@ wanted matches, and time-based schedules.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from ...core.security import require_admin
+from ...core.dependencies import require_admin
 from ...core.database import get_db
 from ...core.sse_manager import broadcast_alert
 from sqlalchemy.ext.asyncio import AsyncSession

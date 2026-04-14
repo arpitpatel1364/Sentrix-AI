@@ -5,7 +5,7 @@
 /* ─── STATS ─── */
 async function loadStats() {
   try {
-    const s = await api('/api/stats');
+    const s = await api('/api/system/stats');
     setText('s-sightings', s.total_sightings ?? '—');
     setText('s-matches',   s.total_matches   ?? '—');
     setText('s-objects',   s.total_objects   ?? '—');
@@ -74,7 +74,7 @@ function renderSightingsFeed(sightings, containerId) {
 /* ─── OBJECTS ─── */
 async function loadObjects() {
   try {
-    const d = await api('/api/objects?limit=60');
+    const d = await api('/api/objects/?limit=60');
     renderObjectsFeed(d.objects || [], 'objects-feed');
     renderObjectsFeed((d.objects || []).slice(0, 4), 'overview-objects');
     updateBadge('badge-objects', State.newObjects);

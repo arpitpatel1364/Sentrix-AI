@@ -5,7 +5,7 @@
 /* ─── MESH STATUS ─── */
 async function pollMeshStatus() {
   try {
-    const d = await api('/api/mesh/status');
+    const d = await api('/api/system/mesh/status');
     const active    = d.mesh_active;
     const statusTxt = document.getElementById('mesh-status-text');
     const startBtn  = document.getElementById('mesh-start-btn');
@@ -31,7 +31,7 @@ async function pollMeshStatus() {
 async function startMesh() {
   showSyncAlert('loading');
   try {
-    await api('/api/mesh/start', { method: 'POST' });
+    await api('/api/system/mesh/start', { method: 'POST' });
     setTimeout(async () => {
       await pollMeshStatus();
       showSyncAlert('done');
@@ -44,7 +44,7 @@ async function stopMesh() {
   if (!confirm('SHUTDOWN PROTOCOL: Stop all mesh operations?')) return;
   showSyncAlert('loading');
   try {
-    await api('/api/mesh/stop', { method: 'POST' });
+    await api('/api/system/mesh/stop', { method: 'POST' });
     setTimeout(async () => {
       await pollMeshStatus();
       showSyncAlert('done');
@@ -55,7 +55,7 @@ async function stopMesh() {
 
 async function startNode(nodeId) {
   try {
-    await api(`/api/mesh/nodes/${nodeId}/start`, { method: 'POST' });
+    await api(`/api/system/mesh/nodes/${nodeId}/start`, { method: 'POST' });
     toast(`Starting node: ${nodeId}`, 'green');
     setTimeout(loadCameras, 1500);
   } catch (e) { toast('Failed: ' + e.message, 'red'); }
@@ -63,7 +63,7 @@ async function startNode(nodeId) {
 
 async function stopNode(nodeId) {
   try {
-    await api(`/api/mesh/nodes/${nodeId}/stop`, { method: 'POST' });
+    await api(`/api/system/mesh/nodes/${nodeId}/stop`, { method: 'POST' });
     toast(`Stopping node: ${nodeId}`, 'muted');
     setTimeout(loadCameras, 1000);
   } catch (e) { toast('Failed: ' + e.message, 'red'); }
@@ -72,7 +72,7 @@ async function stopNode(nodeId) {
 /* ─── FEATURE TOGGLES ─── */
 async function toggleCameraFeature(cameraId, feature, enabled) {
   try {
-    await api(`/api/cameras/config/${cameraId}?${feature}=${enabled}`, { method: 'POST' });
+    await api(`/api/system/cameras/config/${cameraId}?${feature}=${enabled}`, { method: 'POST' });
     toast(`${feature.toUpperCase()} ${enabled ? 'ENABLED' : 'DISABLED'} for ${cameraId}`, enabled ? 'cyan' : 'muted');
     loadCameras();
   } catch (e) { toast('Toggle failed: ' + e.message, 'red'); }
@@ -139,7 +139,7 @@ function _stopMMUpdates() {
 async function _refreshMM() {
   if (!State.mmActive) return;
   try {
-    const data = await api('/api/active-users');
+    const data = await api('/api/system/active-users');
     const grid = document.getElementById('mm-grid');
     if (!grid) return;
 

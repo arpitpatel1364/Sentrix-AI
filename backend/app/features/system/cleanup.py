@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from ...core.database import get_db
 from ..audit_log.router import write_log
-from ...core.security import require_admin
+from ...core.dependencies import require_admin
 from ...core.config import SNAPSHOTS_DIR, SIMILARITY_THRESHOLD
 from ...core import face_engine
 from ...core.face_engine import QDRANT_AVAILABLE, get_embedding, bytes_to_cv2
@@ -109,7 +109,7 @@ async def cleanup_records(
             await db.execute(text("DELETE FROM object_detections WHERE timestamp < :cutoff"), {"cutoff": cutoff_space_str})
 
         await db.commit()
-        await write_log(db, username=user["username"], role=user["role"], action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "")
+        await write_log(db, username=user.username, role=user.role, action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "")
         return {
             "status": "success",
             "message": f"Cleanup completed for range {time_range}",
@@ -254,7 +254,7 @@ async def purge_biometric_sightings(
             await db.execute(text(query), params)
             
         await db.commit()
-        await write_log(db, username=user["username"], role=user["role"], action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "")
+        await write_log(db, username=user.username, role=user.role, action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "")
 
         return {
             "status": "success",

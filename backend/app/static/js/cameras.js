@@ -47,7 +47,7 @@ function renderCameraGrid(cameras) {
 
       <div class="camera-preview-box">
         ${online
-          ? `<img class="camera-preview-img" src="/api/stream/${esc(nodeKey)}"
+          ? `<img class="camera-preview-img" src="/api/system/stream/${esc(nodeKey)}"
                   onerror="this.style.display='none'" alt="LIVE FEED">`
           : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted);font-family:var(--font-mono);font-size:0.65rem">NO SIGNAL</div>`}
         <div class="status-overlay">${online ? '● REC' : 'OFFLINE'}</div>
@@ -239,7 +239,7 @@ function showROI(nodeKeyOrCamId) {
   const img = document.getElementById('roi-stream');
   img.src = '';
   img.onload = () => { initRoiInteraction(); };
-  img.src = `/api/stream/${fullKey}`;
+  img.src = `/api/system/stream/${fullKey}`;
   if (img.complete) initRoiInteraction();
 
   document.getElementById('roi-save-btn').onclick = saveROISettings;
@@ -370,7 +370,7 @@ function resetROI() {
 async function startLiveMonitoring() {
   async function refresh() {
     try {
-      const data  = await api('/api/active-users');
+      const data  = await api('/api/system/active-users');
       const nodes = data.nodes || [];
       const activeIds = nodes.map(n => n.id);
 
@@ -393,7 +393,7 @@ async function startLiveMonitoring() {
                 <span style="width:6px;height:6px;background:var(--cyan);border-radius:50%;animation:blink 1.5s infinite"></span>
                 LIVE: ${esc(node.id)}
               </div>
-              <img src="/api/stream/${esc(node.id)}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000"
+              <img src="/api/system/stream/${esc(node.id)}" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000"
                    onerror="this.src=''">
             </div>
             <div class="card-body" style="display:flex;justify-content:space-between;align-items:center">
@@ -418,7 +418,7 @@ async function startLiveMonitoring() {
           box.innerHTML = `
             <div class="label">${esc(node.id)}</div>
             <div class="status" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></div>
-            <img src="/api/stream/${esc(node.id)}" onerror="this.src=''">`;
+            <img src="/api/system/stream/${esc(node.id)}" onerror="this.src=''">`;
           matrix.appendChild(box);
         });
       }
@@ -438,7 +438,7 @@ function stopLiveMonitoring() {
 }
 
 function showFullScreenStream(nodeId) {
-  document.getElementById('tactical-stream-img').src = `/api/stream/${nodeId}`;
+  document.getElementById('tactical-stream-img').src = `/api/system/stream/${nodeId}`;
   document.getElementById('tactical-stream-subtitle').textContent = `// CHANNEL: ${nodeId}`;
   openModal('modal-tactical-fullscreen');
 }

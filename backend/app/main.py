@@ -59,24 +59,25 @@ app.add_middleware(
 # --- API Route Grouping (All under /api) ---
 api_app = FastAPI(title="Sentrix-AI API")
 
+# Core & Feature Routers
 api_app.include_router(auth_router)
 api_app.include_router(watchlist_router)
 api_app.include_router(sightings_router)
 api_app.include_router(workers_router)
-api_app.include_router(system_router, prefix="") # system_router already has /api internally, but we mount it in api_app
+api_app.include_router(system_router)
 api_app.include_router(sse_router)
-api_app.include_router(objects_router, prefix="") 
-api_app.include_router(analysis_router)
+api_app.include_router(objects_router)
+api_app.include_router(analysis_router, prefix="/analysis")
 api_app.include_router(cameras_router)
-api_app.include_router(analytics_router, prefix="")
-api_app.include_router(roi_router, prefix="")
-api_app.include_router(alert_rules_router, prefix="")
-api_app.include_router(notifications_router, prefix="")
-api_app.include_router(cleanup_router, prefix="")
-api_app.include_router(audit_router, prefix="")
+api_app.include_router(analytics_router, prefix="/analytics")
+api_app.include_router(roi_router)
+api_app.include_router(alert_rules_router, prefix="/alerts")
+api_app.include_router(notifications_router, prefix="/notifications")
+api_app.include_router(cleanup_router)
+api_app.include_router(audit_router, prefix="/audit")
 api_app.include_router(stop_router)
-api_app.include_router(clients_router, prefix="")
-api_app.include_router(inference_router, prefix="")
+api_app.include_router(clients_router)
+api_app.include_router(inference_router, prefix="/inference")
 
 app.mount("/api", api_app)
 

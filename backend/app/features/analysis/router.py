@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from typing import List, Dict
 import numpy as np
 import cv2
-from ...core.security import get_current_user
+from ...core.dependencies import get_current_user
 from ...core.face_engine import get_embedding, bytes_to_cv2, match_wanted, cv2_to_b64
 from ...core.object_engine import detect_objects, init_object_engine
 

@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
-from ...core.security import require_admin
+from ...core.dependencies import require_admin
 from ...core.database import get_db
 
 router = APIRouter(tags=["Audit"])

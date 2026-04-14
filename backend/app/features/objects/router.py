@@ -4,7 +4,7 @@ from typing import List
 import uuid
 import time
 import os
-from ...core.security import require_admin, get_current_user
+from ...core.dependencies import require_admin, get_current_user
 from ...core.database import get_db
 from ...core.config import SNAPSHOTS_DIR
 from ...core.sse_manager import SSE_CONNECTIONS
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import json
 
-router = APIRouter(tags=["Objects"])
+router = APIRouter(prefix="/objects", tags=["Objects"])
 
 @router.post("/upload-object")
 async def upload_object(
@@ -99,7 +99,7 @@ async def upload_object(
         # Log to a file if possible for deeper forensics
         raise HTTPException(status_code=500, detail=f"Object upload failed: {str(e)}")
 
-@router.get("/objects")
+@router.get("/")
 async def get_objects(limit: int = 50, user=Depends(require_admin), db: AsyncSession = Depends(get_db)):
     res_count = await db.execute(text("SELECT COUNT(*) FROM object_detections"))
     total_count = res_count.scalar()

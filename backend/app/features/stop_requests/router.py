@@ -37,7 +37,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
-from ...core.security import get_current_user, require_admin
+from ...core.dependencies import get_current_user, require_admin
 from ...core.database import get_db
 from ...core.sse_manager import broadcast_alert
 
@@ -67,7 +67,7 @@ async def create_stop_request(
         SELECT id FROM camera_stop_requests
         WHERE worker_user = :worker_user AND camera_id = :camera_id AND status = 'pending'
         """),
-        {"worker_user": user["username"], "camera_id": camera_id},
+        {"worker_user": user.username, "camera_id": camera_id},
     )
     existing = res.fetchone()
 
@@ -93,7 +93,7 @@ async def create_stop_request(
         {
             "id": req_id,
             "camera_id": camera_id,
-            "worker_user": user["username"],
+            "worker_user": user.username,
             "reason": reason.strip(),
             "requested_at": ts
         },
@@ -105,8 +105,8 @@ async def create_stop_request(
         from ...features.audit_log.router import write_log
         await write_log(
             db,
-            username=user["username"],
-            role=user.get("role", "worker"),
+            username=user.username,
+            role=user.role,
             action="stop_request",
             target=camera_id,
             detail=f"Stop requested. Reason: {reason[:120]}",
@@ -118,7 +118,7 @@ async def create_stop_request(
     # Push SSE notification to all admin dashboards
     await broadcast_alert({
         "type":       "stop_request",
-        "worker":     user["username"],
+        "worker":     user.username,
         "camera_id":  camera_id,
         "location":   location,
         "request_id": req_id,
@@ -150,7 +150,7 @@ async def get_my_stop_status(
         ORDER BY requested_at DESC
         LIMIT 1
         """),
-        {"worker_user": user["username"], "camera_id": camera_id},
+        {"worker_user": user.username, "camera_id": camera_id},
     )
     row = row_res.fetchone()
 
@@ -246,7 +246,7 @@ async def approve_stop_request(
         SET status = 'approved', reviewed_by = :reviewed_by, reviewed_at = :reviewed_at
         WHERE id = :id
         """),
-        {"reviewed_by": user["username"], "reviewed_at": ts, "id": request_id},
+        {"reviewed_by": user.username, "reviewed_at": ts, "id": request_id},
     )
     await db.commit()
 
@@ -255,8 +255,8 @@ async def approve_stop_request(
         from ...features.audit_log.router import write_log
         await write_log(
             db,
-            username=user["username"],
-            role=user.get("role", "admin"),
+            username=user.username,
+            role=user.role,
             action="stop_approve",
             target=row._mapping["camera_id"],
             detail=f"Approved stop request from worker '{row._mapping['worker_user']}'",
@@ -270,7 +270,7 @@ async def approve_stop_request(
         "type":        "stop_approved",
         "camera_id":   row._mapping["camera_id"],
         "worker":      row._mapping["worker_user"],
-        "approved_by": user["username"],
+        "approved_by": user.username,
     })
 
     return {"status": "approved"}
@@ -304,7 +304,7 @@ async def deny_stop_request(
         SET status = 'denied', reviewed_by = :reviewed_by, reviewed_at = :reviewed_at
         WHERE id = :id
         """),
-        {"reviewed_by": user["username"], "reviewed_at": ts, "id": request_id},
+        {"reviewed_by": user.username, "reviewed_at": ts, "id": request_id},
     )
     await db.commit()
 
@@ -313,8 +313,8 @@ async def deny_stop_request(
         from ...features.audit_log.router import write_log
         await write_log(
             db,
-            username=user["username"],
-            role=user.get("role", "admin"),
+            username=user.username,
+            role=user.role,
             action="stop_deny",
             target=row._mapping["camera_id"],
             detail=f"Denied stop request from worker '{row._mapping['worker_user']}'",

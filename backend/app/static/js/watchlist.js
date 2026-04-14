@@ -67,7 +67,7 @@ async function addWatchlistPerson() {
     const fd = new FormData();
     fd.append('name', name);
     for (const f of files) fd.append('files', f);
-    await api('/api/wanted', { method: 'POST', body: fd });
+    await api('/api/watchlist', { method: 'POST', body: fd });
     closeModal('modal-add-person');
     toast('Target added: ' + name, 'amber');
     loadWatchlist(); loadStats();
@@ -137,8 +137,8 @@ async function uploadToDossier() {
 
   toast(`Injecting ${files.length} neural sample(s)…`, 'amber');
   try {
-    await api('/api/wanted', { method: 'POST', body: fd });
-    const photos = await api(`/api/wanted/${State.dossierPersonId}/photos`);
+    await api('/api/watchlist', { method: 'POST', body: fd });
+    const photos = await api(`/api/watchlist/${State.dossierPersonId}/photos`);
     renderDossierGallery(photos || []);
     updateDossierSync(photos.length);
     loadWatchlist();
@@ -149,7 +149,7 @@ async function deletePhoto(photoId) {
   if (!confirm('Remove this biometric sample?')) return;
   try {
     await api(`/api/watchlist/${State.dossierPersonId}/photos/${photoId}`, { method: 'DELETE' });
-    const photos = await api(`/api/wanted/${State.dossierPersonId}/photos`);
+    const photos = await api(`/api/watchlist/${State.dossierPersonId}/photos`);
     renderDossierGallery(photos || []);
     updateDossierSync(photos.length);
     loadWatchlist();
@@ -196,7 +196,7 @@ async function runFaceSearch() {
   try {
     const fd = new FormData();
     for (const f of files) fd.append('files', f);
-    const d = await api('/api/search-face', { method: 'POST', body: fd });
+    const d = await api('/api/sightings/search-face', { method: 'POST', body: fd });
     renderSearchResults(d);
   } catch (e) { toast('Search failed: ' + e.message, 'red'); }
   finally {
@@ -285,7 +285,7 @@ async function runAnalysis() {
   try {
     const fd = new FormData();
     fd.append('file', file);
-    const d = await api('/api/analyze-snapshot', { method: 'POST', body: fd });
+    const d = await api('/api/analysis/analyze-snapshot', { method: 'POST', body: fd });
     const prev = document.getElementById('analysis-preview');
     if (prev) { prev.src = d.preview; prev.style.display = 'block'; }
     renderAnalysisResults(d);

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ...core.database import get_db
 from ...core.models import Sighting, Worker, Client, Camera, Watchlist
-from ...core.security import get_current_user
+from ...core.dependencies import get_current_user
 from ..workers.router import validate_worker_key
 from ...core.face_engine import QDRANT_CLIENT, QDRANT_AVAILABLE
 from ...core.sse_manager import broadcast_alert, SSE_CONNECTIONS
@@ -15,7 +15,7 @@ from typing import List, Optional
 
 router = APIRouter(tags=["Inference"])
 
-@router.post("/inference/result")
+@router.post("/result")
 async def inference_result(
     payload: dict,
     auth: tuple = Depends(validate_worker_key),
@@ -69,15 +69,28 @@ async def inference_result(
         # Append token for media server access
         snapshot_url = f"{worker.media_base_url}/snapshots/{snapshot_path}?token={api_key}"
 
+    # 2. Prepare Alert Type for SSE
+    alert_type = "new_sighting"
+    if dtype == "face":
+        if label not in ["person", "Unknown"]:
+            alert_type = "wanted_match"
+        else:
+            alert_type = "new_sighting"
+    elif dtype == "object":
+        alert_type = "new_object"
+
     alert_data = {
-        "event": "detection",
+        "event": "alert", # sse.js listens for 'alert'
         "data": {
-            "type": dtype,
-            "label": label,
+            "type": alert_type,
+            "person_id": label if alert_type == "wanted_match" else None,
+            "person_name": label,
+            "object_label": label if alert_type == "new_object" else None,
             "confidence": confidence,
-            "camera_name": camera_id, # Frontend should resolve name from ID
+            "camera_id": camera_id,
+            "location": "Processing Node",
             "timestamp": timestamp,
-            "snapshot_url": snapshot_url
+            "snapshot": snapshot_url
         }
     }
     

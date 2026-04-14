@@ -10,8 +10,8 @@ const State = {
 
   // API base URL
   api: (() => {
-    if (window.location.port === '8000') return '';
-    return 'http://localhost:8000';
+    if (window.location.port === '8000' || window.location.port === '') return '';
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
   })(),
 
   // UI

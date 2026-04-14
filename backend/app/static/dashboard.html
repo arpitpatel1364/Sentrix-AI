@@ -329,10 +329,10 @@
   </div>
 
   <!-- JS Infrastructure -->
+  <script src="/static/js/auth.js"></script>
   <script src="/static/js/state.js"></script>
   <script src="/static/js/api.js"></script>
   <script src="/static/js/ui.js"></script>
-  <script src="/static/js/auth.js"></script>
   <script src="/static/js/nav.js"></script>
   <script src="/static/js/cameras.js"></script>
   <script src="/static/js/watchlist.js"></script>
@@ -372,7 +372,7 @@
 
       // Initial Data Fetch
       try {
-        const stats = await api('/api/stats');
+        const stats = await api('/api/system/stats');
         setText('sb-node-count', `${stats.total_nodes || 0} NODES`);
       } catch (e) { console.warn('Worker sync failed', e); }
 

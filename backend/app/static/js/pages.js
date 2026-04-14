@@ -141,7 +141,7 @@ function renderHeatmap(hourly) {
    ══════════════════════════════════════════ */
 async function loadWorkers() {
   try {
-    const d   = await api('/api/active-users');
+    const d   = await api('/api/system/active-users');
     const tb  = document.getElementById('workers-table');
     const now = Date.now() / 1000;
     setText('sys-sessions', d.sessions?.length || 0);
@@ -226,7 +226,7 @@ async function deleteUser(username) {
    ══════════════════════════════════════════ */
 async function loadSystem() {
   try {
-    const d = await api('/api/active-users');
+    const d = await api('/api/system/active-users');
     setText('sys-sessions', d.sessions?.length || 0);
     setText('sys-nodes',    d.nodes?.length    || 0);
   } catch {}
@@ -329,7 +329,7 @@ async function doReset() {
    ALERT RULES
    ══════════════════════════════════════════ */
 async function loadRules() {
-  State.rules = await api('/api/alert-rules');
+  State.rules = await api('/api/alerts/alert-rules');
   const listEl  = document.getElementById('rules-list');
   const emptyEl = document.getElementById('rules-empty');
 
@@ -403,7 +403,7 @@ async function saveRule() {
   const wh = document.getElementById('ar-webhook').value.trim();
   if (wh) actions.webhook_url = wh;
   try {
-    await api('/api/alert-rules', { method: 'POST', body: JSON.stringify({
+    await api('/api/alerts/alert-rules', { method: 'POST', body: JSON.stringify({
       name: document.getElementById('ar-name').value.trim(),
       rule_type: type,
       camera_id: document.getElementById('ar-camera').value,
@@ -417,13 +417,13 @@ async function saveRule() {
 }
 
 async function toggleRule(ruleId) {
-  try { await api(`/api/alert-rules/${ruleId}/toggle`, { method: 'PATCH' }); loadRules(); }
+  try { await api(`/api/alerts/alert-rules/${ruleId}/toggle`, { method: 'PATCH' }); loadRules(); }
   catch (e) { toast(e.message, 'red'); }
 }
 
 async function deleteRule(ruleId, name) {
   if (!confirm(`Delete rule "${name}"?`)) return;
-  try { await api(`/api/alert-rules/${ruleId}`, { method: 'DELETE' }); toast('Rule deleted', 'amber'); loadRules(); }
+  try { await api(`/api/alerts/alert-rules/${ruleId}`, { method: 'DELETE' }); toast('Rule deleted', 'amber'); loadRules(); }
   catch (e) { toast(e.message, 'red'); }
 }
 
@@ -442,7 +442,7 @@ async function _fetchAuditLog() {
   const params = new URLSearchParams({ limit: State.auditLimit, offset: State.auditOffset });
   if (action) params.set('action', action);
   try {
-    const d = await api(`/api/audit-log?${params}`);
+    const d = await api(`/api/audit/audit-log?${params}`);
     const tbody = document.getElementById('audit-table');
     if (!d.logs?.length) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--on-surface-muted);padding:2rem">No entries found</td></tr>`;
@@ -471,7 +471,7 @@ async function _fetchAuditLog() {
 
 async function exportAuditLog() {
   const action = document.getElementById('audit-filter-action')?.value || '';
-  const url = `${State.api}/api/audit-log/export?format=csv${action ? `&action=${action}` : ''}&token=${State.token}`;
+  const url = `${State.api}/api/audit/audit-log/export?format=csv${action ? `&action=${action}` : ''}&token=${State.token}`;
   const a = document.createElement('a');
   a.href = url; a.download = 'audit_log.csv';
   document.body.appendChild(a); a.click(); a.remove();
