@@ -41,7 +41,7 @@ from ...core.security import get_current_user, require_admin
 from ...core.database import get_db
 from ...core.sse_manager import broadcast_alert
 
-router = APIRouter(prefix="/api")
+router = APIRouter(tags=["StopRequests"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
