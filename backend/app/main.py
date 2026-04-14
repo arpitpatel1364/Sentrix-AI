@@ -112,5 +112,5 @@ async def admin_page():
 if __name__ == "__main__":
     import uvicorn
     # Important: 0.0.0.0 allows access from other devices on the LAN
-    print("[*] Sentrix-AI Backend running on http://[IP_ADDRESS]")
-    uvicorn.run(app, host="[IP_ADDRESS]", port=8000)
+    print("[*] Sentrix-AI Backend running on http://localhost:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

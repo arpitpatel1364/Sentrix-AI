@@ -136,8 +136,8 @@
     </div>
     
     <div class="field">
-      <label for="email">Email Address</label>
-      <input type="email" id="email" placeholder="operator@sentrix.ai" required>
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="admin" required>
     </div>
     
     <div class="field">
@@ -165,13 +165,13 @@
   }
 
   async function performLogin() {
-    const email = document.getElementById('email').value.trim();
+    const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const btn = document.getElementById('login-submit');
     const err = document.getElementById('login-error');
 
-    if (!email || !password) {
-      showError('Please enter both email and password.');
+    if (!username || !password) {
+      showError('Please enter both username and password.');
       return;
     }
 
@@ -183,16 +183,16 @@
       const res = await fetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ username, password })
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.detail || 'Invalid email or password');
+        throw new Error(data.detail || 'Invalid username or password');
       }
 
-      const { access_token } = await res.json();
-      Auth.setToken(access_token);
+      const { token } = await res.json();
+      Auth.setToken(token);
 
       // Route based on role
       const role = Auth.getRole();
