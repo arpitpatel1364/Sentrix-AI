@@ -10,31 +10,44 @@ Sentrix AI is structured into a modular, feature-based architecture to ensure sc
 
 ```text
 Sentrix-AI/
+├── alembic/                  # Database Migrations (SQLAlchemy)
 ├── backend/                  # Central Intelligence Hub
 │   ├── app/                  # Application Source Code
 │   │   ├── core/             # Infrastructure (DB, AI Engines, Security, SSE)
 │   │   ├── features/         # Modular Feature Controllers
 │   │   │   ├── alert_rules/  # Custom Notification & Trigger Logic
+│   │   │   ├── analysis/     # Frame & Sighting Analysis
 │   │   │   ├── analytics/    # Scene & Performance Analytics
+│   │   │   ├── audit_log/    # System Activity & Change Tracking
 │   │   │   ├── auth/         # User Access & JWT Management
 │   │   │   ├── cameras/      # Device Registry & Live Stream Routing
+│   │   │   ├── clients/      # Connected Client & Node Management
+│   │   │   ├── inference/    # Model Inference Orchestration
+│   │   │   ├── notifications/# Multi-channel Alert Dispatch
 │   │   │   ├── objects/      # Object Classification & Tracking
 │   │   │   ├── roi/          # Region of Interest (ROI) Definitions
 │   │   │   ├── sightings/    # Forensic History & Neural Search
 │   │   │   ├── sse/          # Real-time Event Stream Delivery
+│   │   │   ├── stop_requests/# Process Control & Termination
 │   │   │   ├── system/       # Global Health & Resource Monitoring
 │   │   │   ├── watchlist/    # Target Dossiers & Face Templates
 │   │   │   └── workers/      # Field Node Mesh Orchestration
 │   │   ├── static/           # Administrative Dashboard (Vanilla JS/CSS)
 │   │   └── main.py           # Application Entry Point (FastAPI)
-│   ├── data/                 # Intelligence persistence (SQLite, Snapshots)
-│   ├── models/                # Neural repository (YOLOv8, ONNX models)
-│   └── main.py                # Launch Shim for the Hub
+│   ├── data/                 # Intelligence persistence (SQLite, Qdrant)
+│   ├── models/               # Neural repository (YOLOv8, ONNX models)
+│   └── main.py               # Launch Shim for the Hub
 ├── worker/                    # Field Intelligence Node (Edge Client)
+│   ├── models/                # Local Edge Intelligence Models
+│   ├── media_server.py        # Local Stream Re-broadcaster & MJPG Server
 │   ├── worker_agent.py        # Local detection & bandwidth optimization
-│   └── setup_worker.sh        # Node deployment script
-├── sentrix_orchestrator.py    # Multi-node Mesh Manager
-└── docker-compose.yml         # Containerized Orchestration (Production)
+│   ├── worker_start.py        # Automated Node Lifecycle Manager
+│   ├── setup_worker.sh        # Linux Node deployment script
+│   └── setup_worker.ps1       # Windows Node deployment script
+├── libs/                      # Shared Internal Utilities
+├── docker-compose.yml         # Containerized Orchestration (Production)
+├── requirements.txt           # Global Backend Dependencies
+└── yolov8s-worldv2.pt         # Unified Global Object Detector
 ```
 
 ---
@@ -211,6 +224,32 @@ The worker node employs a decoupled "Two-Core" execution model to maintain ultra
 | :--- | :--- | :--- |
 | **Site Admin** | `admin` | `admin123` |
 | **Field Operative** | `worker1` | `worker123` |
+
+---
+
+## System Maintenance & Updates
+
+To ensure the Sentrix AI mesh remains stable and up-to-date, follow these maintenance procedures:
+
+### 1. Database Migrations (Schema Updates)
+When updating the system architecture or adding new intelligence features, refresh the database schema:
+```bash
+# From the root directory
+alembic upgrade head
+```
+
+### 2. Dependency Updatation
+To refresh core engines and library versions:
+```bash
+# Backend Hub
+pip install -r requirements.txt
+
+# Worker Node
+pip install -r worker/requirements_worker.txt
+```
+
+### 3. Model Hot-Loading
+The system supports hot-loading of YOLO models. Place new `.pt` or `.onnx` models in `backend/models/` and the Hub will synchronize with connected nodes.
 
 ---
 

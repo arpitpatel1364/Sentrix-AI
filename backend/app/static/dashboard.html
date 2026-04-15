@@ -224,6 +224,28 @@
         <div id="page-analytics" class="page">
            <div style="padding:2rem; text-align:center; color:var(--on-surface-muted)">Analytics module initializing...</div>
         </div>
+        <div id="page-cameras" class="page">
+           <div class="panel">
+             <div class="panel-header" style="margin-bottom:1.5rem">
+               <div class="panel-title">Node Registry</div>
+               <button class="btn btn-primary btn-sm" onclick="openAddCamera()">+ REGISTER CAMERA</button>
+             </div>
+             <div class="camera-grid" id="cameras-grid"></div>
+           </div>
+        </div>
+        <div id="page-workers" class="page">
+           <div class="panel">
+             <div class="panel-header">
+               <div class="panel-title">Field Intel Nodes</div>
+             </div>
+             <table class="table">
+               <thead>
+                 <tr><th>NODE IDENTITY</th><th>CONNECTIVITY</th><th>LATENCY</th></tr>
+               </thead>
+               <tbody id="workers-table"></tbody>
+             </table>
+           </div>
+        </div>
         <div id="page-settings" class="page">
            <div style="padding:2rem; text-align:center; color:var(--on-surface-muted)">User Settings module initializing...</div>
         </div>
@@ -271,6 +293,111 @@
           
           <a id="snap-modal-download" class="btn btn-primary" href="#" style="text-align:center; text-decoration:none;">DOWNLOAD EVIDENCE</a>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Camera Modal -->
+  <div class="modal-overlay" id="modal-add-camera">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modal-add-camera')">&#x2715;</button>
+      <div class="modal-title">REGISTER FIELD CAMERA</div>
+      <div class="form-group">
+        <label class="form-label">Internal Node ID (Optional)</label>
+        <input type="text" id="ac-id" placeholder="cam_office_01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Camera Name</label>
+        <input type="text" id="ac-name" placeholder="Front Entrance">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Installation Location</label>
+        <input type="text" id="ac-location" placeholder="Floor 1, West Wing">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note / Description</label>
+        <input type="text" id="ac-desc" placeholder="High-traffic corridor">
+      </div>
+      <div class="form-group">
+        <label class="form-label">RTSP / Stream URL</label>
+        <input type="text" id="ac-stream" placeholder="rtsp://user:pass@ip:port/stream">
+      </div>
+      <div id="ac-err" style="display:none;color:var(--red);font-size:0.8rem;margin-top:0.5rem"></div>
+      <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="addCamera()" id="ac-btn">Register Camera</button>
+    </div>
+  </div>
+
+  <!-- Edit Camera Modal -->
+  <div class="modal-overlay" id="modal-edit-camera">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modal-edit-camera')">&#x2715;</button>
+      <div class="modal-title">UPDATE CAMERA CONFIG</div>
+      <input type="hidden" id="ec-id">
+      <div class="form-group">
+        <label class="form-label">Camera Name</label>
+        <input type="text" id="ec-name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Installation Location</label>
+        <input type="text" id="ec-location">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note / Description</label>
+        <input type="text" id="ec-desc">
+      </div>
+      <div class="form-group">
+        <label class="form-label">RTSP / Stream URL</label>
+        <input type="text" id="ec-stream">
+      </div>
+      <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="saveCamera()" id="ec-btn">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- ROI Modal -->
+  <div class="modal-overlay" id="modal-roi">
+    <div class="modal modal-wide" style="max-width:900px">
+      <button class="modal-close" onclick="closeModal('modal-roi')">✕</button>
+      <div class="modal-title">REGION OF INTEREST (ROI)</div>
+      <div id="roi-id-label" style="font-family:var(--font-mono);font-size:0.65rem;color:var(--on-surface-muted);margin-bottom:1rem">// NODE: --</div>
+      
+      <div id="roi-container" style="position:relative;background:#000;border-radius:var(--radius-md);overflow:hidden;margin-bottom:1rem;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+        <img id="roi-stream" style="max-width:100%;max-height:100%;display:block">
+        <!-- ROI Overlays -->
+        <div id="roi-overlay-top" style="position:absolute;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <div id="roi-overlay-bottom" style="position:absolute;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <div id="roi-overlay-left" style="position:absolute;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        <div id="roi-overlay-right" style="position:absolute;background:rgba(0,0,0,0.6);pointer-events:none"></div>
+        
+        <div id="roi-selector" style="position:absolute;border:2px solid var(--primary);box-shadow:0 0 20px var(--primary-glow);cursor:move;display:none">
+          <div data-handle="tl" style="position:absolute;top:-4px;left:-4px;width:8px;height:8px;background:white;cursor:nw-resize"></div>
+          <div data-handle="tr" style="position:absolute;top:-4px;right:-4px;width:8px;height:8px;background:white;cursor:ne-resize"></div>
+          <div data-handle="bl" style="position:absolute;bottom:-4px;left:-4px;width:8px;height:8px;background:white;cursor:sw-resize"></div>
+          <div data-handle="br" style="position:absolute;bottom:-4px;right:-4px;width:8px;height:8px;background:white;cursor:se-resize"></div>
+          <div id="roi-inner-label" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);font-size:0.6rem;text-align:center;padding:4px 8px;border:1px solid var(--primary);color:var(--primary);background:rgba(0,0,0,0.4);border-radius:4px;white-space:nowrap;pointer-events:none">ACTIVE ZONE</div>
+        </div>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div id="roi-coords-display" class="td-mono" style="font-size:0.7rem">ZONE: <span style="color:var(--primary)">X 0%</span> · <span style="color:var(--primary)">Y 0%</span></div>
+        <div style="display:flex;gap:0.75rem">
+          <button class="btn btn-ghost" onclick="resetROI()">Full Frame</button>
+          <button class="btn btn-primary" id="roi-save-btn">APPLY CONFIG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tactical Fullscreen Modal -->
+  <div class="modal-overlay" id="modal-tactical-fullscreen">
+    <div class="modal modal-wide" style="background:#000;max-width:98vw;height:95vh;padding:0">
+      <button class="modal-close" onclick="closeFullScreenStream()" style="z-index:100;background:rgba(0,0,0,0.4)">✕</button>
+      <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+        <div style="position:absolute;top:2rem;left:2rem;z-index:10">
+          <div class="modal-title" style="color:white;text-shadow:0 0 10px rgba(0,0,0,0.8);margin:0">TACTICAL OVERRIDE</div>
+          <div class="breadcrumb" id="tactical-stream-subtitle" style="color:var(--primary);text-shadow:0 0 10px rgba(0,0,0,0.8)">// CHANNEL: --</div>
+        </div>
+        <img id="tactical-stream-img" style="width:100%;height:100%;object-fit:contain">
+        <div class="scanline"></div>
       </div>
     </div>
   </div>
@@ -344,9 +471,12 @@
       { id: 'live-feed', label: 'Live Monitor', icon: `<svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>` },
       { id: 'sightings', label: 'Alert Feed',   icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` },
       { id: 'watchlist', label: 'Watchlist',    icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
+      { id: 'cameras',   label: 'Camera Registry', icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>` },
+      { id: 'workers',   label: 'Field Nodes',     icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>` },
       { id: 'analytics', label: 'Analytics',    icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="3" height="18"/><rect x="11" y="8" width="3" height="13"/><rect x="4" y="13" width="3" height="8"/></svg>` },
       { id: 'settings',  label: 'Settings',     icon: `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>` },
     ];
+
 
     function buildSidebar() {
       const nav = document.getElementById('sidebar-nav');
