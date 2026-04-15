@@ -154,14 +154,17 @@ def face_detector_worker(face_queue, upload_queue):
     while True:
         try:
             frame, cam_id = face_queue.get()
+            h, w = frame.shape[:2]
             faces = app.get(frame)
             for face in faces:
                 if face.det_score < 0.6: continue
-                bbox = face.bbox.astype(int).tolist()
+                # Normalize bbox
+                x1, y1, x2, y2 = face.bbox
+                bbox_norm = [float(x1/w), float(y1/h), float(x2/w), float(y2/h)]
                 embedding = face.embedding.tolist()
                 
                 # We offload the Hub communication to upload_queue/worker to keep detector fast
-                upload_queue.put(("face", frame.copy(), cam_id, "person", face.det_score, bbox, embedding))
+                upload_queue.put(("face", frame.copy(), cam_id, "person", face.det_score, bbox_norm, embedding))
         except Exception as e:
             print(f"[ERR] Face detector error: {e}")
 
@@ -177,15 +180,16 @@ def object_detector_worker(obj_queue, upload_queue):
             results = model.predict(frame, conf=0.4, verbose=False)
             if results:
                 res = results[0]
-                boxes = res.boxes.xyxy.cpu().numpy()
+                # Use xyxyn for normalized coordinates
+                boxes_norm = res.boxes.xyxyn.cpu().numpy()
                 confs = res.boxes.conf.cpu().numpy()
                 cls_ids = res.boxes.cls.cpu().numpy().astype(int)
                 names = res.names
                 
-                for i in range(len(boxes)):
+                for i in range(len(boxes_norm)):
                     label = names[cls_ids[i]]
                     if label == "person": continue # Handled by face detector or we can include it
-                    bbox = boxes[i].astype(int).tolist()
+                    bbox = boxes_norm[i].tolist()
                     upload_queue.put(("object", frame.copy(), cam_id, label, confs[i], bbox, None))
         except Exception as e:
             print(f"[ERR] Object detector error: {e}")
@@ -223,6 +227,24 @@ def upload_worker(upload_queue):
 
     loop.run_until_complete(process())
 
+def live_frame_worker(live_queue):
+    print("[*] Live Preview updater started")
+    while True:
+        try:
+            frame, cam_id = live_queue.get()
+            # Save a low-quality / small thumbnail for preview and ROI
+            # Using a fixed name so it gets overwritten
+            live_path = Path(SNAPSHOT_DIR) / f"live_{cam_id}.jpg"
+            # We use a temporary file then rename to avoid partially written reads
+            tmp_path = str(live_path) + ".tmp"
+            cv2.imwrite(tmp_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            os.replace(tmp_path, str(live_path))
+            
+            # Throttle a bit
+            time.sleep(0.1)
+        except Exception as e:
+            print(f"[ERR] Live worker error: {e}")
+
 def main():
     print(f"[*] Sentrix-AI Worker Agent starting | Worker ID: {HUB_WORKER_ID}")
     
@@ -243,6 +265,10 @@ def main():
     # Hub Communicator (runs in a separate process too)
     p_hub = mp.Process(target=upload_worker, args=(upload_queue,), daemon=True)
     p_hub.start(); processes.append(p_hub)
+    
+    # Live Preview Worker (Process)
+    p_live = mp.Process(target=live_frame_worker, args=(live_queue,), daemon=True)
+    p_live.start(); processes.append(p_live)
     
     # Capture Processes (one per camera)
     num_cams = len(CAMERA_URLS)

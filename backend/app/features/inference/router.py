@@ -8,7 +8,8 @@ from ..workers.router import validate_worker_key
 from ...core.face_engine import QDRANT_CLIENT, QDRANT_AVAILABLE
 from ...core.sse_manager import broadcast_alert, SSE_CONNECTIONS
 from qdrant_client.models import PointStruct
-from ...core.worker_state import update_worker_heartbeat
+from ...core.worker_state import update_worker_heartbeat, get_config
+from ..roi.service import is_box_in_roi, get_node_roi
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -42,6 +43,12 @@ async def inference_result(
     bbox = payload.get("bbox")
     snapshot_path = payload.get("snapshot_path")
     timestamp = payload.get("timestamp")
+
+    # 0. ROI Filtering
+    roi = get_node_roi(camera_id)
+    if roi and bbox:
+        if not is_box_in_roi(bbox, roi):
+            return {"received": True, "filtered": "roi"}
 
     # 1. Store sighting in DB
     s_uuid = str(uuid.uuid4())

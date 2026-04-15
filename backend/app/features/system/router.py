@@ -326,11 +326,28 @@ async def system_reset(user=Depends(require_admin)):
         raise HTTPException(status_code=500, detail=f"Reset failed: {str(e)}")
 
 @router.get("/active-users")
-async def active_users(user=Depends(get_current_user)):
+async def active_users(user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """
     Returns live nodes and sessions. Clients only see their own nodes.
     """
     client_id = str(user.client_id) if user.role == "client" else None
     live_nodes = get_live_nodes(client_id=client_id)
-    # sessions list needed by JS pages (loadWorkers, loadSystem)
-    return {"nodes": live_nodes, "sessions": live_nodes}
+    
+    # Enrich nodes with camera names/locations from DB
+    from ...core.models import Camera, Worker
+    from sqlalchemy import select
+    enriched = []
+    for node in live_nodes:
+        cam_id = node.get("camera_id")
+        if cam_id:
+            query = select(Camera, Worker.label).outerjoin(Worker, Camera.worker_id == Worker.id).where(Camera.camera_id == cam_id)
+            res = await db.execute(query)
+            row = res.one_or_none()
+            if row:
+                cam, worker_label = row
+                node["name"] = cam.name
+                node["db_location"] = cam.location
+                node["worker_label"] = worker_label
+        enriched.append(node)
+
+    return {"nodes": enriched, "sessions": enriched}

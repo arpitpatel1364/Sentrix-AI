@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from fastapi import FastAPI, Query, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from insightface.app import FaceAnalysis
@@ -90,14 +91,41 @@ async def serve_snapshot(snapshot_path: str, token: str = Query(...)):
     
     return FileResponse(str(full_path))
 
-@app.get("/stream/{camera_index}")
-async def mjpeg_stream(camera_index: int, token: str = Query(...)):
+@app.get("/stream/{camera_id}")
+async def mjpeg_stream(camera_id: str, token: str = Query(...)):
     """
-    Stream live MJPEG from camera (index based).
-    Note: Real implementation requires hook into worker_agent's frame buffer.
+    Stream live MJPEG by reading the latest 'live_{camera_id}.jpg' file.
     """
     validate_token(token)
-    raise HTTPException(status_code=501, detail="Live stream via Media Server pending integration with worker_agent")
+    
+    # Try to resolve index to camera_id if needed, but for now we look for the file directly
+    # or handle '0' as a special case for the first camera found.
+    
+    target_id = camera_id
+    if camera_id == "0":
+        # Find first live image available
+        files = list(Path(SNAPSHOT_DIR).glob("live_*.jpg"))
+        if files:
+            target_id = files[0].stem.replace("live_", "")
+        else:
+            raise HTTPException(status_code=404, detail="No active cameras found")
+
+    live_path = Path(SNAPSHOT_DIR) / f"live_{target_id}.jpg"
+
+    async def generate():
+        while True:
+            if live_path.exists():
+                try:
+                    # Read the file
+                    with open(live_path, "rb") as f:
+                        img_data = f.read()
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + img_data + b'\r\n')
+                except Exception:
+                    pass
+            await asyncio.sleep(0.1) # ~10 FPS
+
+    return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 @app.get("/health")
 async def health():

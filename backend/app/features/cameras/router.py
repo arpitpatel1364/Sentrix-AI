@@ -27,18 +27,23 @@ async def list_cameras(user=Depends(get_current_user), db: AsyncSession = Depend
     """
     List cameras. Clients see only their own cameras. Admins see everything.
     """
-    query = select(Camera).order_by(Camera.added_at.desc())
+    # Query cameras with worker labels
+    query = (
+        select(Camera, Worker.label.label("worker_label"))
+        .outerjoin(Worker, Camera.worker_id == Worker.id)
+        .order_by(Camera.added_at.desc())
+    )
     if user.role == "client":
         query = query.where(Camera.client_id == user.client_id)
     
     result = await db.execute(query)
-    cameras = result.scalars().all()
+    rows = result.all()
 
     live_nodes = get_live_nodes()
     id_to_key = {n["camera_id"]: n["id"] for n in live_nodes}
 
     output = []
-    for cam in cameras:
+    for cam, worker_label in rows:
         # Latest sighting for this camera
         sighting_query = (
             select(Sighting)
@@ -49,7 +54,7 @@ async def list_cameras(user=Depends(get_current_user), db: AsyncSession = Depend
         s_res = await db.execute(sighting_query)
         last_sighting = s_res.scalar_one_or_none()
 
-        # Detections today
+        # Detections today (UTC)
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
         count_res = await db.execute(
             select(func.count(Sighting.id))
@@ -75,6 +80,7 @@ async def list_cameras(user=Depends(get_current_user), db: AsyncSession = Depend
             "stream_enabled": bool(cam.stream_enabled),
             "online": cam.camera_id in id_to_key,
             "node_key": id_to_key.get(cam.camera_id),
+            "worker_label": worker_label or "Unassigned",
             "last_seen": {
                 "timestamp": last_sighting.timestamp,
                 "matched": last_sighting.matched,
@@ -85,6 +91,7 @@ async def list_cameras(user=Depends(get_current_user), db: AsyncSession = Depend
             "client_id": str(cam.client_id)
         }
         output.append(cam_dict)
+
 
     return output
 
@@ -171,19 +178,39 @@ async def delete_camera(camera_id: str, request: Request, user=Depends(get_curre
                         db: AsyncSession = Depends(get_db)):
     # Note: camera_id here refers to the primary key 'id' in the JS call deleteCamera(id)
     query = select(Camera).where(Camera.id == camera_id)
+    # 1. Fetch and Check permissions
+    query = select(Camera).where(Camera.camera_id == camera_id)
     if user.role == "client":
         query = query.where(Camera.client_id == user.client_id)
     
-    res = await db.execute(query)
-    cam = res.scalar_one_or_none()
-    if not cam:
+    result = await db.execute(query)
+    camera = result.scalar_one_or_none()
+
+    if not camera:
         raise HTTPException(status_code=404, detail="Camera not found or access denied")
 
-    await db.delete(cam)
+    # 2. Cleanup associated data
+    from ...core.worker_state import WORKER_REGISTRY
+    from ...core.models import Sighting, ObjectDetection, AlertRule, CameraStopRequest
+    
+    # Remove from memory registry
+    if camera.camera_id in WORKER_REGISTRY:
+        del WORKER_REGISTRY[camera.camera_id]
+
+    # Delete related records from DB
+    cid = camera.camera_id
+    await db.execute(delete(Sighting).where(Sighting.camera_id == cid))
+    await db.execute(delete(ObjectDetection).where(ObjectDetection.camera_id == cid))
+    await db.execute(delete(AlertRule).where(AlertRule.camera_id == cid))
+    await db.execute(delete(CameraStopRequest).where(CameraStopRequest.camera_id == cid))
+
+    # 3. Delete from DB
+    await db.execute(delete(Camera).where(Camera.id == camera.id))
     await db.commit()
     
-    await write_log(db, username=user.username, role=user.role, action="delete_camera", target=str(cam.camera_id), detail=f"Removed camera {cam.camera_id}", ip=request.client.host)
+    await write_log(db, username=user.username, role=user.role, action="delete_camera", target=str(camera.camera_id), detail=f"Deep removal of camera {camera.camera_id} and all its data.", ip=request.client.host)
     return {"ok": True}
+
 
 @router.put("/{camera_id}/position")
 async def update_camera_position(camera_id: str, request: Request,

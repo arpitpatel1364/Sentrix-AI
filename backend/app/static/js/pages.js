@@ -152,13 +152,25 @@ async function loadWorkers() {
       return;
     }
     tb.innerHTML = nodes.map(n => {
-      const age  = Math.round(now - n.last_seen);
-      const live = age < 30;
-      return `<tr>
-        <td style="font-family:var(--font-mono);font-weight:600">${esc(n.id)}</td>
-        <td><span class="badge ${live ? 'online' : 'offline'}">${live ? '● LIVE' : '○ IDLE'}</span></td>
-        <td class="td-mono">${age}s ago</td>
-      </tr>`;
+        const live = n.age_s < 60;
+        const statusClass = live ? 'online' : 'offline';
+        const label = n.worker_label ? `${esc(n.worker_label)}` : 'External';
+        
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:700">${esc(n.name || n.camera_id)}</div>
+              <div class="td-mono" style="font-size:0.65rem;color:var(--primary)">${esc(n.db_location || 'REMOTE NODE')}</div>
+            </td>
+            <td>
+              <div style="display:flex;align-items:center;gap:0.5rem">
+                <span class="badge ${statusClass}">${live ? '● LIVE' : '○ IDLE'}</span>
+                <span class="td-mono" style="font-size:0.7rem;color:var(--on-surface-muted)">[${label}]</span>
+              </div>
+            </td>
+            <td class="td-mono">${n.age_s}s latency</td>
+          </tr>
+        `;
     }).join('');
   } catch {}
 }

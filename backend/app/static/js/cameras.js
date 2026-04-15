@@ -56,8 +56,13 @@ function renderCameraGrid(cameras) {
 
       <div style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.82rem;margin-bottom:0.875rem">
         ${c.location ? `<div class="result-item"><span class="result-label">Location</span><span>${esc(c.location)}</span></div>` : ''}
+        <div class="result-item">
+          <span class="result-label">Intel Node</span>
+          <span style="color:var(--cyan);font-family:var(--font-mono);font-size:0.7rem">${esc(c.worker_label || 'Direct Link')}</span>
+        </div>
         ${c.description ? `<div class="result-item"><span class="result-label">Note</span><span style="color:var(--on-surface-muted)">${esc(c.description)}</span></div>` : ''}
         <div class="result-item">
+
           <span class="result-label">Today</span>
           <span style="color:var(--primary);font-family:var(--font-mono);font-size:0.78rem">${c.detections_today ?? 0} detections</span>
         </div>
@@ -125,7 +130,7 @@ function renderCameraGrid(cameras) {
                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="margin-right:3px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                Start
              </button>`}
-        <button class="btn btn-danger btn-sm admin-only" style="margin-left:auto" onclick="deleteCamera('${esc(c.camera_id)}','${esc(c.name)}')">
+        <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="deleteCamera('${esc(c.camera_id)}')">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -202,13 +207,13 @@ async function saveCamera() {
   finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
 }
 
-async function deleteCamera(cameraId, name) {
-  if (!confirm(`Delete camera "${name}" (${cameraId})?`)) return;
+async function deleteCamera(cameraId) {
+  if (!confirm(`Are you sure you want to delete camera ${cameraId}? This will also remove its ROI settings.`)) return;
   try {
     await api(`/api/cameras/${cameraId}`, { method: 'DELETE' });
-    toast('Camera removed', 'amber');
+    toast(`Camera ${cameraId} deleted`, 'green');
     loadCameras();
-  } catch (e) { toast(e.message, 'red'); }
+  } catch (e) { toast('Delete failed: ' + e.message, 'red'); }
 }
 
 /* ─── ROI ─── */

@@ -25,12 +25,12 @@ async def save_roi(
     
     # 1. Resolve camera_id and node_key
     if not camera_id:
-        if not node_key or ":" not in node_key:
-            raise HTTPException(status_code=400, detail="camera_id or valid node_key (user:cam) required")
-        camera_id = node_key.split(":", 1)[1]
+        if not node_key:
+            raise HTTPException(status_code=400, detail="camera_id or node_key required")
+        camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
     
-    if not node_key:
-        node_key = f"{user.username}:{camera_id}"
+    # Standardize: we use camera_id as the key in WORKER_REGISTRY
+    node_key = camera_id
 
     # 2. Permission Check & Fetch Camera
     query = select(Camera).where(Camera.camera_id == camera_id)

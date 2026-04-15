@@ -8,6 +8,7 @@ import uuid
 import bcrypt
 from datetime import datetime
 from typing import List, Optional
+from ...core.worker_state import update_worker_heartbeat
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
 
@@ -88,10 +89,9 @@ async def register_worker(
         if camera:
             camera.stream_url = cam.get("rtsp_url", "")
             camera.status = "online"
-            cam_uuid = camera.id
         else:
             cam_uuid = str(uuid.uuid4())
-            new_camera = Camera(
+            camera = Camera(
                 id=cam_uuid,
                 camera_id=f"cam_{cam_uuid[:8]}", # Unique camera ID
                 name=cam_name,
@@ -100,11 +100,15 @@ async def register_worker(
                 worker_id=worker_id,
                 status="online"
             )
-            db.add(new_camera)
+            db.add(camera)
         
-        camera_mapping[cam_name] = cam_uuid
+        camera_mapping[cam_name] = camera.camera_id
     
     await db.commit()
+    
+    # Update memory registry
+    for cam_name, cam_uuid in camera_mapping.items():
+        update_worker_heartbeat(cam_uuid, client_id=str(client_id))
     
     return {
         "worker_id": str(worker_id),
@@ -140,6 +144,17 @@ async def worker_heartbeat(
         )
     
     await db.commit()
+
+    # Update memory registry
+    for cam_name, status in camera_statuses.items():
+        # Need to find camera_id for this name and worker
+        cam_res = await db.execute(
+            select(Camera.camera_id).where(Camera.worker_id == worker_id).where(Camera.name == cam_name)
+        )
+        cam_uuid = cam_res.scalar()
+        if cam_uuid:
+            update_worker_heartbeat(cam_uuid, client_id=str(client_id))
+
     return {"ok": True}
 
 @router.get("/mine")

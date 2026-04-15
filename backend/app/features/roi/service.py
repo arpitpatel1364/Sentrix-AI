@@ -20,9 +20,18 @@ def is_point_in_roi(x: float, y: float, roi: List[float]) -> bool:
 def is_box_in_roi(bbox_norm: Tuple[float, float, float, float], roi: List[float]) -> bool:
     """
     Check if the center of a normalized bounding box is within the ROI.
-    bbox_norm: (cx, cy, w, h)
+    bbox_norm can be (cx, cy, w, h) or [x1, y1, x2, y2]
     """
-    cx, cy, _, _ = bbox_norm
+    if len(bbox_norm) != 4: return True
+    
+    # Check if it looks like [x1, y1, x2, y2] where x2 > x1
+    if bbox_norm[2] > bbox_norm[0] and bbox_norm[3] > bbox_norm[1]:
+        cx = (bbox_norm[0] + bbox_norm[2]) / 2
+        cy = (bbox_norm[1] + bbox_norm[3]) / 2
+    else:
+        # Assume (cx, cy, w, h)
+        cx, cy, _, _ = bbox_norm
+        
     return is_point_in_roi(cx, cy, roi)
 
 def save_node_roi(node_key: str, roi_list: Optional[List[float]]):

@@ -80,7 +80,11 @@ def get_live_nodes(client_id: str = None) -> list[dict]:
 
         age = now - state["last_seen"]
         if age < HEARTBEAT_TIMEOUT:
-            user, cam_id = (node_key.split(":", 1) if ":" in node_key else ("unknown", node_key))
+            # We no longer assume 'username:camera_id' format strictly,
+            # but we can try to extract camera_id if it's there.
+            cam_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
+            user   = node_key.split(":", 1)[0] if ":" in node_key else "system"
+            
             live.append({
                 "id":        node_key,
                 "camera_id": cam_id,
