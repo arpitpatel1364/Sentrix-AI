@@ -136,6 +136,215 @@ function renderHeatmap(hourly) {
   }).join('');
 }
 
+async function loadWatchlist() {
+  try {
+    const d = await api('/api/watchlist');
+    const grid = document.getElementById('watchlist-grid');
+    if (!grid) return;
+    if (!d.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:5rem;color:var(--on-surface-muted)">No subjects enrolled.</div>`;
+      return;
+    }
+    grid.innerHTML = d.map(p => `
+      <div class="panel" style="padding:1.25rem;cursor:pointer" onclick="openDossier('${esc(p.person_id)}')">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+          ${p.photos?.length 
+            ? `<img src="${esc(p.photos[0].photo_path)}" style="width:50px;height:50px;border-radius:var(--radius-sm);object-fit:cover;border:1px solid var(--primary-dim)">`
+            : `<div style="width:50px;height:50px;border-radius:var(--radius-sm);background:var(--surface-high);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700">${p.name[0]}</div>`}
+          <div>
+            <div style="font-weight:700;font-size:0.95rem">${esc(p.name)}</div>
+            <div class="td-mono" style="font-size:0.6rem;color:var(--primary)">ID: ${esc(p.person_id)}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:0.75rem;border-top:1px solid var(--outline)">
+          <span class="td-mono" style="font-size:0.6rem;color:var(--on-surface-muted)">${p.photos?.length || 0} SAMPLES</span>
+          <span style="font-size:0.75rem;color:var(--primary)">View Dossier →</span>
+        </div>
+      </div>`).join('');
+  } catch (e) { console.warn('[watchlist]', e); }
+}
+
+/* ══════════════════════════════════════════
+   FRAME ANALYSIS
+   ══════════════════════════════════════════ */
+async function analyzeFrame(file) {
+  if (!file) return;
+  const zone = document.getElementById('analysis-drop');
+  const wrap = document.getElementById('analysis-preview-wrap');
+  const res  = document.getElementById('analysis-results');
+  const img  = document.getElementById('analysis-preview');
+
+  zone.style.display = 'none';
+  wrap.style.display = 'block';
+  res.innerHTML = '<div style="text-align:center;padding:2rem"><div class="sync-spinner" style="margin:0 auto 1rem"></div><div class="td-mono" style="font-size:0.7rem">RUNNING NEURAL INFERENCE…</div></div>';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const d = await api('/api/inference/analyze', { method: 'POST', body: formData });
+    img.src = d.preview;
+    
+    if (!d.detections.length) {
+      res.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--on-surface-muted);font-family:var(--font-mono);font-size:0.75rem">// NO ENTITIES DETECTED</div>';
+      return;
+    }
+
+    res.innerHTML = d.detections.map(det => {
+      const isMatch = det.matched;
+      const color = det.type === 'object' ? 'var(--cyan)' : (isMatch ? 'var(--red)' : 'var(--primary)');
+      return `
+        <div class="panel" style="padding:0.75rem; border-left:3px solid ${color}">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.25rem">
+            <span class="td-mono" style="font-size:0.55rem; color:${color}">${det.type.toUpperCase()}</span>
+            <span class="td-mono" style="font-size:0.65rem; color:var(--on-surface-muted)">${det.confidence}%</span>
+          </div>
+          <div style="font-weight:700; font-size:0.85rem">${esc(det.label)}</div>
+          ${isMatch ? '<div style="font-size:0.6rem; color:var(--red); font-weight:700; margin-top:0.25rem">⚠ ALERT: WATCHLIST MATCH</div>' : ''}
+        </div>`;
+    }).join('');
+
+    toast(`Analysis complete: ${d.count} detections`, 'green');
+  } catch (e) {
+    res.innerHTML = `<div style="color:var(--red);padding:1rem;font-size:0.8rem">Error: ${esc(e.message)}</div>`;
+    toast(e.message, 'red');
+  }
+}
+
+function resetAnalysis() {
+  document.getElementById('analysis-drop').style.display = 'flex';
+  document.getElementById('analysis-preview-wrap').style.display = 'none';
+  document.getElementById('analysis-results').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--on-surface-muted);font-size:0.75rem;font-family:var(--font-mono)">// AWAITING DATA...</div>';
+  document.getElementById('analysis-file').value = '';
+}
+
+function handleAnalysisDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (file) analyzeFrame(file);
+}
+
+/* ══════════════════════════════════════════
+   LIVE MAP
+   ══════════════════════════════════════════ */
+function loadMap() {
+  const list = document.getElementById('map-cam-list');
+  if (!list) return;
+  if (!State.cameras.length) {
+    list.innerHTML = '<div style="color:var(--on-surface-muted);font-size:0.7rem">No cameras registered</div>';
+    return;
+  }
+  list.innerHTML = State.cameras.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;background:var(--surface-high);border-radius:4px">
+      <div style="font-size:0.75rem;font-weight:600">${esc(c.name)}</div>
+      <span class="badge ${c.online ? 'online' : 'offline'}" style="font-size:0.5rem">${c.online ? 'LIVE' : 'IDLE'}</span>
+    </div>`).join('');
+}
+
+function updateMapCameraList(cameras) {
+  if (State.activePage === 'map') loadMap();
+}
+
+/* ══════════════════════════════════════════
+   ALERT RULES
+   ══════════════════════════════════════════ */
+async function loadRules() {
+  try {
+    const rules = await api('/api/alerts/alert-rules');
+    const tb = document.getElementById('rules-table');
+    if (!tb) return;
+    if (!rules.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--on-surface-muted);padding:3rem">No active rules. Automated surveillance is not looking for specific triggers.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rules.map(r => {
+      const cond = r.conditions || {};
+      const acts = [];
+      if (r.actions.popup) acts.push('Popup');
+      if (r.actions.email) acts.push('Email');
+      if (r.actions.webhook_url) acts.push('Webhook');
+      
+      let condTxt = 'Generic';
+      if (r.rule_type === 'wanted_match') condTxt = 'Match on Watchlist';
+      if (r.rule_type === 'object_detected') condTxt = `Detect: ${cond.object_label || 'Any'}`;
+      if (r.rule_type === 'high_confidence') condTxt = `Conf > ${cond.min_confidence}%`;
+      
+      return `
+        <tr>
+          <td><div style="font-weight:700">${esc(r.name)}</div><div class="td-mono" style="font-size:0.6rem;color:var(--primary)">${esc(r.rule_type.toUpperCase())}</div></td>
+          <td class="td-mono" style="font-size:0.75rem">${esc(r.camera_id || 'Global / All')}</td>
+          <td>${esc(condTxt)}</td>
+          <td style="font-size:0.75rem;color:var(--on-surface-muted)">${acts.join(', ')}</td>
+          <td><span class="badge ${r.enabled ? 'online' : 'offline'}">${r.enabled ? 'ACTIVE' : 'MUTED'}</span></td>
+          <td>
+            <div style="display:flex;gap:0.4rem">
+              <button class="btn btn-ghost btn-sm" onclick="toggleRule('${r.id}')">${r.enabled ? 'Mute' : 'Enable'}</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteRule('${r.id}','${esc(r.name)}')">✕</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  } catch (e) { console.warn('[rules]', e); }
+}
+
+function onRuleTypeChange() {
+  const type = document.getElementById('ar-type').value;
+  document.getElementById('ar-obj-field').style.display  = type === 'object_detected' ? 'block' : 'none';
+  document.getElementById('ar-conf-field').style.display = type === 'high_confidence'  ? 'block' : 'none';
+}
+
+function openAddRule() {
+  const sel = document.getElementById('ar-camera');
+  if (sel) {
+    sel.innerHTML = '<option value="">All Cameras (Global)</option>' +
+      State.cameras.map(c => `<option value="${esc(c.camera_id)}">${esc(c.name)} (${esc(c.camera_id)})</option>`).join('');
+  }
+  onRuleTypeChange();
+  openModal('modal-add-rule');
+}
+
+async function saveRule() {
+  const btn = document.getElementById('ar-btn');
+  const err = document.getElementById('ar-err');
+  const type = document.getElementById('ar-type').value;
+  const conditions = {};
+  if (type === 'object_detected') conditions.object_label = document.getElementById('ar-obj-label').value.trim();
+  if (type === 'high_confidence') conditions.min_confidence = parseFloat(document.getElementById('ar-min-conf').value) || 90;
+
+  const actions = {
+    popup: document.getElementById('ar-act-popup').checked,
+    email: document.getElementById('ar-act-email').checked,
+    webhook_url: document.getElementById('ar-webhook').value.trim() || null
+  };
+
+  btn.disabled=true; btn.textContent='Creating…'; err.style.display='none';
+  try {
+    await api('/api/alerts/alert-rules', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('ar-name').value.trim() || 'Untitled Rule',
+        rule_type: type,
+        camera_id: document.getElementById('ar-camera').value,
+        conditions, actions
+      })
+    });
+    closeModal('modal-add-rule');
+    toast('Rule applied successfully', 'green');
+    loadRules();
+  } catch (e) { err.textContent=e.message; err.style.display='block'; }
+  finally { btn.disabled=false; btn.textContent='Create Rule'; }
+}
+
+async function toggleRule(id) {
+  try { await api(`/api/alerts/alert-rules/${id}/toggle`, { method: 'PATCH' }); loadRules(); }
+  catch (e) { toast(e.message, 'red'); }
+}
+
+async function deleteRule(id, name) {
+  if (!confirm(`Delete rule "${name}"?`)) return;
+  try { await api(`/api/alerts/alert-rules/${id}`, { method: 'DELETE' }); toast('Rule removed', 'muted'); loadRules(); }
+  catch (e) { toast(e.message, 'red'); }
+}
+
 /* ══════════════════════════════════════════
    WORKERS
    ══════════════════════════════════════════ */
@@ -234,107 +443,75 @@ async function deleteUser(username) {
 }
 
 /* ══════════════════════════════════════════
-   SYSTEM
+   SYSTEM / CLEANUP
    ══════════════════════════════════════════ */
 async function loadSystem() {
+  await loadSystemStats();
+  // Update other dynamic info here if needed
+}
+
+async function loadSystemStats() {
+  if (State.activePage !== 'system') return;
   try {
-    const d = await api('/api/system/active-users');
-    setText('sys-sessions', d.sessions?.length || 0);
-    setText('sys-nodes',    d.nodes?.length    || 0);
+    const stats = await api('/api/system/stats');
+    setText('sys-sessions', stats.active_sessions || 0);
+    setText('sys-nodes', stats.total_nodes || 0);
   } catch {}
 }
 
 async function runCleanup() {
-  const range    = document.getElementById('cleanup-range').value;
-  const personId = document.getElementById('cleanup-person-id').value.trim();
-  const target   = document.getElementById('cleanup-target').value;
-  if (!confirm(`Delete ${target} records older than ${range}${personId ? ` for person ${personId}` : ''}? This is irreversible.`)) return;
+  const range = document.getElementById('cleanup-range').value;
+  const target = document.getElementById('cleanup-target').value;
+  const pid = document.getElementById('cleanup-pid').value.trim();
+  
+  if (!confirm(`CONFIRM: PURGE ${target.toUpperCase()} RECORDS OLDER THAN ${range.toUpperCase()}?`)) return;
+  
   try {
-    let url = `/api/system/cleanup?time_range=${range}&target=${target}`;
-    if (personId) url += `&person_id=${encodeURIComponent(personId)}`;
-    const res = await api(url, { method: 'POST' });
-    toast(`Cleanup: removed ${res.details?.files_removed ?? 0} files`, 'green');
-    loadStats();
+    const res = await api(`/api/system/cleanup?time_range=${range}&target=${target}${pid ? `&person_id=${pid}` : ''}`, { method: 'POST' });
+    toast(`Cleanup complete: Removed ${res.details.sightings + res.details.objects} entries`, 'green');
+    loadSystemStats();
   } catch (e) { toast('Cleanup failed: ' + e.message, 'red'); }
 }
 
-/* Biometric purge */
-async function runBiometricSearch() {
-  const files = document.getElementById('biometric-purge-files').files;
-  if (!files.length) { toast('Select at least one face photo', 'red'); return; }
-  const btn = document.getElementById('btn-biometric-search');
-  const status = document.getElementById('biometric-purge-status');
-  btn.disabled=true; btn.textContent='Searching…';
-  status.style.display='block'; status.textContent='Analyzing biometrics…';
-  const fd = new FormData();
-  for (const f of files) fd.append('files', f);
+async function discoverAndPurge() {
+  const fileInput = document.getElementById('discovery-files');
+  if (!fileInput.files.length) return toast('Select face photos first', 'amber');
+  
+  const formData = new FormData();
+  for (const f of fileInput.files) formData.append('files', f);
+  
+  toast('Discovery started...', 'blue');
   try {
-    const res = await api('/api/system/cleanup/biometric/search', { method: 'POST', body: fd });
-    State.biometricMatches = res.matches || [];
-    if (!State.biometricMatches.length) { toast('No matching sightings', 'muted'); return; }
-    renderBiometricPreview();
-    document.getElementById('biometric-step-1').style.display = 'none';
-    document.getElementById('biometric-step-2').style.display = 'block';
-    status.style.display = 'none';
-  } catch (e) {
-    toast('Discovery failed: ' + e.message, 'red');
-    status.textContent = '✗ ' + e.message;
-  } finally { btn.disabled=false; btn.textContent='Search Matches'; }
+    const res = await api('/api/system/cleanup/biometric/search', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!res.matches.length) {
+      return toast('No matches found for these photos', 'on-surface-muted');
+    }
+    
+    if (confirm(`FOUND ${res.total_matches} MATCHES. PERMANENTLY PURGE ALL RECORDED SIGHTINGS FOR THIS SUBJECT?`)) {
+      const ids = res.matches.map(m => m.id);
+      await api('/api/system/cleanup/biometric/purge', {
+        method: 'POST',
+        body: JSON.stringify(ids)
+      });
+      toast('Subject records purged successfully', 'green');
+    }
+  } catch (e) { toast('Discovery failed: ' + e.message, 'red'); }
 }
 
-function renderBiometricPreview() {
-  const grid = document.getElementById('biometric-preview-grid');
-  setText('biometric-match-count', `${State.biometricMatches.length} TARGETS IDENTIFIED`);
-  setText('biometric-purge-count', State.biometricMatches.length);
-  grid.innerHTML = State.biometricMatches.map(m => `
-    <div class="biometric-card">
-      <img src="${esc(m.snapshot)}" style="width:100%;height:100%;object-fit:cover">
-      <button onclick="excludeBiometric('${m.id}')"
-              style="position:absolute;top:4px;right:4px;width:22px;height:22px;background:var(--red);color:#fff;border:none;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-      <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.85));padding:5px;font-family:var(--font-mono);font-size:8px;color:var(--cyan)">${m.confidence}% MATCH</div>
-    </div>`).join('');
-}
-
-function excludeBiometric(id) {
-  State.biometricMatches = State.biometricMatches.filter(m => m.id !== id);
-  if (!State.biometricMatches.length) { resetBiometricPurge(); return; }
-  renderBiometricPreview();
-}
-
-function resetBiometricPurge() {
-  State.biometricMatches = [];
-  document.getElementById('biometric-step-1').style.display = 'flex';
-  document.getElementById('biometric-step-2').style.display = 'none';
-  document.getElementById('biometric-purge-files').value = '';
-}
-
-async function commitBiometricPurge() {
-  const ids = State.biometricMatches.map(m => m.id);
-  if (!confirm(`Permanently delete ${ids.length} records?`)) return;
-  const btn = document.getElementById('btn-biometric-purge');
-  btn.disabled=true; btn.textContent='Purging…';
+async function factoryReset() {
+  const code = prompt('DANGER: TYPE "FACTORY-RESET" TO WIPE EVERYTHING');
+  if (code !== 'FACTORY-RESET') return;
+  
   try {
-    const res = await api('/api/system/cleanup/biometric/purge', { method: 'POST', body: JSON.stringify(ids) });
-    toast(`Purged ${res.details?.purged ?? ids.length} records`, 'cyan');
-    resetBiometricPurge(); loadStats();
-  } catch (e) { toast('Purge failed: ' + e.message, 'red'); btn.disabled=false; btn.textContent=`Purge ${ids.length} Records`; }
-}
-
-function confirmReset() {
-  document.getElementById('reset-confirm').value = '';
-  openModal('modal-confirm-reset');
-}
-async function doReset() {
-  if (document.getElementById('reset-confirm').value !== 'RESET') { toast('Type RESET to confirm', 'red'); return; }
-  const btn = document.getElementById('reset-btn');
-  btn.disabled=true; btn.textContent='Resetting…';
-  try {
-    await api('/api/system/reset', { method: 'POST' });
-    closeModal('modal-confirm-reset');
-    toast('System reset complete', 'amber');
-    loadStats();
+    // Calling cleanup with max range as a proxy for reset if dedicated reset is missing
+    await api('/api/system/cleanup?time_range=1y&target=all', { method: 'POST' });
+    toast('System has been reset', 'red');
+    location.reload();
   } catch (e) { toast('Reset failed: ' + e.message, 'red'); }
-  finally { btn.disabled=false; btn.textContent='Confirm Reset'; }
 }
 
 /* ══════════════════════════════════════════

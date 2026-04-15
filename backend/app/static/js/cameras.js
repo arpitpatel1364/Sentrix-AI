@@ -7,15 +7,16 @@ async function loadCameras() {
   try {
     const cameras = await api('/api/cameras');
     State.cameras = cameras;
-    renderCameraGrid(cameras);
+    renderRegistryGrid(cameras);
+    renderLiveFeed();
     updateMapCameraList(cameras);
     syncGlobalButtons();
   } catch (e) { console.warn('[cameras]', e); }
 }
 
-function renderCameraGrid(cameras) {
-  const grid  = document.getElementById('cameras-grid');
-  const empty = document.getElementById('cameras-empty');
+function renderRegistryGrid(cameras) {
+  const grid  = document.getElementById('registry-grid');
+  const empty = document.getElementById('registry-empty');
   if (!grid) return;
 
   if (!cameras.length) {
@@ -27,7 +28,7 @@ function renderCameraGrid(cameras) {
 
   grid.innerHTML = cameras.map(c => {
     const online  = c.online;
-    const nodeKey = c.node_key || `${c.added_by}:${c.camera_id}`;
+    const nodeKey = c.node_key || c.camera_id;
     const lastSeen = c.last_seen ? `Last: ${fmtTs(c.last_seen.timestamp || c.last_seen)}` : 'Never active';
     const roiActive = c.roi && (c.roi[0] > 0.05 || c.roi[1] > 0.05);
 
@@ -39,9 +40,8 @@ function renderCameraGrid(cameras) {
           <div style="font-weight:700;font-size:1rem">${esc(c.name)}</div>
           <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--primary);margin-top:2px">${esc(c.camera_id)}</div>
         </div>
-        <span class="badge ${online ? 'online' : 'red'}" style="flex-shrink:0">
-          <span style="width:6px;height:6px;border-radius:50%;display:inline-block;background:${online ? 'var(--green)' : 'var(--red)'}"></span>
-          ${online ? 'ONLINE' : 'OFFLINE'}
+        <span class="badge ${online ? 'online' : 'offline'}" style="flex-shrink:0">
+          ${online ? '● LIVE' : '○ IDLE'}
         </span>
       </div>
 
@@ -62,7 +62,6 @@ function renderCameraGrid(cameras) {
         </div>
         ${c.description ? `<div class="result-item"><span class="result-label">Note</span><span style="color:var(--on-surface-muted)">${esc(c.description)}</span></div>` : ''}
         <div class="result-item">
-
           <span class="result-label">Today</span>
           <span style="color:var(--primary);font-family:var(--font-mono);font-size:0.78rem">${c.detections_today ?? 0} detections</span>
         </div>
@@ -78,7 +77,7 @@ function renderCameraGrid(cameras) {
         </div>
       </div>
 
-      <div class="td-mono" style="font-size:0.58rem;letter-spacing:0.1em;margin-bottom:0.5rem;padding-bottom:0.5rem;border-bottom:1px solid var(--outline)">RUNTIME SIGNALS</div>
+      <div class="td-mono" style="font-size:0.58rem;letter-spacing:0.1em;margin-bottom:0.5rem;padding-bottom:0.5rem;border-bottom:1px solid var(--outline)">NODE SETTINGS</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.4rem;margin-bottom:1rem">
         <button class="signal-btn signal-btn-sm ${c.face_enabled ? 'active' : ''}"
                 onclick="toggleCameraFeature('${esc(c.camera_id)}','face',${c.face_enabled ? 0 : 1})">
@@ -122,7 +121,7 @@ function renderCameraGrid(cameras) {
           ROI
         </button>
         ${online
-          ? `<button class="btn btn-danger btn-sm admin-only" onclick="stopNode('${esc(c.camera_id)}')">
+          ? `<button class="btn btn-danger btn-sm" onclick="stopNode('${esc(c.camera_id)}')">
                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="margin-right:3px"><rect x="5" y="5" width="14" height="14" rx="1"/></svg>
                Stop
              </button>`
@@ -137,11 +136,72 @@ function renderCameraGrid(cameras) {
     </div>`;
   }).join('');
 
-  // Apply role visibility
   if (State.role !== 'admin') {
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
   }
 }
+
+function setGrid(cols) {
+  State.gridColumns = cols;
+  localStorage.setItem('sx-grid-cols', cols);
+  
+  const grid = document.getElementById('cameras-grid');
+  if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  
+  const btns = document.querySelectorAll('#grid-controls button');
+  btns.forEach(b => {
+    // Toggle active class correctly
+    const isThis = b.getAttribute('onclick')?.includes(cols.toString());
+    b.classList.toggle('active', isThis);
+  });
+}
+
+async function renderLiveFeed() {
+  const grid  = document.getElementById('cameras-grid');
+  const empty = document.getElementById('cameras-empty');
+  const filter = document.getElementById('live-search')?.value.toLowerCase() || '';
+
+  if (!grid) return;
+  
+  // Set initial grid columns
+  grid.style.gridTemplateColumns = `repeat(${State.gridColumns}, 1fr)`;
+
+  const onlineCams = State.cameras.filter(c => {
+    if (!c.online) return false;
+    if (filter) {
+      return c.name.toLowerCase().includes(filter) || c.location.toLowerCase().includes(filter);
+    }
+    return true;
+  });
+
+  if (!onlineCams.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  grid.innerHTML = onlineCams.map(c => {
+    const nodeKey = c.node_key || c.camera_id;
+    return `
+    <div class="panel" style="padding:0; overflow:hidden; border-color:var(--primary-dim)">
+      <div class="camera-preview-box" style="aspect-ratio:16/9; border-radius:0; height:auto; border:none">
+        <img class="camera-preview-img" src="/api/system/stream/${esc(nodeKey)}"
+             onerror="this.parentElement.innerHTML='<div class=\\'no-sig\\'>SIGNAL LOST</div>'" alt="LIVE FEED">
+        <div class="status-overlay">● LIVE</div>
+        <div class="scanline"></div>
+        <div style="position:absolute; bottom:0.5rem; left:0.75rem; right:0.75rem; display:flex; justify-content:space-between; align-items:flex-end">
+          <div>
+            <div style="font-family:var(--font-mono); font-size:0.55rem; color:var(--primary); text-shadow:0 1px 4px rgba(0,0,0,0.8)">DIRECT LINK: ${esc(c.camera_id)}</div>
+            <div style="font-weight:800; font-size:0.85rem; text-shadow:0 1px 4px rgba(0,0,0,0.8)">${esc(c.name)}</div>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:0.6rem; color:var(--on-surface-muted); background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:3px">${esc(c.location)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 
 function openAddCamera() {
   ['ac-id','ac-name','ac-location','ac-desc','ac-stream'].forEach(id => {
@@ -183,6 +243,9 @@ function openEditCamera(cameraId) {
   document.getElementById('ec-location').value = cam.location || '';
   document.getElementById('ec-desc').value     = cam.description || '';
   document.getElementById('ec-stream').value   = cam.stream_url || '';
+  document.getElementById('ec-face-check').checked = !!cam.face_enabled;
+  document.getElementById('ec-obj-check').checked  = !!cam.obj_enabled;
+  document.getElementById('ec-stream-check').checked = !!cam.stream_enabled;
   openModal('modal-edit-camera');
 }
 
@@ -198,6 +261,9 @@ async function saveCamera() {
         location:    document.getElementById('ec-location').value.trim(),
         description: document.getElementById('ec-desc').value.trim(),
         stream_url:  document.getElementById('ec-stream').value.trim(),
+        face_enabled: document.getElementById('ec-face-check').checked,
+        obj_enabled:  document.getElementById('ec-obj-check').checked,
+        stream_enabled: document.getElementById('ec-stream-check').checked,
       }),
     });
     closeModal('modal-edit-camera');

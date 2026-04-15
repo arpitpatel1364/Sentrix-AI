@@ -19,7 +19,11 @@ const State = {
   alertCount: 0,
   newSightings: 0,
   newObjects: 0,
-
+  
+  // UI Preferences
+  gridColumns: parseInt(localStorage.getItem('sx-grid-cols')) || 3,
+  theme: localStorage.getItem('sx-theme') || 'dark',
+  
   // Live monitoring
   liveInterval: null,
   mmActive: false,
@@ -82,7 +86,7 @@ const PAGE_META = {
   watchlist:      ['WATCHLIST AUDIT',      '// HIGH-VALUE TARGET REGISTRY'],
   search:         ['BIOMETRIC LOOKUP',     '// REVERSE FACE IDENTIFICATION'],
   analysis:       ['FRAME ANALYSIS',       '// COGNITIVE INFERENCE ENGINE'],
-  cameras:        ['NODE TOPOLOGY',        '// FIELD SENSORS & CAMERAS'],
+  cameras:        ['CAMERA MANAGEMENT',    '// FIELD SENSORS & AI CONFIGURATIONS'],
   map:            ['LIVE MAP',             '// CAMERA POSITIONS & STATUS'],
   'alert-rules':  ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
   workers:        ['WORKER NODES',         '// ACTIVE FIELD INTEL NODES'],

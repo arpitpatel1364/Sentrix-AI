@@ -84,6 +84,27 @@ function handleAlert(data) {
     toast(`Object: ${capitalize(data.object_label || 'unknown')} — ${data.camera_id}`, 'obj');
     loadObjects();
     loadStats();
+
+  } else if (data.type === 'rule_alert') {
+    const r = data;
+    const msg = `Rule Trigger: ${r.rule_name} [${r.camera_id || 'GLOBAL'}]`;
+    toast(msg, 'amber');
+    
+    if (r.actions?.popup) {
+      // Auto-open snapshot viewer if event has one
+      if (r.event?.snapshot) {
+        openSnapshot({
+          snapshot_url: r.event.snapshot,
+          camera_id:    r.camera_id,
+          location:     'Rule Trigger Zone',
+          timestamp:    r.timestamp,
+          person_name:  r.rule_name,
+          confidence:   r.event.confidence || 0,
+          matched:      r.rule_type === 'wanted_match',
+          type:         r.event.type || 'face'
+        });
+      }
+    }
   }
 }
 

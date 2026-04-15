@@ -195,3 +195,81 @@ async def qdrant_delete(
         return {"ok": True}
     
     raise HTTPException(status_code=500, detail="Qdrant unavailable")
+
+
+@router.post("/analyze")
+async def analyze_frame(
+    request: Request,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manual analysis endpoint for 'Frame Analysis' page.
+    Receives an image via form-data and returns detections.
+    """
+    from fastapi import UploadFile, File
+    from ...core import face_engine, object_engine
+    import cv2
+    import numpy as np
+    
+    form = await request.form()
+    file = form.get("file")
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    if img is None:
+        raise HTTPException(status_code=400, detail="Invalid image format")
+
+    results = []
+    
+    # 1. Object Detection
+    objs = object_engine.detect_objects(img, threshold=0.3)
+    for o in objs:
+        o["type"] = "object"
+        results.append(o)
+        
+    # 2. Face Detection
+    if face_engine.FACE_APP:
+        faces = face_engine.FACE_APP.get(img)
+        for f in faces:
+            bbox = [int(f.bbox[0]), int(f.bbox[1]), int(f.bbox[2]-f.bbox[0]), int(f.bbox[3]-f.bbox[1])]
+            det = {
+                "type": "face",
+                "label": "Unknown",
+                "confidence": round(float(f.det_score * 100), 1),
+                "bbox": bbox
+            }
+            
+            # Recognition
+            emb = f.embedding / np.linalg.norm(f.embedding)
+            match = face_engine.match_wanted(emb)
+            if match:
+                det["label"] = match["person"]["name"]
+                det["confidence"] = match["confidence"]
+                det["matched"] = True
+            
+            results.append(det)
+
+    # 3. Drawing on image for preview
+    preview_img = img.copy()
+    for r in results:
+        b = r["bbox"]
+        color = (0, 255, 0) if r["type"] == "object" else (0, 0, 255)
+        if r.get("matched"): color = (255, 0, 255) # Magenta for matches
+        
+        cv2.rectangle(preview_img, (b[0], b[1]), (b[0]+b[2], b[1]+b[3]), color, 2)
+        txt = f"{r['label']} {r['confidence']}%"
+        cv2.putText(preview_img, txt, (b[0], b[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+    preview_b64 = face_engine.cv2_to_b64(preview_img)
+
+    return {
+        "ok": True,
+        "detections": results,
+        "preview": preview_b64,
+        "count": len(results)
+    }
