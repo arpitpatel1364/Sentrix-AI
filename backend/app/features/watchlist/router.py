@@ -21,13 +21,22 @@ router = APIRouter(prefix="/api")
 @router.get("/wanted")
 async def get_wanted(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("""
-        SELECT w.id, w.name, w.added_by, w.added_at, 
+    
+    # Filter by admin_id
+    admin_filter = "WHERE w.admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = ()
+
+    cur.execute(f"""
+        SELECT w.id, w.name, w.added_by, w.added_at, w.admin_id,
                COUNT(p.id) as photo_count,
                (SELECT id FROM person_photos WHERE person_id = w.id LIMIT 1) as primary_photo
         FROM wanted w LEFT JOIN person_photos p ON w.id = p.person_id
+        {admin_filter}
         GROUP BY w.id ORDER BY w.added_at DESC
-    """)
+    """, params)
     return [dict(r) for r in cur.fetchall()]
 
 @router.get("/wanted/{person_id}/photos")
@@ -62,7 +71,7 @@ async def add_wanted(
             continue
 
         cur = db.cursor()
-        cur.execute("SELECT id FROM wanted WHERE name = ?", (name_str,))
+        cur.execute("SELECT id FROM wanted WHERE name = ? AND admin_id = ?", (name_str, user["admin_id"]))
         row = cur.fetchone()
         
         if row:
@@ -73,8 +82,8 @@ async def add_wanted(
         else:
             pid = str(uuid.uuid4())
             now = datetime.utcnow().isoformat()
-            cur.execute("INSERT INTO wanted (id, name, added_by, added_at) VALUES (?, ?, ?, ?)",
-                    (pid, name_str, user["username"], now))
+            cur.execute("INSERT INTO wanted (id, name, added_by, added_at, admin_id) VALUES (?, ?, ?, ?, ?)",
+                    (pid, name_str, user["username"], now, user["admin_id"]))
 
         photo_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
@@ -83,8 +92,8 @@ async def add_wanted(
         cv2.imwrite(str(photo_path), img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         
         emb_blob = embedding.astype(np.float32).tobytes()
-        cur.execute("INSERT INTO person_photos (id, person_id, embedding, snapshot_path, added_at) VALUES (?, ?, ?, ?, ?)",
-                (photo_id, pid, emb_blob, f"{photo_id}.jpg", now))
+        cur.execute("INSERT INTO person_photos (id, person_id, embedding, snapshot_path, added_at, admin_id) VALUES (?, ?, ?, ?, ?, ?)",
+                (photo_id, pid, emb_blob, f"{photo_id}.jpg", now, user["admin_id"]))
         db.commit()
 
         if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
@@ -94,7 +103,7 @@ async def add_wanted(
                     points=[PointStruct(
                         id=photo_id,
                         vector=embedding.tolist(),
-                        payload={"person_id": pid, "person_name": name_str}
+                        payload={"person_id": pid, "person_name": name_str, "admin_id": user["admin_id"]}
                     )]
                 )
             except Exception as e:
@@ -105,12 +114,18 @@ async def add_wanted(
     if not pids_processed:
         raise HTTPException(status_code=400, detail="No faces detected in any uploaded files.")
 
-    write_log(db, username=user["username"], role=user["role"], action="add_person", target=name_str, detail=f"Added '{name_str}' to watchlist with {len(pids_processed)} photos", ip=request.client.host if request else "")
+    write_log(db, username=user["username"], role=user["role"], action="add_person", target=name_str, detail=f"Added '{name_str}' to watchlist with {len(pids_processed)} photos", ip=request.client.host if request else "", admin_id=user["admin_id"])
     return {"status": "success", "count": len(pids_processed), "name": name_str}
 
 @router.delete("/wanted/{person_id}")
 async def remove_wanted(person_id: str, request: Request, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
+    # Security check: Does this person belong to the user's admin?
+    if user["admin_id"] != 0:
+        cur.execute("SELECT id FROM wanted WHERE id = ? AND admin_id = ?", (person_id, user["admin_id"]))
+        if not cur.fetchone():
+            raise HTTPException(status_code=403, detail="Unauthorized to delete this profile")
+
     cur.execute("SELECT id FROM person_photos WHERE person_id = ?", (person_id,))
     photo_rows = cur.fetchall()
     for row in photo_rows:
@@ -123,7 +138,7 @@ async def remove_wanted(person_id: str, request: Request, user=Depends(require_a
     db.execute("DELETE FROM person_photos WHERE person_id = ?", (person_id,))
     db.execute("DELETE FROM wanted WHERE id = ?", (person_id,))
     db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="delete_person", target=person_id, detail=f"Deleted person ID {person_id}", ip=request.client.host)
+    write_log(db, username=user["username"], role=user["role"], action="delete_person", target=person_id, detail=f"Deleted person ID {person_id}", ip=request.client.host, admin_id=user["admin_id"])
     
     if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
         try:
@@ -141,9 +156,14 @@ async def remove_wanted(person_id: str, request: Request, user=Depends(require_a
 @router.delete("/wanted/{person_id}/photos/{photo_id}")
 async def delete_intel_photo(person_id: str, photo_id: str, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("SELECT id FROM person_photos WHERE id = ? AND person_id = ?", (photo_id, person_id))
+    # Ownership Check
+    cur.execute("""
+        SELECT p.id FROM person_photos p
+        JOIN wanted w ON p.person_id = w.id
+        WHERE p.id = ? AND p.person_id = ? AND w.admin_id = ?
+    """, (photo_id, person_id, user["admin_id"]))
     if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Neural sample not found.")
+        raise HTTPException(status_code=403, detail="Photo not found or access denied.")
     
     path = INTEL_DIR / f"{photo_id}.jpg"
     if path.exists():

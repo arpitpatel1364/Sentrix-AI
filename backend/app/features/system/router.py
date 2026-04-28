@@ -19,19 +19,30 @@ router = APIRouter(prefix="/api")
 @router.get("/stats")
 async def get_stats(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("SELECT COUNT(*) FROM sightings")
+    
+    # Filter by admin_id
+    admin_filter = "WHERE admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = ()
+
+    cur.execute(f"SELECT COUNT(*) FROM sightings {admin_filter}", params)
     total_sightings = cur.fetchone()[0]
     
-    cur.execute("SELECT COUNT(*) FROM sightings WHERE matched = 1")
+    cur.execute(f"SELECT COUNT(*) FROM sightings {(admin_filter + ' AND') if admin_filter else 'WHERE'} matched = 1", params)
     total_matches = cur.fetchone()[0]
     
-    cur.execute("SELECT COUNT(*) FROM wanted")
+    cur.execute(f"SELECT COUNT(*) FROM wanted {admin_filter}", params)
     total_wanted = cur.fetchone()[0]
     
-    cur.execute("SELECT COUNT(*) FROM object_detections")
+    cur.execute(f"SELECT COUNT(*) FROM object_detections {admin_filter}", params)
     total_objects = cur.fetchone()[0]
     
     live_nodes = get_live_nodes()
+    # Filter live nodes by admin_id if not super admin
+    if user["admin_id"] != 0:
+        live_nodes = [n for n in live_nodes if n.get("admin_id") == user["admin_id"]]
     
     return {
         "total_sightings": total_sightings,
@@ -70,7 +81,7 @@ async def start_node(node_id: str, user=Depends(get_current_user)):
     # Audit log
     with sqlite3.connect(DB_PATH) as conn:
         from ...core.database import log_audit
-        log_audit(conn, user["username"], user["role"], "START_NODE", target=node_id, detail="Detection node manual start")
+        log_audit(conn, user["username"], user["role"], "START_NODE", target=node_id, detail="Detection node manual start", admin_id=user["admin_id"])
         
     return {"ok": True}
 
@@ -82,20 +93,24 @@ async def stop_node(node_id: str, user=Depends(require_admin)):
     # Audit log
     with sqlite3.connect(DB_PATH) as conn:
         from ...core.database import log_audit
-        log_audit(conn, user["username"], user["role"], "STOP_NODE", target=node_id, detail="Detection node manual stop")
+        log_audit(conn, user["username"], user["role"], "STOP_NODE", target=node_id, detail="Detection node manual stop", admin_id=user["admin_id"])
         
     return {"ok": True}
 
 # ─── CAMERA CONFIGURATION (TOGGLES) ────────────────────────────────────────
 
 @router.get("/cameras/config/{camera_id}")
-async def get_camera_config(camera_id: str, db: sqlite3.Connection = Depends(get_db)):
+async def get_camera_config(camera_id: str, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+    # Ownership check
+    admin_filter = "AND admin_id = ?" if user["admin_id"] != 0 else ""
+    params = (camera_id,) + ((user["admin_id"],) if user["admin_id"] != 0 else ())
+    
     row = db.execute(
-        "SELECT face_enabled, obj_enabled, stream_enabled FROM cameras WHERE camera_id = ?",
-        (camera_id,)
+        f"SELECT face_enabled, obj_enabled, stream_enabled FROM cameras WHERE camera_id = ? {admin_filter}",
+        params
     ).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="Camera config not found")
+        raise HTTPException(status_code=404, detail="Camera config not found or access denied")
     return dict(row)
 
 @router.post("/cameras/config/{camera_id}")
@@ -123,21 +138,25 @@ async def update_camera_config(
         return {"ok": True, "message": "No changes requested"}
     
     params.append(camera_id)
-    db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ?", params)
+    # Ownership check in update
+    admin_filter = "AND admin_id = ?" if user["admin_id"] != 0 else ""
+    if user["admin_id"] != 0:
+        params.append(user["admin_id"])
+
+    db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ? {admin_filter}", params)
     db.commit()
 
     # Update Registry for Fast Sync
     from ...core.worker_state import WORKER_REGISTRY
-    # We don't have the username easily here without another query, 
-    # but we can scan the registry for this camera_id
     for key in WORKER_REGISTRY:
         if key.endswith(f":{camera_id}"):
             reg = WORKER_REGISTRY[key]
-            if "config" not in reg: reg["config"] = {}
-            if face is not None: reg["config"]["face_enabled"] = bool(face)
-            if obj is not None: reg["config"]["obj_enabled"] = bool(obj)
-            if stream is not None: reg["config"]["stream_enabled"] = bool(stream)
-            # Re-fetch node config for ROI etc might be overkill, but let's at least update these
+            # Verify node belongs to this admin before updating live config
+            if user["admin_id"] == 0 or reg.get("admin_id") == user["admin_id"]:
+                if "config" not in reg: reg["config"] = {}
+                if face is not None: reg["config"]["face_enabled"] = bool(face)
+                if obj is not None: reg["config"]["obj_enabled"] = bool(obj)
+                if stream is not None: reg["config"]["stream_enabled"] = bool(stream)
             
     return {"ok": True}
 
@@ -152,20 +171,116 @@ async def global_toggle(
     if feature not in ('face', 'obj', 'stream'):
         raise HTTPException(status_code=400, detail="Invalid feature")
     
-    db.execute(f"UPDATE cameras SET {column} = ?", (enabled,))
+    # Filter by admin_id
+    if user["admin_id"] != 0:
+        db.execute(f"UPDATE cameras SET {column} = ? WHERE admin_id = ?", (enabled, user["admin_id"]))
+    else:
+        db.execute(f"UPDATE cameras SET {column} = ?", (enabled,))
     db.commit()
     
     # Update Registry for Fast Sync
     from ...core.worker_state import WORKER_REGISTRY
     for key in WORKER_REGISTRY:
         reg = WORKER_REGISTRY[key]
-        if "config" not in reg: reg["config"] = {}
-        reg["config"][f"{feature}_enabled"] = bool(enabled)
+        if user["admin_id"] == 0 or reg.get("admin_id") == user["admin_id"]:
+            if "config" not in reg: reg["config"] = {}
+            reg["config"][f"{feature}_enabled"] = bool(enabled)
         
     return {"ok": True, "message": f"Global {feature} set to {enabled}"}
 
+import os
+import sys
+import psutil
+from ...core.config import SNAPSHOTS_DIR, DB_PATH
+
+@router.get("/system/health")
+async def get_system_health(user=Depends(require_admin)):
+    # 1. Hardware Usage
+    cpu_pct = psutil.cpu_percent(interval=None)
+    mem = psutil.virtual_memory()
+    
+    # 2. Storage Metrics
+    db_size = os.path.getsize(DB_PATH) if DB_PATH.exists() else 0
+    
+    snapshot_count = 0
+    snapshot_size = 0
+    if SNAPSHOTS_DIR.exists():
+        for f in SNAPSHOTS_DIR.glob('**/*'):
+            if f.is_file():
+                snapshot_count += 1
+                snapshot_size += f.stat().st_size
+                
+    disk = psutil.disk_usage(str(DB_PATH.parent))
+    
+    return {
+        "cpu_usage": cpu_pct,
+        "memory": {
+            "total": mem.total,
+            "available": mem.available,
+            "percent": mem.percent
+        },
+        "storage": {
+            "db_bytes": db_size,
+            "snapshots_bytes": snapshot_size,
+            "snapshots_count": snapshot_count,
+            "disk_total": disk.total,
+            "disk_free": disk.free,
+            "disk_used": disk.used
+        },
+        "platform": sys.platform,
+        "uptime": int(time.time() - psutil.boot_time())
+    }
+
+
+@router.get("/super/analysis")
+async def get_super_analysis(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+    if user["admin_id"] != 0:
+        raise HTTPException(status_code=403, detail="Super Admin access required")
+    
+    cur = db.cursor()
+    
+    # 1. Audit Log Distribution (Last 7 days)
+    cur.execute("""
+        SELECT action, COUNT(*) as count 
+        FROM audit_log 
+        GROUP BY action 
+        ORDER BY count DESC 
+        LIMIT 10
+    """)
+    audit_dist = [dict(r) for r in cur.fetchall()]
+    
+    # 2. Activity per Admin
+    cur.execute("""
+        SELECT u.username, COUNT(a.id) as actions
+        FROM users u
+        LEFT JOIN audit_log a ON u.username = a.username
+        WHERE u.role IN ('admin', 'super_admin')
+        GROUP BY u.username
+    """)
+    admin_activity = [dict(r) for r in cur.fetchall()]
+    
+    # 3. Storage Analysis
+    # (Already in health, but let's add some derived data)
+    from ...core.config import SNAPSHOTS_DIR
+    snapshot_stats = []
+    if SNAPSHOTS_DIR.exists():
+        for d in SNAPSHOTS_DIR.iterdir():
+            if d.is_dir():
+                count = sum(1 for _ in d.glob('*') if _.is_file())
+                size = sum(_.stat().st_size for _ in d.glob('*') if _.is_file())
+                snapshot_stats.append({"admin_id": d.name, "count": count, "size_mb": round(size / (1024*1024), 2)})
+
+    return {
+        "audit_distribution": audit_dist,
+        "admin_activity": admin_activity,
+        "storage_stats": snapshot_stats
+    }
+
 @router.post("/system/reset")
 async def system_reset(user=Depends(require_admin)):
+    # Protection: Only Super Admin can reset the SYSTEM.
+    if user["admin_id"] != 0:
+         raise HTTPException(status_code=403, detail="Only Super Admin can reset the entire system.")
     from ...core.database import get_db_conn
     from ...core.worker_state import WORKER_REGISTRY
     
@@ -177,7 +292,7 @@ async def system_reset(user=Depends(require_admin)):
             # 2. Purge DB Tables
             db.execute("DELETE FROM sightings")
             db.execute("DELETE FROM wanted")
-            db.execute("DELETE FROM users WHERE username != 'admin'")
+            db.execute("DELETE FROM users WHERE username NOT IN ('admin', 'master_admin')")
             db.execute("DELETE FROM person_photos")
             db.execute("DELETE FROM object_detections")
             db.execute("DELETE FROM audit_log")

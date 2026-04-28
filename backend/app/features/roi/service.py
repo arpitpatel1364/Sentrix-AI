@@ -41,10 +41,16 @@ def get_node_roi(node_key: str) -> Optional[List[float]]:
     from ...core.database import get_db_conn
     camera_id = node_key.split(":", 1)[1] if ":" in node_key else node_key
     
+    # Try to find admin_id from memory first
+    admin_id = state.get("admin_id") if state else None
+    
     roi = None
     with get_db_conn() as db:
         cur = db.cursor()
-        cur.execute("SELECT roi FROM cameras WHERE camera_id = ?", (camera_id,))
+        if admin_id is not None:
+            cur.execute("SELECT roi FROM cameras WHERE camera_id = ? AND admin_id = ?", (camera_id, admin_id))
+        else:
+            cur.execute("SELECT roi FROM cameras WHERE camera_id = ?", (camera_id,))
         row = cur.fetchone()
         if row and row["roi"]:
             roi = json.loads(row["roi"])
@@ -65,16 +71,16 @@ def get_node_roi(node_key: str) -> Optional[List[float]]:
             
     return roi
 
-def get_all_configs_for_user(username: str) -> dict:
-    """Returns all camera configs (ROI + toggles) for a specific user."""
+def get_all_configs_for_admin(admin_id: int) -> dict:
+    """Returns all camera configs (ROI + toggles) for a specific tenant."""
     from ...core.database import get_db_conn
     res = {}
     with get_db_conn() as db:
         cur = db.cursor()
         cur.execute("""
             SELECT camera_id, roi, face_enabled, obj_enabled, stream_enabled 
-            FROM cameras WHERE added_by = ?
-        """, (username,))
+            FROM cameras WHERE admin_id = ?
+        """, (admin_id,))
         for row in cur.fetchall():
             res[row["camera_id"]] = {
                 "roi": json.loads(row["roi"]) if row["roi"] else None,

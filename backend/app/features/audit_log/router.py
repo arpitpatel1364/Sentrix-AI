@@ -46,7 +46,10 @@ def write_log(
     target: str = "",
     detail: str = "",
     ip: str = "",
+    admin_id: int = None,
 ):
+    if admin_id is None:
+        admin_id = 1
     """
     Insert one audit log row synchronously.
 
@@ -70,10 +73,10 @@ def write_log(
     ts = datetime.utcnow().isoformat()
     db.execute(
         """
-        INSERT INTO audit_log (id, timestamp, username, role, action, target, detail, ip_address)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO audit_log (id, timestamp, username, role, action, target, detail, ip_address, admin_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (entry_id, ts, username, role, action, target, detail, ip),
+        (entry_id, ts, username, role, action, target, detail, ip, admin_id),
     )
     db.commit()
 
@@ -89,6 +92,7 @@ def get_audit_log(
     _user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db),
 ):
+    user = _user
     """
     Return paginated audit log. Admin only.
     Supports filtering by action type (e.g. 'login', 'delete_person').
@@ -99,6 +103,13 @@ def get_audit_log(
     if action:
         conditions.append("action = ?")
         params.append(action)
+
+    if user["admin_id"] != 0:
+        # Regular admin: isolation + privacy. 
+        # Hide any actions taken by a super_admin.
+        conditions.append("admin_id = ?")
+        params.append(user["admin_id"])
+        conditions.append("role != 'super_admin'")
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
@@ -134,12 +145,19 @@ def export_audit_log(
     _user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db),
 ):
+    user = _user
     """Download the full audit log as a CSV file. Admin only."""
     conditions = []
     params = []
     if action:
         conditions.append("action = ?")
         params.append(action)
+        
+    if user["admin_id"] != 0:
+        conditions.append("admin_id = ?")
+        params.append(user["admin_id"])
+        conditions.append("role != 'super_admin'")
+
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
     rows = db.execute(

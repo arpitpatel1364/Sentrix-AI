@@ -13,7 +13,9 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 username TEXT PRIMARY KEY,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL
+                role TEXT NOT NULL,
+                admin_id INTEGER DEFAULT 1,
+                created_by TEXT DEFAULT 'system'
             )
         """)
 
@@ -29,7 +31,8 @@ def init_db():
                 person_id TEXT,
                 person_name TEXT,
                 confidence REAL,
-                embedding BLOB
+                embedding BLOB,
+                admin_id INTEGER DEFAULT 1
             )
         """)
 
@@ -38,7 +41,8 @@ def init_db():
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 added_by TEXT,
-                added_at TEXT
+                added_at TEXT,
+                admin_id INTEGER DEFAULT 1
             )
         """)
 
@@ -49,6 +53,7 @@ def init_db():
                 embedding BLOB NOT NULL,
                 snapshot_path TEXT,
                 added_at TEXT,
+                admin_id INTEGER DEFAULT 1,
                 FOREIGN KEY(person_id) REFERENCES wanted(id) ON DELETE CASCADE
             )
         """)
@@ -61,7 +66,8 @@ def init_db():
                 timestamp TEXT,
                 object_label TEXT,
                 confidence REAL,
-                snapshot_path TEXT
+                snapshot_path TEXT,
+                admin_id INTEGER DEFAULT 1
             )
         """)
 
@@ -76,7 +82,7 @@ def init_db():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS cameras (
                 id           TEXT PRIMARY KEY,
-                camera_id    TEXT UNIQUE NOT NULL,
+                camera_id    TEXT NOT NULL,
                 name         TEXT NOT NULL,
                 location     TEXT DEFAULT '',
                 description  TEXT DEFAULT '',
@@ -89,7 +95,8 @@ def init_db():
                 status       TEXT DEFAULT 'active',
                 face_enabled INTEGER DEFAULT 1,
                 obj_enabled  INTEGER DEFAULT 1,
-                stream_enabled INTEGER DEFAULT 1
+                stream_enabled INTEGER DEFAULT 1,
+                admin_id     INTEGER DEFAULT 1
             )
         """)
 
@@ -102,14 +109,16 @@ def init_db():
                 conditions TEXT DEFAULT '{}',
                 actions    TEXT DEFAULT '{}',
                 enabled    INTEGER DEFAULT 1,
-                created_at TEXT
+                created_at TEXT,
+                admin_id   INTEGER DEFAULT 1
             )
         """)
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS notification_config (
                 key   TEXT PRIMARY KEY,
-                value TEXT
+                value TEXT,
+                admin_id INTEGER DEFAULT 1
             )
         """)
 
@@ -121,7 +130,8 @@ def init_db():
                 subject   TEXT,
                 status    TEXT,
                 error     TEXT,
-                sent_at   TEXT
+                sent_at   TEXT,
+                admin_id INTEGER DEFAULT 1
             )
         """)
 
@@ -137,7 +147,8 @@ def init_db():
                 action     TEXT NOT NULL,
                 target     TEXT DEFAULT '',
                 detail     TEXT DEFAULT '',
-                ip_address TEXT DEFAULT ''
+                ip_address TEXT DEFAULT '',
+                admin_id   INTEGER DEFAULT 1
             )
         """)
 
@@ -155,7 +166,8 @@ def init_db():
                 status       TEXT DEFAULT 'pending',
                 requested_at TEXT NOT NULL,
                 reviewed_by  TEXT DEFAULT NULL,
-                reviewed_at  TEXT DEFAULT NULL
+                reviewed_at  TEXT DEFAULT NULL,
+                admin_id     INTEGER DEFAULT 1
             )
         """)
 
@@ -166,6 +178,23 @@ def init_db():
             ("ALTER TABLE cameras ADD COLUMN face_enabled INTEGER DEFAULT 1", "face_enabled on cameras"),
             ("ALTER TABLE cameras ADD COLUMN obj_enabled INTEGER DEFAULT 1", "obj_enabled on cameras"),
             ("ALTER TABLE cameras ADD COLUMN stream_enabled INTEGER DEFAULT 1", "stream_enabled on cameras"),
+            ("ALTER TABLE users ADD COLUMN created_by TEXT DEFAULT 'system'", "created_by on users"),
+            ("ALTER TABLE users ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on users"),
+            ("ALTER TABLE sightings ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on sightings"),
+            ("ALTER TABLE wanted ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on wanted"),
+            ("ALTER TABLE person_photos ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on person_photos"),
+            ("ALTER TABLE object_detections ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on object_detections"),
+            ("ALTER TABLE alert_rules ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on alert_rules"),
+            ("ALTER TABLE notification_log ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on notification_log"),
+            
+            # --- Tiered Multi-Tenancy Migrations ---
+            ("ALTER TABLE audit_log ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on audit_log"),
+            ("ALTER TABLE camera_stop_requests ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on camera_stop_requests"),
+            ("ALTER TABLE camera_configs ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on camera_configs"),
+            ("ALTER TABLE notification_config ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on notification_config"),
+
+            # Fix master_admin ID if it was set to 1 incorrectly
+            ("UPDATE users SET admin_id = 0 WHERE username = 'master_admin' AND role = 'super_admin'", "fix master_admin admin_id"),
         ]
         for sql, label in migrations:
             try:
@@ -209,27 +238,38 @@ def get_db_conn():
         conn.close()
 
 
-def _add_user(username: str, password: str, role: str):
+def _add_user(username: str, password: str, role: str, admin_id: int = 1, created_by: str = 'system'):
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     with get_db_conn() as conn:
         conn.execute(
-            "INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-            (username, hashed, role),
+            "INSERT OR IGNORE INTO users (username, password_hash, role, admin_id, created_by) VALUES (?, ?, ?, ?, ?)",
+            (username, hashed, role, admin_id, created_by),
         )
 
 
 def seed_default_users():
-    """Create default admin if none exists."""
+    """Create default admin and super_admin if none exists."""
     with get_db_conn() as conn:
         cur = conn.cursor()
+        
+        # Admin
         cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
         if cur.fetchone()[0] == 0:
-            _add_user("admin", "admin123", "admin")
-            print("[DB] Default admin created: admin / admin123")
+            _add_user("admin", "admin123", "admin", 1, "system")
+            print("[DB] Default admin created: admin / admin123 (Key: 1)")
+            
+        # Super Admin
+        cur.execute("SELECT COUNT(*) FROM users WHERE role = 'super_admin'")
+        if cur.fetchone()[0] == 0:
+            _add_user("master_admin", "master123", "super_admin", 0, "system")
+            print("[DB] Default super_admin created: master_admin / master123 (Key: 0)")
 
 
 def log_audit(db, username: str, role: str, action: str,
-              target: str = "", detail: str = "", ip: str = ""):
+              target: str = "", detail: str = "", ip: str = "", admin_id: int = None):
+    if admin_id is None:
+        # Fallback to system default if absolutely necessary, but log it
+        admin_id = 1
     """
     Write one audit log entry into the audit_log table.
     Call this from any router after any important action.
@@ -242,8 +282,8 @@ def log_audit(db, username: str, role: str, action: str,
     import uuid
     db.execute(
         """INSERT INTO audit_log
-               (id, timestamp, username, role, action, target, detail, ip_address)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, timestamp, username, role, action, target, detail, ip_address, admin_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             str(uuid.uuid4()),
             datetime.utcnow().isoformat(),
@@ -253,6 +293,7 @@ def log_audit(db, username: str, role: str, action: str,
             target,
             detail,
             ip,
+            admin_id
         ),
     )
     db.commit()

@@ -1,4 +1,4 @@
-import argparse, time, sys, os, multiprocessing as mp
+import argparse, time, sys, os, multiprocessing as mp, subprocess, threading
 
 # Dependencies check
 if not hasattr(sys, 'real_prefix') and sys.base_prefix == sys.prefix:
@@ -314,7 +314,9 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
                         x2, y2 = min(w_orig, x + w), min(h_orig, y + h)
                         if x2 <= x or y2 <= y or w < 20 or h < 20:
                             continue
-                        pad = int(w * 0.15)
+                        # --- SIGHTING CONTEXT PADDING ---
+                        # Increased to 40% for backend InsightFace compatibility
+                        pad = int(max(w, h) * 0.40)
                         crop = frame[
                             max(0, y - pad): min(h_orig, y2 + pad),
                             max(0, x - pad): min(w_orig, x2 + pad)
@@ -369,24 +371,48 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
         from ultralytics.nn.tasks import WorldModel
         
         # --- PYTORCH 2.6+ SECURITY FIX ---
-        # Explicitly allowlist WorldModel and common layers for weights_only=True loading
+        # Explicitly allowlist Ultralytics and Standard Torch classes for weights_only=True loading
         try:
-            import torch.nn.modules as modules
+            import torch
+            import ultralytics
             from ultralytics.nn.tasks import WorldModel, DetectionModel
+            from ultralytics.nn.modules import conv, block, head
             
+            # 1. Base Torch modules used in almost every model
             safe_classes = [
-                WorldModel, DetectionModel,
-                modules.container.Sequential,
-                modules.container.ModuleList,
-                modules.conv.Conv2d,
-                modules.batchnorm.BatchNorm2d,
-                modules.activation.SiLU,
-                modules.pooling.MaxPool2d,
-                modules.upsampling.Upsample
+                torch.nn.modules.container.Sequential,
+                torch.nn.modules.container.ModuleList,
+                torch.nn.modules.conv.Conv2d,
+                torch.nn.modules.batchnorm.BatchNorm2d,
+                torch.nn.modules.activation.SiLU,
+                torch.nn.modules.activation.ReLU,
+                torch.nn.modules.pooling.MaxPool2d,
+                torch.nn.modules.upsampling.Upsample,
+                torch.nn.modules.linear.Linear,
+                torch.nn.modules.linear.Identity,
+                torch.FloatStorage,
+                torch.HalfStorage,
+                torch._utils._rebuild_tensor_v2,
             ]
+            
+            # 2. Ultralytics core task models
+            safe_classes.extend([WorldModel, DetectionModel])
+            
+            # 3. Gather all classes from ultralytics modules (conv, block, head)
+            for module in [conv, block, head]:
+                for name in dir(module):
+                    attr = getattr(module, name)
+                    if isinstance(attr, type):
+                        safe_classes.append(attr)
+            
+            # 4. Additional specialized objects
+            if hasattr(ultralytics.nn.tasks, 'WorldDetect'):
+                safe_classes.append(ultralytics.nn.tasks.WorldDetect)
+            
             torch.serialization.add_safe_globals(safe_classes)
-        except Exception:
-            pass
+            print(f"[+] PyTorch 2.6 Security: Whitelisted {len(safe_classes)} classes for secure loading")
+        except Exception as e:
+            print(f"[WARN] Failed to set PyTorch safe globals: {e}")
         # ---------------------------------
 
         
@@ -598,23 +624,27 @@ def upload_worker(server, token, upload_queue, cam_configs):
                     "confidence":   str(conf)
                 }
 
-            r = session.post(url, files=files, data=data, timeout=15)
-            if r.status_code == 200:
-                res = r.json()
-                # Live update config
-                if "config" in res and res["config"] != cam_configs.get(cam_id):
-                    cam_configs[cam_id] = res["config"]
-                    print(f"[*] CONFIG SYNC: {cam_id} settings updated")
-                    
-                if dtype == "face":
-
-                    status = res.get("status", "stored")
-                    if status == "match":
-                        print(f"[!!!] FACE MATCH: {res.get('person')} | cam: {cam_id}")
+            print(f"[DEBUG] Uploader: Processing {dtype} from {cam_id}...")
+            try:
+                r = session.post(url, files=files, data=data, timeout=15)
+                if r.status_code == 200:
+                    print(f"[DEBUG] Uploader: POST {dtype} success (200)")
+                    res = r.json()
+                    # Live update config
+                    if "config" in res and res["config"] != cam_configs.get(cam_id):
+                        cam_configs[cam_id] = res["config"]
+                        print(f"[*] CONFIG SYNC: {cam_id} settings updated")
+                        
+                    if dtype == "face":
+                        status = res.get("status", "stored")
+                        if status == "match":
+                            print(f"[!!!] FACE MATCH: {res.get('person')} | cam: {cam_id}")
+                    else:
+                        print(f"[+] OBJECT LOGGED: {label} | cam: {cam_id}")
                 else:
-                    print(f"[+] OBJECT LOGGED: {label} | cam: {cam_id}")
-            else:
-                print(f"[WARN] Upload {dtype} returned HTTP {r.status_code}: {r.text[:120]}")
+                    print(f"[WARN] Upload {dtype} returned HTTP {r.status_code}: {r.text[:120]}")
+            except Exception as net_err:
+                print(f"[ERR] Uploader network failure: {net_err}")
 
         except Exception as e:
             if "timeout" not in str(e).lower() and "empty" not in str(e).lower():
@@ -630,16 +660,22 @@ def live_stream_worker(server, token, live_queue, cam_configs):
     session = requests.Session()
     session.headers.update(headers)
     
+    # Pre-calculated MJPEG intervals to avoid dashboard "Black Screen"
+    # We push 1 JPEG every 5 frames for the preview <img> tags
+    mjpeg_counter = 0
+    mjpeg_interval = 5 
+    
     # Per-camera FFmpeg processes
     # { cam_id: { "proc": subprocess, "last_active": time } }
     ffmpeg_nodes = {}
 
-    from static_ffmpeg import run
+    ffmpeg_exe = "ffmpeg"
     try:
+        from static_ffmpeg import run
         ffmpeg_exe, _ = run.get_or_fetch_platform_executables_else_raise()
-    except Exception as e:
-        print(f"[ERR] Static FFmpeg fetch failed: {e}. Falling back to system ffmpeg.")
-        ffmpeg_exe = "ffmpeg"
+        print(f"[*] H.264: Using static-ffmpeg binary at {ffmpeg_exe}")
+    except (ImportError, Exception) as e:
+        print(f"[!] H.264: static-ffmpeg dependency not ready ({e}). Falling back to system 'ffmpeg'.")
 
     while True:
         try:
@@ -671,35 +707,40 @@ def live_stream_worker(server, token, live_queue, cam_configs):
                     '-preset', 'ultrafast',
                     '-tune', 'zerolatency',
                     '-pix_fmt', 'yuv420p',
-                    '-g', '30',           # I-frame every 30 frames
+                    '-g', '30',
                     '-f', 'mpegts',
                     '-'
                 ]
-                proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-                ffmpeg_nodes[cam_id] = {"proc": proc, "last_active": time.time(), "url": f"{server}/api/upload-live-h264"}
+                try:
+                    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                    ffmpeg_nodes[cam_id] = {"proc": proc, "last_active": time.time(), "url": f"{server}/api/upload-live-h264"}
+                    
+                    # Task to read ffmpeg stdout and POST to server
+                    def _stream_reader(c_id, node_proc, upload_url):
+                        while True:
+                            try:
+                                chunk = node_proc.stdout.read(4096)
+                                if not chunk: break
+                                requests.post(
+                                    upload_url,
+                                    data=chunk,
+                                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"},
+                                    params={"camera_id": c_id},
+                                    timeout=1.5
+                                )
+                            except Exception:
+                                break
+                        print(f"[-] H.264 Reader closed for {c_id}")
 
-                # Task to read ffmpeg stdout and POST to server
-                def _stream_reader(c_id, node_proc, upload_url):
-                    while True:
-                        try:
-                            # Read in chunks (e.g. 1kb) to keep latency low
-                            chunk = node_proc.stdout.read(4096)
-                            if not chunk: break
-                            
-                            # Fire and forget POST
-                            # Note: No session reuse here to avoid bottlenecking, or use a dedicated thread-safe session
-                            requests.post(
-                                upload_url,
-                                data=chunk,
-                                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"},
-                                params={"camera_id": c_id},
-                                timeout=1.5
-                            )
-                        except Exception:
-                            break
-                    print(f"[-] H.264 Reader closed for {c_id}")
-
-                threading.Thread(target=_stream_reader, args=(cam_id, proc, ffmpeg_nodes[cam_id]["url"]), daemon=True).start()
+                    threading.Thread(target=_stream_reader, args=(cam_id, proc, ffmpeg_nodes[cam_id]["url"]), daemon=True).start()
+                except FileNotFoundError:
+                    print(f"[ERR] FFmpeg binary '{ffmpeg_exe}' not found. Live stream will be disabled.")
+                    time.sleep(10) # Wait longer before retrying to avoid spam
+                    continue
+                except Exception as e:
+                    print(f"[ERR] Failed to spawn FFmpeg process: {e}")
+                    time.sleep(5)
+                    continue
 
             # 2. Pipe the frame to ffmpeg
             node = ffmpeg_nodes[cam_id]
@@ -707,6 +748,25 @@ def live_stream_worker(server, token, live_queue, cam_configs):
                 node["proc"].stdin.write(frame.tobytes())
                 node["proc"].stdin.flush()
                 node["last_active"] = time.time()
+                
+                # ── NEW: MJPEG Preview Upload (Fix for Black Screen) ──
+                mjpeg_counter += 1
+                if mjpeg_counter % mjpeg_interval == 0:
+                    def _push_mjpeg(img_data, c_id):
+                        try:
+                            _, buf = cv2.imencode(".jpg", img_data, [cv2.IMWRITE_JPEG_QUALITY, 50])
+                            requests.post(
+                                f"{server}/api/upload-live",
+                                files={"file": ("live.jpg", buf.tobytes(), "image/jpeg")},
+                                data={"camera_id": c_id},
+                                headers=headers,
+                                timeout=1.0
+                            )
+                        except Exception:
+                            pass
+                    
+                    # Offload to thread to prevent lagging the H.264 stream
+                    threading.Thread(target=_push_mjpeg, args=(frame.copy(), cam_id), daemon=True).start()
             except Exception:
                 print(f"[!] FFmpeg pipe failed for {cam_id}, resetting.")
                 del ffmpeg_nodes[cam_id]
@@ -719,7 +779,8 @@ def live_stream_worker(server, token, live_queue, cam_configs):
                 del ffmpeg_nodes[cid]
 
         except Exception as e:
-            time.sleep(0.1)
+            print(f"[!] H.264 Streamer logic error: {e}")
+            time.sleep(2)
 
 
 def config_sync_worker(server, token, cam_configs):

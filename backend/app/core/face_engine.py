@@ -61,7 +61,7 @@ def init_face_engines():
                 root=str(MODELS_DIR / "insightface"),
                 providers=providers
             )
-            FACE_APP.prepare(ctx_id=0, det_size=(160, 160))
+            FACE_APP.prepare(ctx_id=0, det_size=(640, 640))
             
             actual_providers = []
             for model in FACE_APP.models.values():
@@ -101,10 +101,27 @@ def get_embedding(img_array: np.ndarray) -> Optional[np.ndarray]:
 def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b))
 
-def match_wanted(embedding: np.ndarray) -> Optional[dict]:
+def match_wanted(embedding: np.ndarray, admin_id: int) -> Optional[dict]:
     if QDRANT_AVAILABLE and QDRANT_CLIENT:
         try:
-            hits = QDRANT_CLIENT.search("watchlist", query_vector=embedding.tolist(), limit=1)
+            # Apply Admin ID filter if not Super Admin (0)
+            search_filter = None
+            if admin_id != 0:
+                search_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="admin_id",
+                            match=MatchValue(value=admin_id)
+                        )
+                    ]
+                )
+
+            hits = QDRANT_CLIENT.search(
+                "watchlist", 
+                query_vector=embedding.tolist(), 
+                query_filter=search_filter,
+                limit=1
+            )
             if hits and hits[0].score >= SIMILARITY_THRESHOLD:
                 return {"person": {"id": hits[0].payload["person_id"], "name": hits[0].payload["person_name"]}, "confidence": round(hits[0].score * 100, 1)}
         except Exception as e:
@@ -113,10 +130,19 @@ def match_wanted(embedding: np.ndarray) -> Optional[dict]:
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        cur.execute("""
-            SELECT p.person_id, p.embedding, w.name 
-            FROM person_photos p JOIN wanted w ON p.person_id = w.id
-        """)
+        
+        if admin_id == 0:
+            cur.execute("""
+                SELECT p.person_id, p.embedding, w.name 
+                FROM person_photos p JOIN wanted w ON p.person_id = w.id
+            """)
+        else:
+            cur.execute("""
+                SELECT p.person_id, p.embedding, w.name 
+                FROM person_photos p JOIN wanted w ON p.person_id = w.id
+                WHERE w.admin_id = ?
+            """, (admin_id,))
+            
         rows = cur.fetchall()
         
     best_score, best_person = 0.0, None

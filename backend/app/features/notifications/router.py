@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api")
 @router.get("/notifications/config")
 async def get_config(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("SELECT key, value FROM notification_config")
+    cur.execute("SELECT key, value FROM notification_config WHERE admin_id = ?", (user["admin_id"],))
     raw = {r["key"]: r["value"] for r in cur.fetchall()}
     # Mask password
     if "smtp_password" in raw:
@@ -41,9 +41,9 @@ async def save_config(request: Request, user=Depends(require_admin),
     for key, val in body.items():
         if key in allowed:
             db.execute("""
-                INSERT INTO notification_config (key, value) VALUES (?, ?)
-                ON CONFLICT(key) DO UPDATE SET value=excluded.value
-            """, (key, str(val)))
+                INSERT INTO notification_config (key, value, admin_id) VALUES (?, ?, ?)
+                ON CONFLICT(key, admin_id) DO UPDATE SET value=excluded.value
+            """, (key, str(val), user["admin_id"]))
     db.commit()
     return {"ok": True}
 
@@ -51,7 +51,7 @@ async def save_config(request: Request, user=Depends(require_admin),
 @router.post("/notifications/test-email")
 async def test_email(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     """Send a test email using current SMTP config."""
-    cfg = _load_config(db)
+    cfg = _load_config(db, user["admin_id"])
     if not cfg.get("smtp_host"):
         raise HTTPException(status_code=400, detail="SMTP not configured")
     try:
@@ -63,20 +63,27 @@ async def test_email(user=Depends(require_admin), db: sqlite3.Connection = Depen
 
 @router.get("/notifications/history")
 async def notification_history(limit: int = 50, user=Depends(require_admin),
-                                db: sqlite3.Connection = Depends(get_db)):
+                                 db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("""
+    # Filter by admin_id
+    admin_filter = "WHERE admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = ()
+
+    cur.execute(f"""
         SELECT id, channel, recipient, subject, status, error, sent_at
-        FROM notification_log ORDER BY sent_at DESC LIMIT ?
-    """, (limit,))
+        FROM notification_log {admin_filter} ORDER BY sent_at DESC LIMIT ?
+    """, params + (limit,))
     return [dict(r) for r in cur.fetchall()]
 
 
 # ─── INTERNAL DISPATCH ───────────────────────────────────────────────────────
 
-def _load_config(db: sqlite3.Connection) -> dict:
+def _load_config(db: sqlite3.Connection, admin_id: int) -> dict:
     cur = db.cursor()
-    cur.execute("SELECT key, value FROM notification_config")
+    cur.execute("SELECT key, value FROM notification_config WHERE admin_id = ?", (admin_id,))
     return {r["key"]: r["value"] for r in cur.fetchall()}
 
 
@@ -104,11 +111,14 @@ async def dispatch_notification(rule: dict, event: dict):
         body    = f"Rule: {rule_name}\nCamera: {camera_id}\nTime: {ts}\n\nEvent: {json.dumps(event, indent=2)}"
 
     # Email
+    admin_id = event.get("admin_id")
+    if admin_id is None:
+        admin_id = 1
     if actions.get("email"):
         with get_db_conn() as db:
-            cfg = _load_config(db)
+            cfg = _load_config(db, admin_id)
             if cfg.get("smtp_host"):
-                asyncio.create_task(_send_email_logged(db, cfg, subject, body))
+                asyncio.create_task(_send_email_logged(db, cfg, subject, body, admin_id))
 
     # Webhook
     webhook_url = actions.get("webhook_url", "").strip()
@@ -159,7 +169,7 @@ async def _send_email(cfg: dict, subject: str, body: str):
     await loop.run_in_executor(None, _send)
 
 
-async def _send_email_logged(db, cfg: dict, subject: str, body: str):
+async def _send_email_logged(db, cfg: dict, subject: str, body: str, admin_id: int):
     from ...core.database import get_db_conn
     import uuid
     log_id = str(uuid.uuid4())
@@ -169,15 +179,15 @@ async def _send_email_logged(db, cfg: dict, subject: str, body: str):
         await _send_email(cfg, subject, body)
         with get_db_conn() as db2:
             db2.execute("""
-                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'email', ?, ?, 'sent', NULL, ?)
-            """, (log_id, recipients, subject, now))
+                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
+                VALUES (?, 'email', ?, ?, 'sent', NULL, ?, ?)
+            """, (log_id, recipients, subject, now, admin_id))
     except Exception as e:
         with get_db_conn() as db2:
             db2.execute("""
-                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'email', ?, ?, 'failed', ?, ?)
-            """, (log_id, recipients, subject, str(e)[:500], now))
+                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
+                VALUES (?, 'email', ?, ?, 'failed', ?, ?, ?)
+            """, (log_id, recipients, subject, str(e)[:500], now, admin_id))
 
 
 async def _send_webhook(url: str, payload: dict):
@@ -191,12 +201,12 @@ async def _send_webhook(url: str, payload: dict):
                 status_ok = r.status < 400
         with get_db_conn() as db:
             db.execute("""
-                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'webhook', ?, ?, ?, NULL, ?)
-            """, (log_id, url, payload.get("rule","webhook"), "sent" if status_ok else "failed", now))
+                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
+                VALUES (?, 'webhook', ?, ?, ?, NULL, ?, ?)
+            """, (log_id, url, payload.get("rule","webhook"), "sent" if status_ok else "failed", now, payload.get("event", {}).get("admin_id", 1)))
     except Exception as e:
         with get_db_conn() as db:
             db.execute("""
-                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at)
-                VALUES (?, 'webhook', ?, ?, 'failed', ?, ?)
-            """, (log_id, url, payload.get("rule","webhook"), str(e)[:500], now))
+                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
+                VALUES (?, 'webhook', ?, ?, 'failed', ?, ?, ?)
+            """, (log_id, url, payload.get("rule","webhook"), str(e)[:500], now, payload.get("event", {}).get("admin_id", 1)))

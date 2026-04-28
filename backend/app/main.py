@@ -91,6 +91,7 @@ async def serve_dashboard():
         return HTMLResponse(static_file.read_text(encoding="utf-8"))
     return HTMLResponse(f"<h2>index.html not found!</h2>")
 
+
 if __name__ == "__main__":
     import uvicorn
     # Important: 0.0.0.0 allows access from other devices on the LAN

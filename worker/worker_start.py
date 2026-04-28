@@ -189,12 +189,27 @@ def launch_worker(config):
 
     # Prefer venv python if available
     python_exe = sys.executable
-    for candidate in [
-        base_dir / "venv_worker" / "bin" / "python",
+    project_root = base_dir.parent
+    
+    candidates = [
+        # Local venv_worker
         base_dir / "venv_worker" / "Scripts" / "python.exe",
-        base_dir / "venv" / "bin" / "python",
-        base_dir / "venv" / "Scripts" / "python.exe",
-    ]:
+        base_dir / "venv_worker" / "bin" / "python",
+        base_dir / "venv_worker" / "bin" / "python3",
+        
+        # Project root venv
+        project_root / "venv" / "Scripts" / "python.exe",
+        project_root / "venv" / "bin" / "python",
+        project_root / "venv" / "bin" / "python3",
+        
+        # Common .venv
+        project_root / ".venv" / "Scripts" / "python.exe",
+        project_root / ".venv" / "bin" / "python",
+        base_dir / ".venv" / "Scripts" / "python.exe",
+        base_dir / ".venv" / "bin" / "python",
+    ]
+
+    for candidate in candidates:
         if candidate.exists():
             python_exe = str(candidate)
             break

@@ -108,7 +108,7 @@ async def cleanup_records(
             db.execute("DELETE FROM object_detections WHERE timestamp < ?", [cutoff_space_str])
 
         db.commit()
-        write_log(db, username=user["username"], role=user["role"], action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "")
+        write_log(db, username=user["username"], role=user["role"], action="cleanup", target=target, detail=f"Manual cleanup: {time_range} records for {target}. Removed {counts['sightings']+counts['objects']} total records.", ip=request.client.host if request else "", admin_id=user["admin_id"])
         return {
             "status": "success",
             "message": f"Cleanup completed for range {time_range}",
@@ -251,7 +251,7 @@ async def purge_biometric_sightings(
             db.execute(f"DELETE FROM sightings WHERE id IN ({ph})", chunk)
             
         db.commit()
-        write_log(db, username=user["username"], role=user["role"], action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "")
+        write_log(db, username=user["username"], role=user["role"], action="cleanup", target="biometric_purge", detail=f"Purged {counts['purged']} specific biometric sightings.", ip=request.client.host if request else "", admin_id=user["admin_id"])
 
         return {
             "status": "success",

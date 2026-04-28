@@ -89,6 +89,11 @@ function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
 
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
 /* ─── CONNECTION STATUS ─── */
 function updateConnectionStatus(ok) {
   const dot = document.querySelector('.sb-dot');

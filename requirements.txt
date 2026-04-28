@@ -8,7 +8,7 @@ requests==2.31.0
 bcrypt==4.1.3
 python-jose[cryptography]==3.3.0
 aiohttp==3.13.5
-
+psutil==5.9.8
 
 # --- AI & VISION ---
 opencv-python==4.9.0.80

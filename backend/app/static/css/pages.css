@@ -495,3 +495,157 @@
   font-size: 0.82rem;
 }
 .camera-status-item:last-child { border-bottom: none; }
+
+/* ─── SUPER ADMIN DASHBOARD ─── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  padding: 1.75rem;
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition);
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: var(--outline-strong);
+}
+.stat-card.cyan::before { background: var(--cyan); }
+.stat-card.purple::before { background: var(--purple); }
+.stat-card.green::before { background: var(--green); }
+.stat-card.amber::before { background: var(--amber); }
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--outline-strong);
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--on-surface-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 0.5rem;
+}
+.stat-val {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+.stat-sub {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--on-surface-muted);
+  opacity: 0.7;
+}
+
+/* Health Bars utility */
+.health-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.health-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.health-bar-wrap {
+  height: 6px;
+  background: var(--surface-high);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.health-bar-fill {
+  height: 100%;
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Neural Chart Pulse */
+#sup-activity-chart { filter: drop-shadow(0 0 10px rgba(77, 224, 248, 0.1)); }
+
+/* ─── BUSINESS INTELLIGENCE REPORT ─── */
+#page-business-report { padding: 0; max-width: 1200px; margin: 0 auto; }
+.bi-main { padding: 2rem; color: var(--on-surface); }
+.bi-header { margin-bottom: 3rem; border-left: 3px solid var(--primary); padding-left: 1.5rem; }
+.bi-header h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.bi-header p { color: var(--on-surface-muted); margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+
+.sec-hdr { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 2rem; opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+.sec-hdr.visible { opacity: 1; transform: translateY(0); }
+.sec-num { font-family: var(--font-mono); color: var(--primary); font-size: 0.8rem; font-weight: 800; }
+.sec-title { font-size: 1.25rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.sec-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--outline), transparent); }
+
+.card { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); padding: 1.5rem; transition: all var(--transition); }
+.card:hover { border-color: var(--outline-strong); }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+.kpi { border-left: 1px solid var(--outline); padding-left: 1.25rem; }
+.kpi-lbl { font-family: var(--font-mono); font-size: 0.6rem; color: var(--on-surface-muted); text-transform: uppercase; margin-bottom: 0.5rem; }
+.kpi-val { font-size: 1.75rem; font-weight: 800; font-family: var(--font-display); }
+.kpi-sub { font-size: 0.7rem; color: var(--on-surface-muted); margin-top: 0.25rem; }
+
+.calc-card { background: var(--surface-high); border: 1px solid var(--primary-dim); border-radius: var(--radius-2xl); padding: 2.5rem; margin-bottom: 3rem; }
+.range-row { display: grid; grid-template-columns: 180px 1fr 60px; align-items: center; gap: 1.5rem; margin-bottom: 1.25rem; }
+.range-lbl { font-size: 0.85rem; font-weight: 600; }
+.range-val { font-family: var(--font-mono); font-weight: 700; color: var(--primary); text-align: right; }
+input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--outline); border-radius: 2px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--primary); border-radius: 50%; cursor: pointer; border: 2px solid var(--surface); box-shadow: 0 0 10px rgba(77, 182, 172, 0.3); }
+
+.calc-outputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--outline); }
+.co-lbl { font-family: var(--font-mono); font-size: 0.65rem; color: var(--on-surface-muted); text-transform: uppercase; margin-bottom: 0.5rem; }
+.co-val { font-size: 2rem; font-weight: 900; color: var(--primary); }
+
+.chart-wrap { height: 300px; margin-top: 2rem; position: relative; }
+
+.bar-track { height: 8px; background: var(--surface-low); border-radius: 4px; overflow: hidden; margin: 8px 0; }
+.bar-fill { height: 100%; border-radius: 4px; width: 0; transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+.pc { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); padding: 2rem; position: relative; display: flex; flex-direction: column; }
+.pc.popular { border-color: var(--primary); border-width: 2px; transform: scale(1.03); z-index: 2; }
+.pc-name { font-weight: 800; font-size: 1.1rem; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.pc-price { font-size: 2.5rem; font-weight: 900; font-family: var(--font-display); line-height: 1; }
+.pc-unit { font-size: 0.75rem; color: var(--on-surface-muted); margin-bottom: 1.5rem; }
+.cfeat { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--outline); }
+.cfeat:last-child { border: 0; }
+
+.section { margin-bottom: 5rem; opacity: 0; transform: translateY(30px); transition: all 0.8s ease-out; }
+.section.visible { opacity: 1; transform: translateY(0); }
+
+/* ─── INTELLIGENCE HUB & MESH ─── */
+#sup-mesh-topology {
+  background: radial-gradient(circle at 50% 50%, rgba(77,124,255,0.05), transparent);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--outline);
+  overflow: hidden;
+}
+.mesh-node-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--on-surface-muted);
+  pointer-events: none;
+}
+@keyframes pulse-cyan {
+  0% { box-shadow: 0 0 0 0 rgba(0,210,255,0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(0,210,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,210,255,0); }
+}
+.node-active-pulse {
+  animation: pulse-cyan 2s infinite;
+}

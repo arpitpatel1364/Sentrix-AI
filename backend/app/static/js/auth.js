@@ -35,6 +35,14 @@ async function doLogin() {
 
     applyAuthUI();
     bootstrap();
+
+    // Redirect to correct dashboard
+    if (State.role === 'super_admin' && !sessionStorage.getItem('sx_orig_token')) {
+      showPage('super-dashboard');
+    } else {
+      showPage('overview');
+    }
+
     toast(`Welcome back, ${State.me}`, 'cyan');
 
   } catch (e) {
@@ -52,15 +60,31 @@ async function doLogin() {
 
 function applyAuthUI() {
   if (!State.me || !State.role) return;
+
+  // Set Global CSS States
+  const isImpersonating = !!sessionStorage.getItem('sx_orig_token');
+  document.body.dataset.role = State.role;
+  document.body.dataset.impersonating = isImpersonating;
+
+  // Basic Profile Info
   document.getElementById('user-name').textContent = State.me;
   document.getElementById('user-role-label').textContent = State.role.toUpperCase();
   document.getElementById('user-av').textContent = (State.me[0] || '?').toUpperCase();
 
-  // Show/hide admin-only elements
+  // Show/hide admin-only elements (Historical fallback)
   document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = State.role === 'admin' ? '' : 'none';
+    el.style.display = (State.role === 'admin' || State.role === 'super_admin') ? '' : 'none';
   });
 
+  // Handle Impersonation Banner
+  const banner = document.getElementById('impersonation-banner');
+  if (banner) {
+    banner.style.display = isImpersonating ? 'flex' : 'none';
+    const nameEl = document.getElementById('preview-user-name');
+    if (nameEl) nameEl.textContent = State.me.toUpperCase();
+  }
+
+  // Handle Visibility of Main Screens
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 }

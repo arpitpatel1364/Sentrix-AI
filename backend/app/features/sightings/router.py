@@ -16,13 +16,23 @@ router = APIRouter(prefix="/api")
 @router.get("/sightings")
 async def get_sightings(limit: int = 50, user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("SELECT COUNT(*) FROM sightings")
+    
+    # Filter by admin_id
+    admin_filter = "WHERE admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0: # Super Admin sees all
+        admin_filter = ""
+        params = ()
+
+    cur.execute(f"SELECT COUNT(*) FROM sightings {admin_filter}", params)
     total_count = cur.fetchone()[0]
 
-    cur.execute("""
+    cur.execute(f"""
         SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence 
-        FROM sightings ORDER BY timestamp DESC LIMIT ?
-    """, (limit,))
+        FROM sightings 
+        {admin_filter}
+        ORDER BY timestamp DESC LIMIT ?
+    """, params + (limit,))
     rows = [dict(r) for r in cur.fetchall()]
     for r in rows:
         r["snapshot"] = f"/api/snapshots/{r['snapshot_path']}"
@@ -41,15 +51,24 @@ async def search_face(files: List[UploadFile] = File(...), user=Depends(require_
             continue
 
         if identified_person == "Unknown Person":
-            found = match_wanted(embedding)
+            found = match_wanted(embedding, user["admin_id"])
             if found:
                 identified_person = found["person"]["name"]
 
         if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
             try:
+                # Apply Admin ID filter for history search
+                search_filter = None
+                if user["admin_id"] != 0:
+                     from qdrant_client.models import Filter, FieldCondition, MatchValue
+                     search_filter = Filter(
+                        must=[FieldCondition(key="admin_id", match=MatchValue(value=user["admin_id"]))]
+                     )
+
                 hits = face_engine.QDRANT_CLIENT.search(
                     collection_name="sightings",
                     query_vector=embedding.tolist(),
+                    query_filter=search_filter,
                     limit=15
                 )
                 for hit in hits:
@@ -57,11 +76,14 @@ async def search_face(files: List[UploadFile] = File(...), user=Depends(require_
                     if hit.id not in all_results or conf > all_results[hit.id]["confidence"]:
                         cur = db.cursor()
                         cur.execute("""
-                            SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence 
+                            SELECT id, camera_id, location, timestamp, snapshot_path, matched, person_id, person_name, confidence, admin_id 
                             FROM sightings WHERE id = ?
                         """, (hit.id,))
                         r = cur.fetchone()
                         if r:
+                            # Double check admin_id if not filtered by Qdrant correctly
+                            if user["admin_id"] != 0 and r["admin_id"] != user["admin_id"]:
+                                continue
                             item = dict(r)
                             item["snapshot"] = f"/api/snapshots/{item['snapshot_path']}"
                             item["confidence"] = conf

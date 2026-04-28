@@ -22,40 +22,50 @@ router = APIRouter(prefix="/api")
 @router.get("/cameras")
 async def list_cameras(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("""
+    
+    # Filter by admin_id
+    admin_filter = "WHERE admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = ()
+
+    cur.execute(f"""
         SELECT id, camera_id, name, location, description, stream_url,
                floor_plan_x, floor_plan_y, roi, added_by, added_at,
-               face_enabled, obj_enabled, stream_enabled
-        FROM cameras ORDER BY added_at DESC
-    """)
+               face_enabled, obj_enabled, stream_enabled, admin_id
+        FROM cameras {admin_filter} ORDER BY added_at DESC
+    """, params)
     cameras = [dict(r) for r in cur.fetchall()]
 
     live_nodes = get_live_nodes()
-    id_to_key = {n["camera_id"]: n["id"] for n in live_nodes} # node_key is in "id"
+    # Map (admin_id, camera_id) -> node_key to prevent multi-tenant clobbering
+    lookup = {(n.get("admin_id"), n["camera_id"]): n["id"] for n in live_nodes}
 
     # Attach live status and node_key
     for cam in cameras:
-        cam["online"] = cam["camera_id"] in id_to_key
-        cam["node_key"] = id_to_key.get(cam["camera_id"])
+        key = (cam["admin_id"], cam["camera_id"])
+        cam["online"] = key in lookup
+        cam["node_key"] = lookup.get(key)
 
-        # Attach latest sighting for this camera
+        # Attach latest sighting for this camera (filtered by admin_id for accuracy)
         cur.execute("""
             SELECT timestamp, matched, person_name, confidence
-            FROM sightings WHERE camera_id = ?
+            FROM sightings WHERE camera_id = ? AND admin_id = ?
             ORDER BY timestamp DESC LIMIT 1
-        """, (cam["camera_id"],))
+        """, (cam["camera_id"], cam["admin_id"]))
         last = cur.fetchone()
         cam["last_seen"] = dict(last) if last else None
 
         # ROI is already in cam["roi"] from the main SELECT, just need to parse it
         cam["roi"] = json.loads(cam["roi"]) if cam.get("roi") else None
 
-        # Count detections today
+        # Count detections today (filtered by admin_id)
         today = datetime.utcnow().strftime("%Y-%m-%d")
         cur.execute("""
             SELECT COUNT(*) FROM sightings
-            WHERE camera_id = ? AND timestamp LIKE ?
-        """, (cam["camera_id"], f"{today}%"))
+            WHERE camera_id = ? AND admin_id = ? AND timestamp LIKE ?
+        """, (cam["camera_id"], cam["admin_id"], f"{today}%"))
         cam["detections_today"] = cur.fetchone()[0]
 
         # Convert integers to bools
@@ -84,20 +94,20 @@ async def add_camera(request: Request, user=Depends(require_admin), db: sqlite3.
         raise HTTPException(status_code=400, detail="camera_id and name are required")
 
     cur = db.cursor()
-    cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
+    cur.execute("SELECT id FROM cameras WHERE camera_id = ? AND admin_id = ?", (camera_id, user["admin_id"]))
     if cur.fetchone():
-        raise HTTPException(status_code=409, detail="Camera ID already exists")
+        raise HTTPException(status_code=409, detail="Camera ID already exists for this tenant")
 
     cam_pk = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     db.execute("""
         INSERT INTO cameras
-          (id, camera_id, name, location, description, stream_url, floor_plan_x, floor_plan_y, added_by, added_at, face_enabled, obj_enabled, stream_enabled)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, camera_id, name, location, description, stream_url, floor_plan_x, floor_plan_y, added_by, added_at, face_enabled, obj_enabled, stream_enabled, admin_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (cam_pk, camera_id, name, location, description, stream_url,
-          floor_x, floor_y, user["username"], now, 1 if face_en else 0, 1 if obj_en else 0, 1 if strm_en else 0))
+          floor_x, floor_y, user["username"], now, 1 if face_en else 0, 1 if obj_en else 0, 1 if strm_en else 0, user["admin_id"]))
     db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=request.client.host)
+    write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=request.client.host, admin_id=user["admin_id"])
     return {"ok": True, "id": cam_pk, "camera_id": camera_id}
 
 
@@ -106,9 +116,14 @@ async def update_camera(camera_id: str, request: Request,
                         user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     body = await request.json()
     cur = db.cursor()
-    cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
+    # Ownership Check
+    if user["admin_id"] == 0:
+        cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
+    else:
+        cur.execute("SELECT id FROM cameras WHERE camera_id = ? AND admin_id = ?", (camera_id, user["admin_id"]))
+        
     if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Camera not found")
+        raise HTTPException(status_code=404, detail="Camera not found or access denied")
 
     fields, vals = [], []
     for key in ("name", "location", "description", "stream_url", "floor_plan_x", "floor_plan_y", "face_enabled", "obj_enabled", "stream_enabled"):
@@ -123,22 +138,36 @@ async def update_camera(camera_id: str, request: Request,
         raise HTTPException(status_code=400, detail="No fields to update")
 
     vals.append(camera_id)
-    db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ?", vals)
+    # Strict ownership check in update
+    admin_filter = "AND admin_id = ?" if user["admin_id"] != 0 else ""
+    if user["admin_id"] != 0:
+        vals.append(user["admin_id"])
+
+    db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ? {admin_filter}", vals)
     db.commit()
+    write_log(db, username=user["username"], role=user["role"], action="update_camera", target=camera_id, detail=f"Updated camera {camera_id}", ip=request.client.host, admin_id=user["admin_id"])
     return {"ok": True}
 
 
 @router.delete("/cameras/{camera_id}")
 async def delete_camera(camera_id: str, request: Request, user=Depends(require_admin),
-                        db: sqlite3.Connection = Depends(get_db)):
+                         db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
+    # Ownership Check
+    if user["admin_id"] == 0:
+        cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
+    else:
+        cur.execute("SELECT id FROM cameras WHERE camera_id = ? AND admin_id = ?", (camera_id, user["admin_id"]))
+        
     if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Camera not found")
+        raise HTTPException(status_code=404, detail="Camera not found or access denied")
 
-    db.execute("DELETE FROM cameras WHERE camera_id = ?", (camera_id,))
+    if user["admin_id"] == 0:
+        db.execute("DELETE FROM cameras WHERE camera_id = ?", (camera_id,))
+    else:
+        db.execute("DELETE FROM cameras WHERE camera_id = ? AND admin_id = ?", (camera_id, user["admin_id"]))
     db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=camera_id, detail=f"Removed camera {camera_id}", ip=request.client.host)
+    write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=camera_id, detail=f"Removed camera {camera_id}", ip=request.client.host, admin_id=user["admin_id"])
     return {"ok": True}
 
 
@@ -149,8 +178,13 @@ async def update_camera_position(camera_id: str, request: Request,
     body = await request.json()
     x = body.get("x", 50.0)
     y = body.get("y", 50.0)
-    db.execute("UPDATE cameras SET floor_plan_x = ?, floor_plan_y = ? WHERE camera_id = ?",
-               (x, y, camera_id))
+    
+    # Ownership Check
+    admin_filter = "AND admin_id = ?" if user["admin_id"] != 0 else ""
+    params = (x, y, camera_id) + ((user["admin_id"],) if user["admin_id"] != 0 else ())
+    
+    db.execute(f"UPDATE cameras SET floor_plan_x = ?, floor_plan_y = ? WHERE camera_id = ? {admin_filter}",
+               params)
     db.commit()
     return {"ok": True}
 
@@ -175,7 +209,7 @@ async def set_camera_config_flags(
     if not updates:
         raise HTTPException(status_code=400, detail="No config fields provided")
 
-    update_worker_config(camera_id, updates)
-    write_log(db, username=user["username"], role=user["role"], action="camera_config", target=camera_id, detail=f"Updated config flags: {updates}")
+    update_worker_config(camera_id, updates, user["admin_id"])
+    write_log(db, username=user["username"], role=user["role"], action="camera_config", target=camera_id, detail=f"Updated config flags: {updates}", admin_id=user["admin_id"])
     
     return {"ok": True, "updated": updates}

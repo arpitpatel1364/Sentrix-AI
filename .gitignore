@@ -7,6 +7,9 @@ __pycache__/
 info.txt
 *.pt
 *.onnx
+*.db
+*.sqlite3
+*.qdrant
 
 # C extensions
 *.so

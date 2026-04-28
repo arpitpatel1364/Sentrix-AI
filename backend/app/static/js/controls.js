@@ -22,7 +22,7 @@ async function pollMeshStatus() {
 
     if (startBtn) { startBtn.disabled = active; startBtn.style.opacity = active ? '0.5' : '1'; }
     if (stopBtn)  {
-      if (State.role !== 'admin') { stopBtn.style.display = 'none'; }
+      if (State.role !== 'admin' && State.role !== 'super_admin') { stopBtn.style.display = 'none'; }
       else { stopBtn.disabled = !active; stopBtn.style.opacity = active ? '1' : '0.5'; }
     }
   } catch {}
@@ -158,7 +158,7 @@ async function _refreshMM() {
       div.dataset.id = node.id;
       div.innerHTML = `
         <div class="mm-cam-label">${esc(node.id)}</div>
-        <img src="/api/stream/${esc(node.id)}" onerror="this.style.opacity='0.3'">`;
+        <img src="/api/stream/${esc(node.id)}?token=${State.token}" onerror="this.style.opacity='0.3'">`;
       grid.appendChild(div);
     });
   } catch {}

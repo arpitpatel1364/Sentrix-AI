@@ -22,10 +22,18 @@ router = APIRouter(prefix="/api")
 @router.get("/alert-rules")
 async def list_rules(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("""
-        SELECT id, name, rule_type, camera_id, conditions, actions, enabled, created_at
-        FROM alert_rules ORDER BY created_at DESC
-    """)
+    
+    # Filter by admin_id
+    admin_filter = "WHERE admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = ()
+
+    cur.execute(f"""
+        SELECT id, name, rule_type, camera_id, conditions, actions, enabled, created_at, admin_id
+        FROM alert_rules {admin_filter} ORDER BY created_at DESC
+    """, params)
     rules = [dict(r) for r in cur.fetchall()]
     for r in rules:
         r["conditions"] = json.loads(r["conditions"]) if r["conditions"] else {}
@@ -53,10 +61,10 @@ async def create_rule(request: Request, user=Depends(require_admin),
     rule_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     db.execute("""
-        INSERT INTO alert_rules (id, name, rule_type, camera_id, conditions, actions, enabled, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO alert_rules (id, name, rule_type, camera_id, conditions, actions, enabled, created_at, admin_id)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
     """, (rule_id, name, rule_type, camera_id,
-          json.dumps(conditions), json.dumps(actions), now))
+          json.dumps(conditions), json.dumps(actions), now, user["admin_id"]))
     db.commit()
     return {"ok": True, "id": rule_id}
 
@@ -66,9 +74,14 @@ async def update_rule(rule_id: str, request: Request,
                       user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     body = await request.json()
     cur = db.cursor()
-    cur.execute("SELECT id FROM alert_rules WHERE id = ?", (rule_id,))
+    # Ownership Check
+    if user["admin_id"] == 0:
+        cur.execute("SELECT id FROM alert_rules WHERE id = ?", (rule_id,))
+    else:
+        cur.execute("SELECT id FROM alert_rules WHERE id = ? AND admin_id = ?", (rule_id, user["admin_id"]))
+        
     if not cur.fetchone():
-        raise HTTPException(status_code=404, detail="Rule not found")
+        raise HTTPException(status_code=404, detail="Rule not found or access denied")
 
     fields, vals = [], []
     for key in ("name", "rule_type", "camera_id"):
@@ -89,7 +102,11 @@ async def update_rule(rule_id: str, request: Request,
         raise HTTPException(status_code=400, detail="No fields to update")
 
     vals.append(rule_id)
-    db.execute(f"UPDATE alert_rules SET {', '.join(fields)} WHERE id = ?", vals)
+    if user["admin_id"] != 0:
+        vals.append(user["admin_id"])
+        db.execute(f"UPDATE alert_rules SET {', '.join(fields)} WHERE id = ? AND admin_id = ?", vals)
+    else:
+         db.execute(f"UPDATE alert_rules SET {', '.join(fields)} WHERE id = ?", vals)
     db.commit()
     return {"ok": True}
 
@@ -97,7 +114,10 @@ async def update_rule(rule_id: str, request: Request,
 @router.delete("/alert-rules/{rule_id}")
 async def delete_rule(rule_id: str, user=Depends(require_admin),
                       db: sqlite3.Connection = Depends(get_db)):
-    db.execute("DELETE FROM alert_rules WHERE id = ?", (rule_id,))
+    if user["admin_id"] == 0:
+        db.execute("DELETE FROM alert_rules WHERE id = ?", (rule_id,))
+    else:
+        db.execute("DELETE FROM alert_rules WHERE id = ? AND admin_id = ?", (rule_id, user["admin_id"]))
     db.commit()
     return {"ok": True}
 
@@ -106,28 +126,44 @@ async def delete_rule(rule_id: str, user=Depends(require_admin),
 async def toggle_rule(rule_id: str, user=Depends(require_admin),
                       db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
-    cur.execute("SELECT enabled FROM alert_rules WHERE id = ?", (rule_id,))
+    if user["admin_id"] == 0:
+        cur.execute("SELECT enabled FROM alert_rules WHERE id = ?", (rule_id,))
+    else:
+        cur.execute("SELECT enabled FROM alert_rules WHERE id = ? AND admin_id = ?", (rule_id, user["admin_id"]))
+        
     row = cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Rule not found")
     new_state = 0 if row["enabled"] else 1
-    db.execute("UPDATE alert_rules SET enabled = ? WHERE id = ?", (new_state, rule_id))
+    
+    if user["admin_id"] == 0:
+        db.execute("UPDATE alert_rules SET enabled = ? WHERE id = ?", (new_state, rule_id))
+    else:
+        db.execute("UPDATE alert_rules SET enabled = ? WHERE id = ? AND admin_id = ?", (new_state, rule_id, user["admin_id"]))
     db.commit()
     return {"ok": True, "enabled": bool(new_state)}
 
 
 # ─── RULE EVALUATION (called internally from workers/sightings) ──────────────
 
-def _load_active_rules(db: sqlite3.Connection, camera_id: str = None):
+def _load_active_rules(db: sqlite3.Connection, admin_id: int, camera_id: str = None):
     """Load all enabled rules, optionally filtered by camera."""
     cur = db.cursor()
+    
+    # Filter by admin_id
+    admin_filter = "AND admin_id = ?"
+    params = (admin_id,)
+    if admin_id == 0:
+        admin_filter = ""
+        params = ()
+
     if camera_id:
-        cur.execute("""
+        cur.execute(f"""
             SELECT * FROM alert_rules
-            WHERE enabled=1 AND (camera_id='' OR camera_id=?)
-        """, (camera_id,))
+            WHERE enabled=1 AND (camera_id='' OR camera_id=?) {admin_filter}
+        """, (camera_id,) + params)
     else:
-        cur.execute("SELECT * FROM alert_rules WHERE enabled=1")
+        cur.execute(f"SELECT * FROM alert_rules WHERE enabled=1 {admin_filter}", params)
     rules = [dict(r) for r in cur.fetchall()]
     for r in rules:
         r["conditions"] = json.loads(r["conditions"]) if r["conditions"] else {}
@@ -148,8 +184,11 @@ async def evaluate_rules(event: dict, db: sqlite3.Connection):
     person_name = event.get("person_name", "")
     object_label = event.get("object_label", "")
     timestamp   = event.get("timestamp", datetime.utcnow().isoformat())
+    admin_id    = event.get("admin_id")
+    if admin_id is None:
+        admin_id = 1
 
-    rules = _load_active_rules(db, camera_id)
+    rules = _load_active_rules(db, admin_id, camera_id)
 
     for rule in rules:
         cond    = rule["conditions"]

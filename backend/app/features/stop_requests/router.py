@@ -72,11 +72,16 @@ async def create_stop_request(
     if existing:
         return {"status": "already_pending", "request_id": existing["id"]}
 
-    # Get camera location for display in dashboard
+    # Get camera location for display in dashboard & verify ownership
     cam = db.execute(
-        "SELECT location FROM cameras WHERE camera_id = ?", (camera_id,)
+        "SELECT location, admin_id FROM cameras WHERE camera_id = ?", (camera_id,)
     ).fetchone()
-    location = cam["location"] if cam else ""
+    
+    if not cam or cam["admin_id"] != user["admin_id"]:
+         raise HTTPException(status_code=403, detail="Camera not found or access denied")
+         
+    location = cam["location"]
+    admin_id = cam["admin_id"]
 
     req_id = str(uuid.uuid4())
     ts = datetime.utcnow().isoformat()
@@ -84,10 +89,10 @@ async def create_stop_request(
     db.execute(
         """
         INSERT INTO camera_stop_requests
-          (id, camera_id, worker_user, reason, status, requested_at)
-        VALUES (?, ?, ?, ?, 'pending', ?)
+          (id, camera_id, worker_user, reason, status, requested_at, admin_id)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?)
         """,
-        (req_id, camera_id, user["username"], reason.strip(), ts),
+        (req_id, camera_id, user["username"], reason.strip(), ts, admin_id),
     )
     db.commit()
 
@@ -102,6 +107,7 @@ async def create_stop_request(
             target=camera_id,
             detail=f"Stop requested. Reason: {reason[:120]}",
             ip=request.client.host if request.client else "",
+            admin_id=admin_id,
         )
     except Exception:
         pass
@@ -114,6 +120,7 @@ async def create_stop_request(
         "location":   location,
         "request_id": req_id,
         "reason":     reason[:120],
+        "admin_id":   admin_id,
     })
 
     return {"status": "pending", "request_id": req_id}
@@ -137,11 +144,11 @@ def get_my_stop_status(
         """
         SELECT id, status, reviewed_by, reviewed_at
         FROM camera_stop_requests
-        WHERE worker_user = ? AND camera_id = ?
+        WHERE worker_user = ? AND camera_id = ? AND admin_id = ?
         ORDER BY requested_at DESC
         LIMIT 1
         """,
-        (user["username"], camera_id),
+        (user["username"], camera_id, user["admin_id"]),
     ).fetchone()
 
     if not row:
@@ -172,6 +179,10 @@ def list_stop_requests(
         conditions.append("status = ?")
         params.append(status)
 
+    if _user["admin_id"] != 0:
+        conditions.append("admin_id = ?")
+        params.append(_user["admin_id"])
+
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
     rows = db.execute(
@@ -184,6 +195,7 @@ def list_stop_requests(
                requested_at,
                reviewed_by    AS resolved_by,
                reviewed_at    AS resolved_at,
+               admin_id,
                '' AS location
         FROM camera_stop_requests
         {where}
@@ -198,7 +210,7 @@ def list_stop_requests(
     for r in rows:
         row = dict(r)
         cam = db.execute(
-            "SELECT location FROM cameras WHERE camera_id = ?", (r["camera_id"],)
+            "SELECT location FROM cameras WHERE camera_id = ? AND admin_id = ?", (r["camera_id"], r["admin_id"])
         ).fetchone()
         row["location"] = cam["location"] if cam else ""
         results.append(row)
@@ -217,8 +229,12 @@ async def approve_stop_request(
     user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db),
 ):
+    # Ownership check
+    admin_filter = "AND admin_id = ?" if user["admin_id"] != 0 else ""
+    params = (request_id,) + ((user["admin_id"],) if user["admin_id"] != 0 else ())
+
     row = db.execute(
-        "SELECT * FROM camera_stop_requests WHERE id = ?", (request_id,)
+        f"SELECT * FROM camera_stop_requests WHERE id = ? {admin_filter}", params
     ).fetchone()
 
     if not row:
@@ -248,6 +264,7 @@ async def approve_stop_request(
             target=row["camera_id"],
             detail=f"Approved stop request from worker '{row['worker_user']}'",
             ip=req.client.host if req.client else "",
+            admin_id=row["admin_id"],
         )
     except Exception:
         pass
@@ -258,6 +275,7 @@ async def approve_stop_request(
         "camera_id":   row["camera_id"],
         "worker":      row["worker_user"],
         "approved_by": user["username"],
+        "admin_id":    row["admin_id"],
     })
 
     return {"status": "approved"}
@@ -274,8 +292,12 @@ async def deny_stop_request(
     user=Depends(require_admin),
     db: sqlite3.Connection = Depends(get_db),
 ):
+    # Ownership check
+    admin_filter = "AND admin_id = ?" if user["admin_id"] != 0 else ""
+    params = (request_id,) + ((user["admin_id"],) if user["admin_id"] != 0 else ())
+
     row = db.execute(
-        "SELECT * FROM camera_stop_requests WHERE id = ?", (request_id,)
+        f"SELECT * FROM camera_stop_requests WHERE id = ? {admin_filter}", params
     ).fetchone()
 
     if not row:
@@ -305,6 +327,7 @@ async def deny_stop_request(
             target=row["camera_id"],
             detail=f"Denied stop request from worker '{row['worker_user']}'",
             ip=req.client.host if req.client else "",
+            admin_id=row["admin_id"],
         )
     except Exception:
         pass

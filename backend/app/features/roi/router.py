@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form, Request
 import json
 from ...core.security import get_current_user
-from .service import save_node_roi, get_all_configs_for_user
+from .service import save_node_roi, get_all_configs_for_admin
 from ..audit_log.router import write_log
 from ...core.database import get_db
 import sqlite3
@@ -24,15 +24,27 @@ async def save_roi(
             raise HTTPException(status_code=400, detail="Either node_key or camera_id required")
         node_key = f"{user['username']}:{camera_id}"
     
-    # Permission check: Only admins or the owner of the node can set ROI
+    # Permission check: Only admins/super_admins of the same admin_id or the owner of the node can set ROI
     target_user = node_key.split(":")[0]
-    if user["role"] != "admin" and user["username"] != target_user:
+    
+    # Fetch target user's admin_id
+    cur = db.cursor()
+    cur.execute("SELECT admin_id FROM users WHERE username = ?", (target_user,))
+    row = cur.fetchone()
+    if not row:
+         raise HTTPException(status_code=404, detail="Target user not found")
+    target_admin_id = row["admin_id"]
+
+    if user["admin_id"] != 0 and user["admin_id"] != target_admin_id:
+        raise HTTPException(status_code=403, detail="Not authorized to set ROI for a different tenant's node")
+    
+    if user["role"] not in ("admin", "super_admin") and user["username"] != target_user:
         raise HTTPException(status_code=403, detail="Not authorized to set ROI for this node")
 
     try:
         if not roi or roi == 'null' or roi == "":
             save_node_roi(node_key, None)
-            write_log(db, username=user["username"], role=user["role"], action="roi_clear", target=node_key, detail=f"Cleared ROI for {node_key}", ip=request.client.host if request else "")
+            write_log(db, username=user["username"], role=user["role"], action="roi_clear", target=node_key, detail=f"Cleared ROI for {node_key}", ip=request.client.host if request else "", admin_id=user["admin_id"])
             return {"status": "ok", "message": "ROI cleared"}
             
         roi_list = json.loads(roi)
@@ -40,7 +52,7 @@ async def save_roi(
             raise ValueError("ROI must have 4 coordinates")
             
         save_node_roi(node_key, roi_list)
-        write_log(db, username=user["username"], role=user["role"], action="roi_save", target=node_key, detail=f"Saved ROI for {node_key}: {roi_list}", ip=request.client.host if request else "")
+        write_log(db, username=user["username"], role=user["role"], action="roi_save", target=node_key, detail=f"Saved ROI for {node_key}: {roi_list}", ip=request.client.host if request else "", admin_id=user["admin_id"])
         print(f"[ROI] Feature Saved for {node_key}: {roi_list}")
         return {"status": "ok", "message": "ROI saved", "roi": roi_list}
     except Exception as e:
@@ -49,8 +61,9 @@ async def save_roi(
 
 @router.get("/list")
 async def get_worker_configs(user=Depends(get_current_user)):
-    """Returns local camera configs (ROI + toggles) for the current worker."""
-    configs = get_all_configs_for_user(user['username'])
+    """Returns all camera configs (ROI + toggles) for the current worker's tenant."""
+    from .service import get_all_configs_for_admin
+    configs = get_all_configs_for_admin(user['admin_id'])
     return {"status": "ok", "configs": configs}
 
 # Legacy Alias Support for Worker Sync

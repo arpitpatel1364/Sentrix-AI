@@ -3,7 +3,21 @@
    ══════════════════════════════════════════ */
 
 function bootstrap() {
-  // Initial data load
+  const isImpersonating = !!sessionStorage.getItem('sx_orig_token');
+  
+  // Clear any existing intervals first to prevent duplicates
+  if (State.bgIntervals) {
+    State.bgIntervals.forEach(clearInterval);
+    State.bgIntervals = [];
+  }
+
+  if (State.role === 'super_admin' && !isImpersonating) {
+    showPage('super-dashboard');
+    State.bgIntervals.push(setInterval(loadSuperDashboard, 30000));
+    return;
+  }
+
+  // Initial data load (Standard / Impersonation)
   loadStats();
   loadSightings();
   loadObjects();
@@ -11,16 +25,18 @@ function bootstrap() {
   connectSSE();
   pollMeshStatus();
 
-  // Periodic refresh intervals
-  setInterval(loadStats,         30000);
-  setInterval(loadSightings,     45000);
-  setInterval(loadObjects,       45000);
-  setInterval(loadCameras,       60000);
-  setInterval(loadWorkers,       25000);
-  setInterval(pollMeshStatus,    15000);
-  setInterval(pollStopRequestsBadge, 30000);
-  setInterval(updateAlertHeartbeat,   2000);
-  setInterval(checkBackend,      20000);
+  // Periodic refresh intervals — track handles in State.bgIntervals
+  const sync = (fn, ms) => State.bgIntervals.push(setInterval(fn, ms));
+
+  sync(loadStats,         30000);
+  sync(loadSightings,     45000);
+  sync(loadObjects,       45000);
+  sync(loadCameras,       60000);
+  sync(loadWorkers,       25000);
+  sync(pollMeshStatus,    15000);
+  sync(pollStopRequestsBadge, 30000);
+  sync(updateAlertHeartbeat,   2000);
+  sync(checkBackend,      20000);
 
   // Sync global buttons after cameras load
   setTimeout(syncGlobalButtons, 2500);
@@ -53,7 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateClock, 1000);
 
   // Initial page
-  showPage('overview');
+  const isImpersonating = !!sessionStorage.getItem('sx_orig_token');
+  if (State.role === 'super_admin' && !isImpersonating) {
+    showPage('super-dashboard');
+  } else {
+    showPage('overview');
+  }
 
   // Backend health check (even when not logged in)
   if (!State.token) {

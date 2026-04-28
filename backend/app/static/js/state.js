@@ -54,7 +54,9 @@ const State = {
   auditOffset: 0,
   auditLimit: 50,
 
-  // Save to localStorage
+  // Background tasks
+  bgIntervals: [],
+
   persist() {
     localStorage.setItem('sx_token', this.token || '');
     localStorage.setItem('sx_user', this.me || '');
@@ -62,10 +64,19 @@ const State = {
   },
 
   clear() {
+    // Stop all background polling
+    this.bgIntervals.forEach(clearInterval);
+    this.bgIntervals = [];
+
     this.token = null;
     this.me = null;
     this.role = null;
-    ['sx_token','sx_user','sx_role'].forEach(k => localStorage.removeItem(k));
+    ['sx_token', 'sx_user', 'sx_role'].forEach(k => localStorage.removeItem(k));
+    // Clear impersonation data
+    ['sx_orig_token', 'sx_orig_user', 'sx_orig_role'].forEach(k => sessionStorage.removeItem(k));
+    // Reset CSS states
+    document.body.removeAttribute('data-role');
+    document.body.removeAttribute('data-impersonating');
   }
 };
 
@@ -76,20 +87,26 @@ if (State.role === 'null' || State.role === 'undefined' || !State.role) State.ro
 
 /* Page titles map */
 const PAGE_META = {
-  overview:       ['OVERVIEW',            '// TACTICAL INTELLIGENCE DASHBOARD'],
-  'live-feed':    ['LIVE MONITOR',         '// DIRECT NEURAL LINK TO CAMERA NODES'],
-  sightings:      ['FACE SIGHTINGS',       '// BIOMETRIC ACTIVITY LOG'],
-  objects:        ['OBJECT DETECTIONS',    '// AUTOMATED ITEM RECOGNITION LOG'],
-  analytics:      ['ANALYTICS',            '// DETECTION TRENDS & METRICS'],
-  watchlist:      ['INTELLIGENCE ARCHIVE', '// SUBJECT REGISTRY'],
-  search:         ['BIOMETRIC LOOKUP',     '// REVERSE FACE IDENTIFICATION'],
-  analysis:       ['FRAME ANALYSIS',       '// COGNITIVE INFERENCE ENGINE'],
-  cameras:        ['CAMERA MANAGEMENT',    '// REGISTER & CONFIGURE NODES'],
-  map:            ['LIVE MAP',             '// CAMERA POSITIONS & STATUS'],
-  'alert-rules':  ['ALERT RULES ENGINE',   '// AUTOMATED DETECTION TRIGGERS'],
-  workers:        ['WORKER NODES',         '// ACTIVE FIELD INTELLIGENCE NODES'],
-  users:          ['USER ACCOUNTS',        '// OPERATOR ACCESS REGISTRY'],
-  system:         ['SYSTEM CONTROL',       '// CONFIGURATION & MAINTENANCE'],
-  audit:          ['AUDIT LOG',            '// SYSTEM ACTIVITY TRAIL'],
-  'stop-requests':['STOP REQUESTS',        '// WORKER CAMERA SHUTDOWN APPROVALS'],
+  overview: ['OVERVIEW', '// TACTICAL INTELLIGENCE DASHBOARD'],
+  'live-feed': ['LIVE MONITOR', '// DIRECT NEURAL LINK TO CAMERA NODES'],
+  sightings: ['FACE SIGHTINGS', '// BIOMETRIC ACTIVITY LOG'],
+  objects: ['OBJECT DETECTIONS', '// AUTOMATED ITEM RECOGNITION LOG'],
+  analytics: ['ANALYTICS', '// DETECTION TRENDS & METRICS'],
+  watchlist: ['INTELLIGENCE ARCHIVE', '// SUBJECT REGISTRY'],
+  search: ['BIOMETRIC LOOKUP', '// REVERSE FACE IDENTIFICATION'],
+  analysis: ['FRAME ANALYSIS', '// COGNITIVE INFERENCE ENGINE'],
+  cameras: ['CAMERA MANAGEMENT', '// REGISTER & CONFIGURE NODES'],
+  map: ['LIVE MAP', '// CAMERA POSITIONS & STATUS'],
+  'alert-rules': ['ALERT RULES ENGINE', '// AUTOMATED DETECTION TRIGGERS'],
+  workers: ['WORKER NODES', '// ACTIVE FIELD INTELLIGENCE NODES'],
+  users: ['OPERATOR MANAGEMENT', '// MANAGE SYSTEM ACCOUNTS & ACCESS'],
+  system: ['SYSTEM CONTROL', '// CONFIGURATION & MAINTENANCE'],
+  audit: ['AUDIT LOG', '// SYSTEM ACTIVITY TRAIL'],
+  'stop-requests': ['STOP REQUESTS', '// WORKER CAMERA SHUTDOWN APPROVALS'],
+  'admin-mgmt': ['OPERATOR MANAGEMENT', '// MASTER SYSTEM OVERRIDE & HIERARCHY'],
+  'super-dashboard': ['MASTER DASHBOARD', '// GLOBAL SYSTEM OVERSIGHT'],
+  'node-monitor': ['GLOBAL NODE MAP', '// REAL-TIME TENANT WORKER STATUS'],
+  'super-analysis': ['SYSTEM ANALYSIS', '// DEEP SEARCH & AUDIT LOG TRENDS'],
+  'preview-system': ['PREVIEW SYSTEM', '// DIRECT ACCESS TO ADMIN PERSPECTIVES'],
+  'business-report': ['BUSINESS INTELLIGENCE', '// STRATEGIC METRICS & REVENUE CALCULATOR'],
 };

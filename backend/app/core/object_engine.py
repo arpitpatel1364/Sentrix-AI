@@ -29,7 +29,7 @@ def init_object_engine():
         from ultralytics import YOLOWorld
         from ultralytics.nn.tasks import WorldModel
         
-        torch.serialization.add_safe_globals([WorldModel])
+        torch.serialization.add_safe_globals([WorldModel, torch.nn.modules.container.Sequential])
 
         try:
             OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))

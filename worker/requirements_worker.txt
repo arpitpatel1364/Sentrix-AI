@@ -8,3 +8,6 @@ numpy==1.26.4
 # Local Face Detection (YOLOv8)
 ultralytics==8.2.0
 onnxruntime==1.18.0
+
+# Video Utilities
+static-ffmpeg==2.5

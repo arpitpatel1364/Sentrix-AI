@@ -196,6 +196,29 @@
 }
 .logout-btn:hover { background: var(--red-dim); border-color: var(--red-dim); color: var(--red); }
 
+/* ─── NAVIGATION VISIBILITY STATE MACHINE ─── */
+/* Default Hide Super Nav */
+#sb-nav-super { display: none !important; }
+
+/* Role: Super Admin (Management Mode) */
+body[data-role="super_admin"]:not([data-impersonating="true"]) #sb-nav-standard { display: none !important; }
+body[data-role="super_admin"]:not([data-impersonating="true"]) #sb-nav-super    { display: block !important; }
+
+/* Mask Operational Tools for Super Admin in Management Mode */
+body[data-role="super_admin"]:not([data-impersonating="true"]) .op-tool {
+  display: none !important;
+}
+
+/* Role: Standard Admin / Impersonating Super Admin */
+body[data-role="admin"] #sb-nav-standard,
+body[data-impersonating="true"] #sb-nav-standard { 
+  display: block !important; 
+}
+body[data-role="admin"] #sb-nav-super,
+body[data-impersonating="true"] #sb-nav-super { 
+  display: none !important; 
+}
+
 /* Collapsed sidebar */
 .app-shell.collapsed .sb-wordmark,
 .app-shell.collapsed .sb-sub,

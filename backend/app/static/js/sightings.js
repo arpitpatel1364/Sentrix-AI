@@ -17,11 +17,6 @@ async function loadStats() {
   } catch {}
 }
 
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
 /* ─── SIGHTINGS ─── */
 async function loadSightings() {
   try {
