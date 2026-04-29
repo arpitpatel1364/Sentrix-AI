@@ -38,21 +38,24 @@ function handleAlert(data) {
   State.alertCount++;
   updateBadge('bell-count', State.alertCount);
 
+  // Add to recent events list
+  const event = {
+    id: data.person_id || data.object_id || `evt-${Date.now()}-${Math.random()}`,
+    type: data.type,
+    name: data.person_name || data.object_label || 'Unknown',
+    location: data.location || data.camera_id || 'Remote',
+    node: data.camera_id || 'Remote',
+    lastSeen: Date.now(),
+    snapshot: data.snapshot,
+    inVision: true,
+    isMatch: data.type === 'wanted_match'
+  };
+
   if (data.type === 'wanted_match') {
     State.newSightings++;
     updateBadge('badge-sightings', State.newSightings);
     toast(`⚠ MATCH: ${data.person_name} — ${data.location || data.camera_id}`, 'match');
-
-    // Register active alert
-    State.activeAlerts[data.person_id] = {
-      id: data.person_id,
-      name: data.person_name,
-      location: data.location || 'Unknown',
-      node: data.camera_id || 'Remote',
-      lastSeen: Date.now(),
-      snapshot: data.snapshot,
-      inVision: true,
-    };
+    State.activeAlerts[event.id] = event;
     renderActiveAlerts();
     loadSightings();
     loadStats();
@@ -61,7 +64,6 @@ function handleAlert(data) {
     State.newSightings++;
     updateBadge('badge-sightings', State.newSightings);
 
-    // Update existing alert heartbeat
     const existing = data.person_id && State.activeAlerts[data.person_id];
     if (existing) {
       Object.assign(existing, {
@@ -71,9 +73,11 @@ function handleAlert(data) {
         snapshot: data.snapshot || existing.snapshot,
         inVision: true,
       });
-      renderActiveAlerts();
+    } else {
+      // Also add non-matches to the active list if they are recent
+      State.activeAlerts[event.id] = event;
     }
-
+    renderActiveAlerts();
     toast(`New sighting — ${data.camera_id || data.location}`, 'sight');
     loadSightings();
     loadStats();
@@ -82,6 +86,11 @@ function handleAlert(data) {
     State.newObjects++;
     updateBadge('badge-objects', State.newObjects);
     toast(`Object: ${capitalize(data.object_label || 'unknown')} — ${data.camera_id}`, 'obj');
+    
+    // Add object detection to active alerts
+    State.activeAlerts[event.id] = event;
+    renderActiveAlerts();
+    
     loadObjects();
     loadStats();
   }
@@ -106,25 +115,63 @@ function renderActiveAlerts() {
   const monitor = document.getElementById('active-alerts-monitor');
   if (!monitor) return;
 
-  const alerts = Object.values(State.activeAlerts);
-  if (!alerts.length) { monitor.innerHTML = ''; return; }
+  const alerts = Object.values(State.activeAlerts).sort((a, b) => b.lastSeen - a.lastSeen);
+  
+  if (!alerts.length) { 
+    monitor.innerHTML = ''; 
+    monitor.classList.remove('has-alerts');
+    return; 
+  }
 
-  monitor.innerHTML = alerts.map(a => `
-    <div class="alert-banner ${a.inVision ? '' : 'lost'}">
-      <div style="display:flex;align-items:center;gap:1.25rem">
-        <img src="${esc(a.snapshot)}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid ${a.inVision ? 'var(--red)' : 'var(--outline)'}">
+  monitor.classList.add('has-alerts');
+
+  // Filter alerts based on state
+  const filter = State.alertFilter || 'matches';
+  const filtered = filter === 'all' ? alerts : alerts.filter(a => a.isMatch);
+
+  const filterHtml = `
+    <div class="alert-bar-header">
+      <div class="alert-bar-tabs">
+        <button class="tab-btn ${filter === 'matches' ? 'active' : ''}" onclick="setAlertFilter('matches')">Watchlist Hits</button>
+        <button class="tab-btn ${filter === 'all' ? 'active' : ''}" onclick="setAlertFilter('all')">All Detections</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="clearAllAlerts()">Dismiss All</button>
+    </div>
+  `;
+
+  if (filtered.length === 0) {
+    monitor.innerHTML = filterHtml + `<div class="alert-banner-empty">No ${filter === 'matches' ? 'watchlist hits' : 'detections'} active</div>`;
+    return;
+  }
+
+  monitor.innerHTML = filterHtml + filtered.map(a => `
+    <div class="alert-banner ${a.inVision ? '' : 'lost'} ${a.isMatch ? 'match' : ''}">
+      <div style="display:flex;align-items:center;gap:1.25rem;flex:1;min-width:0">
+        <img src="${esc(a.snapshot)}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:2px solid ${a.isMatch ? 'var(--red)' : (a.inVision ? 'var(--cyan)' : 'var(--outline)')}">
         <div class="alert-info">
           <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.15rem">
-            <h4>${esc(a.name)}</h4>
-            <span class="alert-tag ${a.inVision ? 'tag-live' : 'tag-lost'}">${a.inVision ? 'IN VISION' : 'VISION LOST'}</span>
+            <h4>${esc(capitalize(a.name))}</h4>
+            <span class="alert-tag ${a.inVision ? (a.isMatch ? 'tag-live' : 'tag-info') : 'tag-lost'}">
+              ${a.inVision ? (a.isMatch ? 'WATCHLIST MATCH' : 'DETECTED') : 'VISION LOST'}
+            </span>
           </div>
-          <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--on-surface-muted)">
-            Last seen at <strong>${esc(a.location)}</strong> via <strong>${esc(a.node)}</strong>
+          <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--on-surface-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            At <strong>${esc(a.location)}</strong> via <strong>${esc(a.node)}</strong>
           </div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="deactivateAlert('${esc(a.id)}')">Dismiss</button>
+      <button class="alert-close-btn" onclick="deactivateAlert('${esc(a.id)}')" title="Dismiss Alert">×</button>
     </div>`).join('');
+}
+
+function setAlertFilter(filter) {
+  State.alertFilter = filter;
+  renderActiveAlerts();
+}
+
+function clearAllAlerts() {
+  State.activeAlerts = {};
+  renderActiveAlerts();
 }
 
 function deactivateAlert(id) {

@@ -19,6 +19,7 @@ const State = {
   alertCount: 0,
   newSightings: 0,
   newObjects: 0,
+  alertFilter: 'matches',
 
   // Live monitoring
   liveInterval: null,

@@ -3,22 +3,106 @@
    ══════════════════════════════════════════ */
 
 /* ─── ALERT BANNER ─── */
-#active-alerts-monitor { flex-shrink: 0; }
+#active-alerts-monitor { 
+  flex-shrink: 0; 
+  background: var(--surface-low);
+  border-bottom: 1px solid var(--outline);
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+}
+#active-alerts-monitor.has-alerts {
+  border-bottom-width: 2px;
+}
+
+.alert-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--outline);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.alert-bar-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--on-surface-muted);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-transform: uppercase;
+}
+.tab-btn:hover { background: var(--surface-high); }
+.tab-btn.active { 
+  background: var(--primary-dim); 
+  color: var(--primary); 
+  border-color: var(--primary-glow); 
+}
 
 .alert-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.875rem 2rem;
-  background: rgba(192, 24, 42, 0.12);
-  border-bottom: 1px solid rgba(192, 24, 42, 0.2);
-  animation: pulseAlert 2s ease-in-out infinite;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border-bottom: 1px solid var(--outline);
+  transition: all var(--transition);
+  position: relative;
 }
+.alert-banner:hover { background: var(--surface-high); }
+.alert-banner.match {
+  background: rgba(192, 24, 42, 0.05);
+}
+.alert-banner.match:hover {
+  background: rgba(192, 24, 42, 0.08);
+}
+
 .alert-banner.lost {
-  background: var(--surface-low);
-  border-color: var(--outline);
-  animation: none;
+  opacity: 0.6;
 }
+
+.alert-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--on-surface-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all var(--transition);
+}
+.alert-close-btn:hover {
+  background: var(--red-dim);
+  color: var(--red);
+}
+
+.alert-banner-empty {
+  padding: 2rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--on-surface-muted);
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.tag-info { background: var(--cyan-dim); color: var(--cyan); }
 
 .alert-info { flex: 1; min-width: 0; margin: 0 1rem; }
 .alert-info h4 {

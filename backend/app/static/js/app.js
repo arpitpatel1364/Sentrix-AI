@@ -11,9 +11,17 @@ function bootstrap() {
     State.bgIntervals = [];
   }
 
+  // Periodic refresh intervals — track handles in State.bgIntervals
+  const sync = (fn, ms) => State.bgIntervals.push(setInterval(fn, ms));
+
+  // Common for all roles
+  connectSSE();
+  sync(updateAlertHeartbeat, 2000);
+  sync(checkBackend, 20000);
+
   if (State.role === 'super_admin' && !isImpersonating) {
     showPage('super-dashboard');
-    State.bgIntervals.push(setInterval(loadSuperDashboard, 30000));
+    sync(loadSuperDashboard, 30000);
     return;
   }
 
@@ -22,11 +30,7 @@ function bootstrap() {
   loadSightings();
   loadObjects();
   loadCameras();
-  connectSSE();
   pollMeshStatus();
-
-  // Periodic refresh intervals — track handles in State.bgIntervals
-  const sync = (fn, ms) => State.bgIntervals.push(setInterval(fn, ms));
 
   sync(loadStats,         30000);
   sync(loadSightings,     45000);
@@ -35,8 +39,6 @@ function bootstrap() {
   sync(loadWorkers,       25000);
   sync(pollMeshStatus,    15000);
   sync(pollStopRequestsBadge, 30000);
-  sync(updateAlertHeartbeat,   2000);
-  sync(checkBackend,      20000);
 
   // Sync global buttons after cameras load
   setTimeout(syncGlobalButtons, 2500);

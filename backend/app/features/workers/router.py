@@ -211,8 +211,6 @@ async def active_users(user=Depends(get_current_user)):
         "count": len(live_nodes)
     }
 
-# ROI endpoints moved to app.features.roi
-
 @router.get("/worker/stats")
 async def worker_stats(user=Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
     cur = db.cursor()
