@@ -69,7 +69,7 @@ def banner():
 
 def gather_config():
     print(f"\n{BOLD}STEP 1 — Server Connection{RESET}")
-    server = ask("Server URL (e.g. http://192.168.1.10:8000)", "http://localhost:8000")
+    server = ask("Server URL (e.g. http://[IP_ADDRESS])", "http://localhost:8000")
     server = server.rstrip("/")
 
     print(f"\n{BOLD}STEP 2 — Your Worker Credentials{RESET}")

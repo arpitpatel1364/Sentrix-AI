@@ -36,7 +36,7 @@ def parse_args():
     default_obj_model  = worker_dir / "models" / "yolov8s-worldv2.pt"
 
     p = argparse.ArgumentParser(description="Sentrix-AI Multi-Process CCTV Worker (Two-Core)")
-    p.add_argument("--server",    default="http://localhost:8000")
+    p.add_argument("--server",    default="http://[IP_ADDRESS]")
     p.add_argument("--user",      required=True)
     p.add_argument("--password",  required=True)
     p.add_argument("--camera",    nargs='+', default=["0"],            help="Camera indices or RTSP URLs")
