@@ -27,7 +27,7 @@ async def analyze_snapshot(file: UploadFile = File(...), user=Depends(get_curren
     embedding = get_embedding(img)
     face_match = None
     if embedding is not None:
-        face_match = match_wanted(embedding)
+        face_match = match_wanted(embedding, user["admin_id"])
 
     # 3. Prepare Visuals (Draw boxes for the preview)
     preview_img = img.copy()

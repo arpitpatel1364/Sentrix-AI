@@ -91,6 +91,17 @@ async def upload_object(
         # Broadcast SSE Alert to the correct admin dashboard
         await broadcast_alert(payload)
         
+        # ── Alert Rules Engine ───────────────────────────────────────────
+        from ...features.alert_rules.router import evaluate_rules
+        await evaluate_rules({
+            "type": "object", 
+            "camera_id": camera_id, 
+            "object_label": object_label,
+            "confidence": confidence * 100.0, # Scale to 0-100 for rules engine
+            "timestamp": timestamp,
+            "admin_id": user["admin_id"]
+        }, db)
+
         return {
             "status": "ok",
             "object_id": obj_id,

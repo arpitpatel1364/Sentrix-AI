@@ -76,11 +76,10 @@ async def upload_frame(
     is_new = update_worker_heartbeat(node_key, user["admin_id"])
     
     if is_new:
-        from ...core.sse_manager import broadcast_alert
         await broadcast_alert({
             "type": "camera_online",
             "camera_id": camera_id,
-            "location": row["location"] if "location" in row.keys() else location, # row is camera fetch
+            "location": row["location"] if row and "location" in row.keys() else location,
             "admin_id": user["admin_id"]
         })
     
