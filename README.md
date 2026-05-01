@@ -359,7 +359,7 @@ Sentrix-AI is designed for mission-critical security environments with high-visi
 
 ```bash
 # Start a worker with specific object tracking enabled
-python3 worker_agent.py --camera rtsp://admin:pass@192.168.1.50 --objects car laptop phone
+python3 worker_agent.py --camera rtsp://admin:pass@192.168.x.xx --objects car laptop phone
 ```
 
 ---
