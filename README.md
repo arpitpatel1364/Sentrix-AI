@@ -345,13 +345,17 @@ Sentrix-AI is designed for mission-critical security environments with high-visi
 > **Email:** [arpitbhojani.contact@gmail.com](mailto:arpitbhojani.contact@gmail.com)  
 > *DM me anytime without worry for additional proof.*
 
-**Screenshot 1 — Real-Time Alert Pipeline**
-*Visualizing a "WANTED" target match with real-time SSE propagation.*
-![Sentrix Match](https://via.placeholder.com/800x450?text=Sentrix+AI+Match+Detection)
+**Screenshot 1 — Tactical Dashboard Overview**
+*Comprehensive view of the mission-control interface with live stream health monitoring.*
+![Sentrix Dashboard](screenshots/dashboard_overview.png)
 
-**Screenshot 2 — Multi-Node ROI Configuration**
-*Dynamic Region of Interest (ROI) mapping for edge-side inference gating.*
-![Sentrix ROI](https://via.placeholder.com/800x450?text=Sentrix+AI+ROI+Configuration)
+**Screenshot 2 — Real-Time Alert Pipeline**
+*Visualizing a "WANTED" target match with real-time SSE propagation and neural alignment.*
+![Sentrix Match](screenshots/alert_match.png)
+
+**Screenshot 3 — Multi-Node ROI Configuration**
+*Dynamic Region of Interest (ROI) mapping for edge-side inference gating and bandwidth optimization.*
+![Sentrix ROI](screenshots/roi_config.png)
 
 ---
 
