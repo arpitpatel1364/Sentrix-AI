@@ -38,7 +38,7 @@ Sentrix-AI is a **FastAPI + Qdrant + YOLO-World + InsightFace** stack. The syste
   │            └──────────────────────┬─────────────────────────────┘   │
   │                                   │                                 │
   │          ┌────────────────────────▼─────────────────────────────┐   │
-  │          │                                                      │   │
+  │          │            NEURAL SEARCH ENGINE                      │   │
   │          │   Qdrant Vector DB (512-D Face Embeddings)           │   │
   │          │   ├── Search(vector)  → Identity Match               │   │
   │          │   └── Store(vector)   → Template Persistence         │   │
@@ -60,8 +60,6 @@ Sentrix-AI is a **FastAPI + Qdrant + YOLO-World + InsightFace** stack. The syste
 ```
 
 ---
-
-### Data-Flow Diagram
 
 ## Behind-the-Scenes Architecture & Data Flow
 
