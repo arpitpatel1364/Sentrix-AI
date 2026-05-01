@@ -149,32 +149,32 @@ Once the Worker transmits the data, the Hub processes the payload and pushes rea
 
 ### Request Lifecycle
 
-```
+```text
 Motion Detected at Edge
         │
         ▼
  ┌──────────────┐     Frame Analysis (Local Inference)
- │ Worker Agent │ ──────────────────────────────────────────────────────►
- │ (Inference)  │                                                        │
- └──────────────┘                                               ┌────────┴────────┐
-        │                                                       │   Central Hub   │
-        │  POST /api/upload-frame (Vector + Crop)               │ (FastAPI Router)│
-        │ ────────────────────────────────────────────────────► │                 │
-        │                                                       └────────┬────────┘
-        │                                                                │
-        │                                              Qdrant.search(vector, limit=1)
-        │                                                                │
-        │                                                       ┌────────▼────────┐
-        │                                                       │  Vector Engine  │
-        │                                                       │   (Identity)    │
-        │                                                       └────────┬────────┘
-        │                                                                │
-        │                                              Similarity > Threshold?
-        │                                                                │
-        │                                                       ┌────────▼────────┐
-        │  SSE: data:{"event":"MATCH", "person":"..."}          │   SSE Pipeline  │
-        │ ◄──────────────────────────────────────────────────── │ (Real-time Out) │
-        └────────────────────────────────────────────────────── └─────────────────┘
+ │ Worker Agent │ ───────────────────────────────────────────────────┐
+ │ (Inference)  │                                                     │
+ └──────────────┘                                            ┌────────▼────────┐
+        │                                                    │   Central Hub   │
+        │  POST /api/upload-frame (Vector + Crop)            │ (FastAPI Router)│
+        │ ─────────────────────────────────────────────────► │                 │
+        │                                                    └────────┬────────┘
+        │                                                             │
+        │                                           Qdrant.search(vector, limit=1)
+        │                                                             │
+        │                                                    ┌────────▼────────┐
+        │                                                    │  Vector Engine  │
+        │                                                    │   (Identity)    │
+        │                                                    └────────┬────────┘
+        │                                                             │
+        │                                           Similarity > Threshold?
+        │                                                             │
+        │                                                    ┌────────▼────────┐
+        │  SSE: data:{"event":"MATCH", "person":"..."}       │   SSE Pipeline  │
+        │ ◄───────────────────────────────────────────────── │ (Real-time Out) │
+        └────────────────────────────────────────────────────└─────────────────┘
 ```
 
 ---
@@ -336,7 +336,14 @@ Sentrix-AI/
 
 ## Work Proof
 
-Sentrix-AI is designed for mission-critical security environments with high-visibility tactical overlays.
+Sentrix-AI is designed for mission-critical security environments with high-visibility tactical overlays. For security reasons, full live demonstrations are restricted to verified inquiries.
+
+> [!TIP]
+> **Verified Proof & Contact**  
+> If you require more detailed work proof or a live demonstration, feel free to reach out. I can share comprehensive details of this project’s secure architecture and capabilities.
+> 
+> **Email:** [arpitbhojani.contact@gmail.com](mailto:arpitbhojani.contact@gmail.com)  
+> *DM me anytime without worry for additional proof.*
 
 **Screenshot 1 — Real-Time Alert Pipeline**
 *Visualizing a "WANTED" target match with real-time SSE propagation.*
