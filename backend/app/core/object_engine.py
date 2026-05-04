@@ -29,7 +29,13 @@ def init_object_engine():
         from ultralytics import YOLOWorld
         from ultralytics.nn.tasks import WorldModel
         
-        torch.serialization.add_safe_globals([WorldModel, torch.nn.modules.container.Sequential])
+        # Override torch.load globally to avoid weights_only=True errors
+        if not hasattr(torch, '_original_load'):
+            torch._original_load = torch.load
+            def _safe_load(*args, **kwargs):
+                kwargs['weights_only'] = False
+                return torch._original_load(*args, **kwargs)
+            torch.load = _safe_load
 
         try:
             OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))

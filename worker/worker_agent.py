@@ -371,48 +371,12 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
         from ultralytics.nn.tasks import WorldModel
         
         # --- PYTORCH 2.6+ SECURITY FIX ---
-        # Explicitly allowlist Ultralytics and Standard Torch classes for weights_only=True loading
-        try:
-            import torch
-            import ultralytics
-            from ultralytics.nn.tasks import WorldModel, DetectionModel
-            from ultralytics.nn.modules import conv, block, head
-            
-            # 1. Base Torch modules used in almost every model
-            safe_classes = [
-                torch.nn.modules.container.Sequential,
-                torch.nn.modules.container.ModuleList,
-                torch.nn.modules.conv.Conv2d,
-                torch.nn.modules.batchnorm.BatchNorm2d,
-                torch.nn.modules.activation.SiLU,
-                torch.nn.modules.activation.ReLU,
-                torch.nn.modules.pooling.MaxPool2d,
-                torch.nn.modules.upsampling.Upsample,
-                torch.nn.modules.linear.Linear,
-                torch.nn.modules.linear.Identity,
-                torch.FloatStorage,
-                torch.HalfStorage,
-                torch._utils._rebuild_tensor_v2,
-            ]
-            
-            # 2. Ultralytics core task models
-            safe_classes.extend([WorldModel, DetectionModel])
-            
-            # 3. Gather all classes from ultralytics modules (conv, block, head)
-            for module in [conv, block, head]:
-                for name in dir(module):
-                    attr = getattr(module, name)
-                    if isinstance(attr, type):
-                        safe_classes.append(attr)
-            
-            # 4. Additional specialized objects
-            if hasattr(ultralytics.nn.tasks, 'WorldDetect'):
-                safe_classes.append(ultralytics.nn.tasks.WorldDetect)
-            
-            torch.serialization.add_safe_globals(safe_classes)
-            print(f"[+] PyTorch 2.6 Security: Whitelisted {len(safe_classes)} classes for secure loading")
-        except Exception as e:
-            print(f"[WARN] Failed to set PyTorch safe globals: {e}")
+        if not hasattr(torch, '_original_load'):
+            torch._original_load = torch.load
+            def _safe_load(*args, **kwargs):
+                kwargs['weights_only'] = False
+                return torch._original_load(*args, **kwargs)
+            torch.load = _safe_load
         # ---------------------------------
 
         
