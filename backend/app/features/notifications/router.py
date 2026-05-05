@@ -115,10 +115,14 @@ async def dispatch_notification(rule: dict, event: dict):
     if admin_id is None:
         admin_id = 1
     if actions.get("email"):
-        with get_db_conn() as db:
-            cfg = _load_config(db, admin_id)
-            if cfg.get("smtp_host"):
-                asyncio.create_task(_send_email_logged(db, cfg, subject, body, admin_id))
+        # Load config eagerly while we still have a live connection,
+        # then pass only plain data to the background task — never pass a
+        # db handle across an async boundary (the context manager closes it
+        # before the coroutine actually runs).
+        with get_db_conn() as _db:
+            cfg = _load_config(_db, admin_id)
+        if cfg.get("smtp_host"):
+            asyncio.create_task(_send_email_logged(cfg, subject, body, admin_id))
 
     # Webhook
     webhook_url = actions.get("webhook_url", "").strip()
@@ -169,7 +173,7 @@ async def _send_email(cfg: dict, subject: str, body: str):
     await loop.run_in_executor(None, _send)
 
 
-async def _send_email_logged(db, cfg: dict, subject: str, body: str, admin_id: int):
+async def _send_email_logged(cfg: dict, subject: str, body: str, admin_id: int):
     from ...core.database import get_db_conn
     import uuid
     log_id = str(uuid.uuid4())

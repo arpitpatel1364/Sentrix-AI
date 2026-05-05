@@ -60,8 +60,7 @@ async def upload_frame(
     cur = db.cursor()
     user_admin_id = user["admin_id"]
 
-    print(f"[DEBUG] upload_frame: cam={camera_id}, admin=ID:{user_admin_id}, user={user['username']}")
-    
+
     # Ownership Check: Super Admin (0) can upload to any camera; others must own it
     if user_admin_id == 0:
         cur.execute("SELECT id, location FROM cameras WHERE camera_id = ?", (camera_id,))
@@ -86,12 +85,10 @@ async def upload_frame(
     data = await file.read()
     img = bytes_to_cv2(data)
     if img is None:
-        print(f"[DEBUG] upload_frame ERROR: cv2.imdecode failed for {camera_id}")
         raise HTTPException(status_code=400, detail="Invalid image")
 
     embedding = get_embedding(img)
     if embedding is None:
-        print(f"[DEBUG] upload_frame: status=no_face for {camera_id} (img shape: {img.shape})")
         return {
             "status": "no_face",
             "config": WORKER_REGISTRY.get(node_key, {}).get("config")

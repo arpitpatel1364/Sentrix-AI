@@ -212,6 +212,9 @@ def init_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_user            ON audit_log(username)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts              ON audit_log(timestamp)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_stop_status           ON camera_stop_requests(status)")
+        # Required for ON CONFLICT(key, admin_id) upsert in notifications/router.py to work correctly.
+        # Without this, duplicate rows are silently inserted instead of updating.
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_config_key_admin ON notification_config(key, admin_id)")
 
         conn.commit()
 
@@ -267,9 +270,6 @@ def seed_default_users():
 
 def log_audit(db, username: str, role: str, action: str,
               target: str = "", detail: str = "", ip: str = "", admin_id: int = None):
-    if admin_id is None:
-        # Fallback to system default if absolutely necessary, but log it
-        admin_id = 1
     """
     Write one audit log entry into the audit_log table.
     Call this from any router after any important action.
@@ -279,6 +279,9 @@ def log_audit(db, username: str, role: str, action: str,
         log_audit(db, user["username"], user["role"],
                   "DELETE_CAMERA", target=camera_id)
     """
+    if admin_id is None:
+        # Fallback to system default if absolutely necessary, but log it
+        admin_id = 1
     import uuid
     db.execute(
         """INSERT INTO audit_log

@@ -232,50 +232,6 @@ async def get_system_health(user=Depends(require_admin)):
     }
 
 
-@router.get("/super/analysis")
-async def get_super_analysis(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
-    if user["admin_id"] != 0:
-        raise HTTPException(status_code=403, detail="Super Admin access required")
-    
-    cur = db.cursor()
-    
-    # 1. Audit Log Distribution (Last 7 days)
-    cur.execute("""
-        SELECT action, COUNT(*) as count 
-        FROM audit_log 
-        GROUP BY action 
-        ORDER BY count DESC 
-        LIMIT 10
-    """)
-    audit_dist = [dict(r) for r in cur.fetchall()]
-    
-    # 2. Activity per Admin
-    cur.execute("""
-        SELECT u.username, COUNT(a.id) as actions
-        FROM users u
-        LEFT JOIN audit_log a ON u.username = a.username
-        WHERE u.role IN ('admin', 'super_admin')
-        GROUP BY u.username
-    """)
-    admin_activity = [dict(r) for r in cur.fetchall()]
-    
-    # 3. Storage Analysis
-    # (Already in health, but let's add some derived data)
-    from ...core.config import SNAPSHOTS_DIR
-    snapshot_stats = []
-    if SNAPSHOTS_DIR.exists():
-        for d in SNAPSHOTS_DIR.iterdir():
-            if d.is_dir():
-                count = sum(1 for _ in d.glob('*') if _.is_file())
-                size = sum(_.stat().st_size for _ in d.glob('*') if _.is_file())
-                snapshot_stats.append({"admin_id": d.name, "count": count, "size_mb": round(size / (1024*1024), 2)})
-
-    return {
-        "audit_distribution": audit_dist,
-        "admin_activity": admin_activity,
-        "storage_stats": snapshot_stats
-    }
-
 @router.post("/system/reset")
 async def system_reset(user=Depends(require_admin)):
     # Protection: Only Super Admin can reset the SYSTEM.

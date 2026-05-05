@@ -15,17 +15,17 @@ import requests
 
 # --- CONFIG ---
 TARGET_CLASSES = [
-    "phone","water bottle", "laptop", "backpack", 
-    "remote", "keyboard", "cell phone", "book","bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
+    "phone", "water bottle", "laptop", "backpack", "remote", "keyboard", "cell phone",
+    "book", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
     "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
     "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
     "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
     "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
-    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop",
-    "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor",
+    "mouse", "microwave", "oven", "toaster", "sink",
+    "refrigerator", "clock", "vase", "scissors", "teddy bear", "hair drier",
     "toothbrush"
 ]
 

@@ -211,6 +211,14 @@ async def evaluate_rules(event: dict, db: sqlite3.Connection):
             if not target or object_label.lower() == target:
                 fired = True
 
+        elif rule["rule_type"] == "loitering" and event_type == "face" and event.get("loitering", False):
+            # Fires when the worker reports a face has been in frame longer than the threshold.
+            # The worker sets loitering=True on the event when dwell_time >= min_dwell_seconds.
+            min_dwell = cond.get("min_dwell_seconds", 30)
+            dwell_time = event.get("dwell_time", 0)
+            if dwell_time >= min_dwell:
+                fired = True
+
         if fired:
             alert_payload = {
                 "type": "rule_alert",

@@ -1,14 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from ...core.security import _create_token, _verify_password, get_current_user, require_admin, require_super_admin
 from ...core.database import get_db, _add_user
 from ...core.sse_manager import SSE_CONNECTIONS
 from ..audit_log.router import write_log
 import sqlite3
+import time
+from collections import defaultdict
+
+# ─── BRUTE-FORCE PROTECTION ──────────────────────────────────────────────────
+# In-memory store: { ip: {"count": int, "window_start": float} }
+_LOGIN_ATTEMPTS: dict = defaultdict(lambda: {"count": 0, "window_start": 0.0})
+_MAX_ATTEMPTS   = 10    # max failures before lockout
+_WINDOW_SECONDS = 900   # 15-minute sliding window
+# ─────────────────────────────────────────────────────────────────────────────
 
 router = APIRouter(prefix="/api")
 
 @router.post("/login")
 async def login(request: Request, db: sqlite3.Connection = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+
+    # Enforce lockout before touching the DB
+    attempt = _LOGIN_ATTEMPTS[client_ip]
+    if now - attempt["window_start"] > _WINDOW_SECONDS:
+        # Reset window
+        attempt["count"] = 0
+        attempt["window_start"] = now
+    if attempt["count"] >= _MAX_ATTEMPTS:
+        retry_after = int(_WINDOW_SECONDS - (now - attempt["window_start"]))
+        return JSONResponse(
+            status_code=429,
+            content={"detail": f"Too many failed login attempts. Try again in {retry_after}s."},
+            headers={"Retry-After": str(retry_after)}
+        )
+
     body = await request.json()
     username = body.get("username", "").strip()
     password = body.get("password", "")
@@ -18,9 +45,13 @@ async def login(request: Request, db: sqlite3.Connection = Depends(get_db)):
     user = cur.fetchone()
         
     if not user or not _verify_password(password, user["password_hash"]):
+        attempt["count"] += 1
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Success — reset attempt counter for this IP
+    attempt["count"] = 0
     token = _create_token(username, user["role"], user["admin_id"])
-    write_log(db, username=username, role=user["role"], action="login", ip=request.client.host, admin_id=user["admin_id"])
+    write_log(db, username=username, role=user["role"], action="login", ip=client_ip, admin_id=user["admin_id"])
     return {"token": token, "username": username, "role": user["role"], "admin_id": user["admin_id"]}
 
 @router.post("/impersonate/exit")

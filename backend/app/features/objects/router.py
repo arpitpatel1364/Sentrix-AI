@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from typing import List
 import uuid
-import time
+from datetime import datetime
 import os
 from ...core.security import require_admin, get_current_user
 from ...core.database import get_db
@@ -35,8 +35,7 @@ async def upload_object(
         cur = db.cursor()
         user_admin_id = user["admin_id"]
             
-        print(f"[DEBUG] upload_object: cam={camera_id}, admin=ID:{user_admin_id}, user={user['username']}")
-        
+
         # Ownership Check: Super Admin (0) can upload anywhere; others must own camera
         if user_admin_id == 0:
             cur.execute("SELECT id FROM cameras WHERE camera_id = ?", (camera_id,))
@@ -50,7 +49,7 @@ async def upload_object(
         update_worker_heartbeat(node_key, user_admin_id)
 
         obj_id = str(uuid.uuid4())
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.utcnow().isoformat()
         
         # Save snapshot in tenant-isolated directory: SNAPSHOTS_DIR/{admin_id}/{camera_id}/
         admin_id_val = user["admin_id"]

@@ -11,6 +11,8 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/models:/app/models
+    env_file:
+      - ./backend/.env
     restart: always
 
   # Local worker node (optional, can also run on separate machines)
