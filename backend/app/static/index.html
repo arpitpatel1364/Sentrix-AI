@@ -149,6 +149,33 @@
             <span class="nav-label">Analytics</span>
           </div>
 
+          <div class="nav-section op-tool">// INTELLIGENCE</div>
+
+          <div class="nav-item op-tool" onclick="showPage('person-trail',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="5" r="2"/><path d="M12 7v5"/><circle cx="12" cy="15" r="2"/>
+              <path d="M8 10l4 5 4-5"/><path d="M5 19h14"/>
+            </svg>
+            <span class="nav-label">Person Trail</span>
+          </div>
+
+          <div class="nav-item op-tool" onclick="showPage('crowd-density',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span class="nav-label">Crowd Density</span>
+          </div>
+
+          <div class="nav-item op-tool" onclick="showPage('notifications',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 11.41 19.79 19.79 0 0 1 1.07 2.84 2 2 0 0 1 3.05 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16"/>
+              <path d="M22 6L12 16l-4-4"/>
+            </svg>
+            <span class="nav-label">Notifications</span>
+          </div>
+
           <div class="nav-section op-tool">// ADMIN</div>
 
           <div class="nav-item op-tool" onclick="showPage('cameras',this)">
@@ -864,6 +891,157 @@
               <div class="empty-icon">◎</div>
               <div class="empty-text">No rules defined</div>
               <div class="empty-sub">// Click "New Rule" to create your first alert trigger</div>
+            </div>
+          </div>
+
+          <!-- ══ PERSON TRAIL ══ -->
+          <div class="page" id="page-person-trail">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">PERSON TRAIL</div>
+                <div class="sec-sub">// CROSS-CAMERA MOVEMENT FORENSICS</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-ghost btn-sm" onclick="loadPersonTrailPage()">↺ Refresh</button>
+              </div>
+            </div>
+
+            <!-- Search bar -->
+            <div class="panel" style="margin-bottom:1.5rem">
+              <div class="panel-title">SEARCH BY TRACK ID</div>
+              <div style="display:flex;gap:0.75rem;margin-top:0.75rem;align-items:center">
+                <input id="trail-search-input" type="text" style="flex:1;font-family:var(--font-mono);font-size:0.8rem"
+                       placeholder="Enter Track ID (UUID)…" onkeydown="if(event.key==='Enter')searchTrail()">
+                <button class="btn btn-primary btn-sm" onclick="searchTrail()">Search Trail</button>
+              </div>
+            </div>
+
+            <!-- Recent tracked sightings grid -->
+            <div class="panel" style="margin-bottom:1.5rem">
+              <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>RECENT TRACKED INDIVIDUALS</span>
+                <span class="badge-mini purple" style="font-size:0.5rem">RE-ID ENGINE</span>
+              </div>
+              <div id="trail-page-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1rem">
+                <div class="empty-state" style="grid-column:1/-1;padding:2rem">
+                  <div class="empty-icon">◎</div>
+                  <div class="empty-text">No tracked individuals yet</div>
+                  <div class="empty-sub">// Run sightings with Re-ID enabled to populate</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Trail result panel -->
+            <div class="panel" id="trail-result-panel" style="display:none">
+              <div class="panel-title" id="trail-result-header">TRAIL RESULT</div>
+              <div id="trail-page-timeline" class="trail-timeline" style="margin-top:1rem"></div>
+            </div>
+          </div>
+
+          <!-- ══ CROWD DENSITY ══ -->
+          <div class="page" id="page-crowd-density">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">CROWD DENSITY MONITOR</div>
+                <div class="sec-sub">// LIVE HEADCOUNT TELEMETRY ACROSS ALL NODES</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-ghost btn-sm" onclick="loadCrowdDensityPage()">↺ Refresh</button>
+              </div>
+            </div>
+
+            <!-- Live grid -->
+            <div class="panel" style="margin-bottom:1.5rem;border-left:4px solid var(--purple)">
+              <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>LIVE HEADCOUNTS — TODAY</span>
+                <span id="crowd-last-updated" style="font-size:0.6rem;color:var(--on-surface-muted);font-family:var(--font-mono)">—</span>
+              </div>
+              <div id="crowd-page-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-top:1rem">
+                <div class="empty-state" style="grid-column:1/-1;padding:2rem">
+                  <div class="empty-icon">◎</div>
+                  <div class="empty-text">Awaiting telemetry</div>
+                  <div class="empty-sub">// Workers must send /api/camera-heartbeat</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Summary stats -->
+            <div class="stat-grid" style="margin-bottom:1.5rem">
+              <div class="stat-card purple">
+                <div class="stat-label">TOTAL CAMERAS</div>
+                <div class="stat-value" id="crowd-stat-cameras">—</div>
+              </div>
+              <div class="stat-card amber">
+                <div class="stat-label">PEAK COUNT TODAY</div>
+                <div class="stat-value" id="crowd-stat-peak">—</div>
+              </div>
+              <div class="stat-card cyan">
+                <div class="stat-label">HIGH DENSITY ALERTS</div>
+                <div class="stat-value" id="crowd-stat-alerts">—</div>
+              </div>
+            </div>
+
+            <!-- Historical bar chart -->
+            <div class="panel">
+              <div class="panel-title">DENSITY HISTORY (ALL CAMERAS — TODAY)</div>
+              <div id="crowd-history-list" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.6rem"></div>
+            </div>
+          </div>
+
+          <!-- ══ NOTIFICATIONS ══ -->
+          <div class="page" id="page-notifications">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">NOTIFICATION CENTER</div>
+                <div class="sec-sub">// ALERT DISPATCH CONFIGURATION &amp; HISTORY</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-primary btn-sm" onclick="openNotifConfig()">⚙ Configure Channels</button>
+              </div>
+            </div>
+
+            <!-- Channel status cards -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem">
+              <div class="panel" id="notif-email-card" style="border-left:4px solid var(--cyan)">
+                <div class="panel-title" style="font-size:0.65rem">EMAIL — SMTP</div>
+                <div id="notif-email-status" style="margin-top:0.5rem;font-size:0.8rem;color:var(--on-surface-muted)">Not configured</div>
+                <div id="notif-email-host" style="font-family:var(--font-mono);font-size:0.6rem;color:var(--on-surface-muted);margin-top:4px">—</div>
+                <button class="btn btn-ghost btn-sm" style="margin-top:0.75rem;width:100%" onclick="testEmail()">Send Test Email</button>
+              </div>
+              <div class="panel" id="notif-tg-card" style="border-left:4px solid var(--purple)">
+                <div class="panel-title" style="font-size:0.65rem">TELEGRAM BOT</div>
+                <div id="notif-tg-status" style="margin-top:0.5rem;font-size:0.8rem;color:var(--on-surface-muted)">Not configured</div>
+                <div id="notif-tg-chat" style="font-family:var(--font-mono);font-size:0.6rem;color:var(--on-surface-muted);margin-top:4px">—</div>
+              </div>
+              <div class="panel" style="border-left:4px solid var(--amber)">
+                <div class="panel-title" style="font-size:0.65rem">DISPATCH STATS</div>
+                <div style="display:flex;flex-direction:column;gap:0.35rem;margin-top:0.5rem">
+                  <div class="result-item"><span class="result-label">Today</span><span id="notif-count-today" style="font-family:var(--font-mono);color:var(--amber)">—</span></div>
+                  <div class="result-item"><span class="result-label">Total</span><span id="notif-count-total" style="font-family:var(--font-mono)">—</span></div>
+                  <div class="result-item"><span class="result-label">Failed</span><span id="notif-count-failed" style="font-family:var(--font-mono);color:var(--red)">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dispatch history table -->
+            <div class="panel">
+              <div class="panel-title">DISPATCH HISTORY</div>
+              <div style="overflow-x:auto;margin-top:0.75rem">
+                <table class="data-table" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th>TIME</th>
+                      <th>CHANNEL</th>
+                      <th>RECIPIENT</th>
+                      <th>SUBJECT</th>
+                      <th>STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="notif-history-table">
+                    <tr><td colspan="5" style="text-align:center;color:var(--on-surface-muted);padding:2rem">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
