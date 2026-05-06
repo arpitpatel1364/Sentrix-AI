@@ -64,6 +64,7 @@ function showPage(id, navEl) {
     'person-trail':   loadPersonTrailPage,
     'crowd-density':  loadCrowdDensityPage,
     'notifications':  loadNotificationsPage,
+    'travel-map':     loadTravelMapPage,
   };
   if (loaders[id]) loaders[id]();
 

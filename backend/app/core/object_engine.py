@@ -7,7 +7,7 @@ from .config import BASE_DIR
 MODEL_PATH = BASE_DIR.parent / "yolov8s-worldv2.pt"
 
 DAILY_USAGE_CLASSES = [
-    "phone", "water bottle", "laptop", "backpack", "remote", "keyboard", "cell phone",
+    "person", "phone", "water bottle", "laptop", "backpack", "remote", "keyboard", "cell phone",
     "book", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
     "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
     "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",

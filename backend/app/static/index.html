@@ -168,6 +168,14 @@
             <span class="nav-label">Crowd Density</span>
           </div>
 
+          <div class="nav-item op-tool" onclick="showPage('travel-map',this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21 3 6" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span class="nav-label">Travel Map (ReID)</span>
+          </div>
+
           <div class="nav-item op-tool" onclick="showPage('notifications',this)">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 11.41 19.79 19.79 0 0 1 1.07 2.84 2 2 0 0 1 3.05 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16"/>
@@ -1728,6 +1736,40 @@
                     </div>
                     <div class="bar-track"><div class="bar-fill" style="background:var(--amber);" data-width="0.07%"></div></div>
                   </div>
+                </div>
+              </div>
+            </div>
+          <!-- ── TRAVEL MAP (ReID) ── -->
+          <div class="page" id="page-travel-map">
+            <div class="sec-head">
+              <div>
+                <div class="sec-title">TRAVEL MAP (ReID)</div>
+                <div class="sec-sub">// VISUALIZING SUBJECT MOVEMENT ACROSS BLIND SPOTS</div>
+              </div>
+              <div class="sec-actions">
+                <button class="btn btn-ghost btn-sm" onclick="loadTravelMapPage()">↺ Refresh Subjects</button>
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="panel" style="flex: 0 0 320px; overflow-y: auto; max-height: 70vh;">
+                <div class="panel-title">DETECTED SUBJECTS</div>
+                <div id="travel-subjects-list" style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1rem">
+                   <!-- Populated by JS -->
+                </div>
+              </div>
+              <div class="panel" style="display:flex; flex-direction:column;">
+                <div class="panel-title" id="travel-map-title">SELECT A SUBJECT TO VIEW TRAIL</div>
+                <div id="travel-map-container" style="position:relative; width:100%; height:500px; background:var(--surface-high); border-radius:var(--radius-lg); overflow:hidden; border:1px solid var(--outline); margin-top:1rem">
+                   <div style="position:absolute; top:1rem; left:1rem; z-index:5; font-family:var(--font-mono); font-size:0.6rem; color:var(--primary); background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px">
+                      FACILITY OVERVIEW MAP
+                   </div>
+                   <!-- Map will be rendered here -->
+                   <div id="travel-map-view" style="width:100%; height:100%; position:relative;">
+                      <canvas id="travel-map-canvas" style="width:100%; height:100%"></canvas>
+                   </div>
+                </div>
+                <div id="travel-trail-details" class="trail-timeline" style="margin-top:1.5rem; border-top:1px solid var(--outline); padding-top:1.5rem">
+                   <!-- Timeline details -->
                 </div>
               </div>
             </div>

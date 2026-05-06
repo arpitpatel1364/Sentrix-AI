@@ -829,3 +829,18 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .crowd-count { font-size: 1.5rem; font-weight: 800; font-family: var(--font-manrope); }
 .crowd-label { font-size: 0.6rem; color: var(--on-surface-muted); font-weight: 700; letter-spacing: 0.1em; }
 .crowd-peak { font-family: var(--font-mono); font-size: 0.55rem; color: var(--purple); margin-top: 4px; }
+
+/* ─── TRAVEL MAP (ReID) ─── */
+.travel-subject-item {
+  border: 1px solid var(--outline);
+  transition: all var(--transition);
+}
+.travel-subject-item:hover {
+  border-color: var(--primary-glow);
+  background: var(--surface-high);
+}
+.travel-subject-item.active {
+  border-color: var(--primary);
+  background: var(--primary-dim);
+  box-shadow: 0 0 15px var(--primary-glow);
+}

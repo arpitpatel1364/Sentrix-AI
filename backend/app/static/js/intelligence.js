@@ -297,3 +297,146 @@ async function loadNotificationsPage() {
     toast('Failed to load notification data: ' + e.message, 'red');
   }
 }
+
+/* ─── TRAVEL MAP (ReID) ─── */
+
+async function loadTravelMapPage() {
+  const list = document.getElementById('travel-subjects-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty-state">LOADING SUBJECTS...</div>';
+
+  try {
+    const data = await api('/api/sightings?limit=100');
+    const tracked = (data.sightings || []).filter(s => s.track_id);
+
+    // Deduplicate by track_id
+    const seen = new Map();
+    tracked.forEach(s => {
+      if (!seen.has(s.track_id) || s.timestamp > seen.get(s.track_id).timestamp) {
+        seen.set(s.track_id, s);
+      }
+    });
+
+    const unique = [...seen.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+    if (!unique.length) {
+      list.innerHTML = '<div class="empty-state">No tracked subjects found</div>';
+      return;
+    }
+
+    list.innerHTML = unique.map(s => `
+      <div class="panel travel-subject-item" style="cursor:pointer; padding:0.75rem; display:flex; gap:0.75rem; align-items:center; transition:all 0.2s" onclick="visualizeTravelTrail('${esc(s.track_id)}', this)">
+        <img src="${esc(s.snapshot || '')}" style="width:50px; height:50px; object-fit:cover; border-radius:4px">
+        <div style="flex:1">
+           <div style="font-size:0.65rem; font-family:var(--font-mono); color:var(--primary)">ID: ${esc(s.track_id.slice(0,8))}</div>
+           <div style="font-size:0.7rem; color:var(--on-surface-muted)">Last seen: ${fmtTs(s.timestamp)}</div>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state" style="color:var(--red)">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function visualizeTravelTrail(trackId, el) {
+  if (el) {
+    document.querySelectorAll('.travel-subject-item').forEach(item => item.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  const canvas = document.getElementById('travel-map-canvas');
+  const details = document.getElementById('travel-trail-details');
+  const title = document.getElementById('travel-map-title');
+  if (!canvas || !details) return;
+
+  title.textContent = `VISUALIZING TRAIL — SUBJECT ${trackId.slice(0,8)}`;
+  details.innerHTML = '<div class="empty-state">FETCHING TRAIL...</div>';
+
+  try {
+    // 1. Get cameras to know their floor plan coordinates
+    // 2. Get trail data
+    const [camsData, trailData] = await Promise.all([
+      api('/api/cameras'),
+      api(`/api/sightings/trail/${trackId}`)
+    ]);
+
+    const cameras = camsData.cameras || [];
+    const trail = trailData.trail || [];
+
+    renderTrailTimeline(trail, 'travel-trail-details');
+
+    // Draw on canvas
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+    for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
+    // Map cameras to positions
+    const camMap = {};
+    cameras.forEach(c => {
+      camMap[c.camera_id] = {
+        x: (c.floor_plan_x || 50) * canvas.width / 100,
+        y: (c.floor_plan_y || 50) * canvas.height / 100,
+        name: c.name
+      };
+    });
+
+    // Draw path
+    if (trail.length > 0) {
+      ctx.beginPath();
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+      ctx.lineWidth = 2;
+
+      let first = true;
+      trail.forEach(s => {
+        const pos = camMap[s.camera_id];
+        if (pos) {
+          if (first) {
+            ctx.moveTo(pos.x, pos.y);
+            first = false;
+          } else {
+            ctx.lineTo(pos.x, pos.y);
+          }
+        }
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw nodes
+      trail.forEach((s, idx) => {
+        const pos = camMap[s.camera_id];
+        if (pos) {
+          const isLast = idx === trail.length - 1;
+          const isFirst = idx === 0;
+
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, isLast ? 8 : 5, 0, Math.PI * 2);
+          ctx.fillStyle = isLast ? 'var(--primary)' : 'var(--cyan)';
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = '10px JetBrains Mono';
+          ctx.fillText(`${idx + 1}. ${s.camera_id}`, pos.x + 10, pos.y + 5);
+        }
+      });
+    }
+
+  } catch (err) {
+    toast(`Failed to visualize trail: ${err.message}`, 'red');
+  }
+}

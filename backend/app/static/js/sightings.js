@@ -160,9 +160,13 @@ function openSnapshot(snap) {
   // --- PERSON TRAIL BUTTON ---
   const trailBtn = document.getElementById('snap-modal-trail-btn');
   if (trailBtn) {
-    if (snap.type === 'face' && snap.track_id) {
+    if (snap.track_id) {
       trailBtn.style.display = 'inline-flex';
-      trailBtn.onclick = () => showPersonTrail(snap.track_id);
+      trailBtn.onclick = () => {
+        closeModal('modal-snapshot');
+        showPage('travel-map');
+        setTimeout(() => visualizeTravelTrail(snap.track_id), 100);
+      };
     } else {
       trailBtn.style.display = 'none';
     }
@@ -181,8 +185,8 @@ async function showPersonTrail(trackId) {
   }
 }
 
-function renderTrailTimeline(trail) {
-  const el = document.getElementById('trail-timeline');
+function renderTrailTimeline(trail, containerId = 'trail-timeline') {
+  const el = document.getElementById(containerId);
   if (!el) return;
   
   if (!trail.length) {

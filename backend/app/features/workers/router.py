@@ -13,6 +13,7 @@ from ..audit_log.router import write_log
 from ...core.face_engine import (
     get_embedding, bytes_to_cv2, match_wanted, QDRANT_AVAILABLE
 )
+from ...core.reid_engine import extract_reid_embedding, compare_reid
 from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import update_worker_heartbeat, get_live_nodes
@@ -32,38 +33,73 @@ def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embed
             return
 
         # 1. PERSON RE-ID ACROSS CAMERAS
-        # If this isn't a known watchlist person, try to link to recent unknown sightings
+        # Use both Face and ReID for superior tracking across blind spots
         track_id = sighting.get("track_id")
+        reid_emb = extract_reid_embedding(img)
+        reid_blob = reid_emb.tobytes() if reid_emb is not None else None
+
         if not sighting.get("person_id"):
-            # Search last 15 mins of sightings for this tenant
-            from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
-            from datetime import timedelta
-            
-            fifteen_mins_ago = (datetime.fromisoformat(ts) - timedelta(minutes=15)).isoformat()
-            
-            search_filter = Filter(
-                must=[
-                    FieldCondition(key="admin_id", match=MatchValue(value=admin_id)),
-                    FieldCondition(key="timestamp", range=Range(gte=fifteen_mins_ago))
-                ]
-            )
-            
-            hits = face_engine.QDRANT_CLIENT.search(
-                collection_name="sightings",
-                query_vector=embedding.tolist(),
-                query_filter=search_filter,
-                limit=1,
-                score_threshold=0.80 # Per user requirement
-            )
-            
-            if hits:
-                # Link to existing track
-                track_id = hits[0].payload.get("track_id")
-                print(f"[RE-ID] Linked to track {track_id} (score: {hits[0].score:.3f})")
-            else:
-                # New unknown track
-                track_id = str(uuid.uuid4())
-                print(f"[RE-ID] Started new track {track_id}")
+            # Search last 15 mins of sightings for this tenant using ReID primarily
+            # This allows tracking even if the face isn't visible (blind spots)
+            from ...core.database import get_db_conn
+            with get_db_conn() as db:
+                cur = db.cursor()
+                
+                # Filter by admin_id and recent time
+                from datetime import timedelta
+                fifteen_mins_ago = (datetime.fromisoformat(ts) - timedelta(minutes=15)).isoformat()
+                
+                cur.execute(\"\"\"
+                    SELECT track_id, reid_embedding FROM sightings 
+                    WHERE admin_id = ? AND timestamp > ? AND reid_embedding IS NOT NULL
+                    ORDER BY timestamp DESC LIMIT 50
+                \"\"\", (admin_id, fifteen_mins_ago))
+                
+                rows = cur.fetchall()
+                best_track = None
+                best_score = 0.0
+                
+                if reid_emb is not None:
+                    for r in rows:
+                        prev_reid = np.frombuffer(r["reid_embedding"], dtype=np.float32)
+                        score = compare_reid(reid_emb, prev_reid)
+                        if score > best_score:
+                            best_score = score
+                            best_track = r["track_id"]
+                
+                # Threshold for ReID match (color histogram based)
+                REID_THRESHOLD = 0.85 
+                
+                if best_track and best_score > REID_THRESHOLD:
+                    track_id = best_track
+                    print(f"[RE-ID] Linked to track {track_id} via Appearance (score: {best_score:.3f})")
+                else:
+                    # Fallback to Face Re-ID if Qdrant is available
+                    if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
+                         # ... existing Qdrant face search logic ...
+                         from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
+                         search_filter = Filter(
+                             must=[
+                                 FieldCondition(key="admin_id", match=MatchValue(value=admin_id)),
+                                 FieldCondition(key="timestamp", range=Range(gte=fifteen_mins_ago))
+                             ]
+                         )
+                         hits = face_engine.QDRANT_CLIENT.search(
+                             collection_name="sightings",
+                             query_vector=embedding.tolist(),
+                             query_filter=search_filter,
+                             limit=1,
+                             score_threshold=0.80
+                         )
+                         if hits:
+                             track_id = hits[0].payload.get("track_id")
+                             print(f"[FACE-ID] Linked to track {track_id} (score: {hits[0].score:.3f})")
+                         else:
+                             track_id = str(uuid.uuid4())
+                             print(f"[NEW-TRACK] Started {track_id}")
+                    else:
+                        track_id = str(uuid.uuid4())
+                        print(f"[NEW-TRACK] Started {track_id}")
 
         # 2. Store in Qdrant
         face_engine.QDRANT_CLIENT.upsert(
@@ -83,10 +119,10 @@ def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embed
             )]
         )
 
-        # 3. Update SQLite with the new track_id
+        # 3. Update SQLite with the new track_id and reid_embedding
         from ...core.database import get_db_conn
         with get_db_conn() as db:
-            db.execute("UPDATE sightings SET track_id = ? WHERE id = ?", (track_id, sighting_id))
+            db.execute("UPDATE sightings SET track_id = ?, reid_embedding = ? WHERE id = ?", (track_id, reid_blob, sighting_id))
 
     except Exception as e:
         print(f"Error in background task: {e}")
