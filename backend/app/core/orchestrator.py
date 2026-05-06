@@ -36,9 +36,15 @@ class WorkerOrchestrator:
 
     def load_nodes_from_db(self) -> List[Dict]:
         nodes = []
-        # Read worker credentials from environment — never hardcode in source.
-        worker_user = os.environ.get("WORKER_USER", "admin")
-        worker_pass = os.environ.get("WORKER_PASS", "admin123")
+        # Read worker credentials from environment.
+        worker_user = os.environ.get("WORKER_USER")
+        worker_pass = os.environ.get("WORKER_PASS")
+        
+        if not worker_user or not worker_pass:
+            print("[ORCH] WARNING: WORKER_USER or WORKER_PASS not set in environment.")
+            # Fallback to system defaults if provided by deployment script, but warn
+            worker_user = worker_user or "admin"
+            worker_pass = worker_pass or "admin123"
         try:
             with sqlite3.connect(DB_PATH) as conn:
                 conn.row_factory = sqlite3.Row

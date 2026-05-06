@@ -11,6 +11,7 @@ from ...core.sse_manager import SSE_CONNECTIONS, broadcast_alert
 from ...core.worker_state import update_worker_heartbeat, WORKER_REGISTRY
 import sqlite3
 import json
+import time
 
 router = APIRouter(prefix="/api")
 
@@ -21,6 +22,7 @@ async def upload_object(
     object_label: str = Form(...),
     confidence: float = Form(...),
     file: UploadFile = File(...),
+    metadata: str = Form("{}"),
     user=Depends(get_current_user),   # Workers (role=worker) can upload
     db: sqlite3.Connection = Depends(get_db)
 ):
@@ -57,7 +59,7 @@ async def upload_object(
         cam_dir.mkdir(parents=True, exist_ok=True)
         
         # Systematic Filename Generation
-        now_str = time.strftime("%Y%m%d_%H%M%S")
+        now_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         safe_label = object_label.replace(" ", "_").lower()
         short_uuid = obj_id[:8]
         filename = f"obj_{now_str}_{safe_label}_{camera_id}_{short_uuid}.jpg"
@@ -91,6 +93,11 @@ async def upload_object(
         await broadcast_alert(payload)
         
         # ── Alert Rules Engine ───────────────────────────────────────────
+        try:
+            meta_dict = json.loads(metadata)
+        except:
+            meta_dict = {}
+
         from ...features.alert_rules.router import evaluate_rules
         await evaluate_rules({
             "type": "object", 
@@ -98,7 +105,8 @@ async def upload_object(
             "object_label": object_label,
             "confidence": confidence * 100.0, # Scale to 0-100 for rules engine
             "timestamp": timestamp,
-            "admin_id": user["admin_id"]
+            "admin_id": user["admin_id"],
+            "abandoned": meta_dict.get("abandoned", False)
         }, db)
 
         return {
@@ -126,7 +134,7 @@ async def get_objects(limit: int = 50, user=Depends(require_admin), db: sqlite3.
     total_count = cur.fetchone()[0]
 
     cur.execute(f"""
-        SELECT id, camera_id, location, timestamp, object_label, confidence, snapshot_path 
+        SELECT id, camera_id, location, timestamp, object_label, confidence, snapshot_path, metadata 
         FROM object_detections 
         {admin_filter}
         ORDER BY timestamp DESC LIMIT ?

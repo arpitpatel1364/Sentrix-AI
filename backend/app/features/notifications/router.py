@@ -37,6 +37,7 @@ async def save_config(request: Request, user=Depends(require_admin),
         "smtp_host", "smtp_port", "smtp_user", "smtp_password",
         "smtp_from", "smtp_to",   # comma-separated recipient list
         "smtp_tls",               # "1" or "0"
+        "telegram_bot_token", "telegram_chat_id"
     }
     for key, val in body.items():
         if key in allowed:
@@ -135,6 +136,15 @@ async def dispatch_notification(rule: dict, event: dict):
             "event": event
         }))
 
+    # Telegram
+    if actions.get("telegram"):
+        with get_db_conn() as _db:
+            cfg = _load_config(_db, admin_id)
+        bot_token = cfg.get("telegram_bot_token")
+        chat_id   = cfg.get("telegram_chat_id")
+        if bot_token and chat_id:
+            asyncio.create_task(_send_telegram_logged(bot_token, chat_id, f"{subject}\n\n{body}", admin_id))
+
 
 async def _send_email(cfg: dict, subject: str, body: str):
     import smtplib
@@ -214,3 +224,32 @@ async def _send_webhook(url: str, payload: dict):
                 INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
                 VALUES (?, 'webhook', ?, ?, 'failed', ?, ?, ?)
             """, (log_id, url, payload.get("rule","webhook"), str(e)[:500], now, payload.get("event", {}).get("admin_id", 1)))
+
+
+async def _send_telegram(token: str, chat_id: str, message: str):
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message}
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
+            if r.status >= 400:
+                txt = await r.text()
+                raise Exception(f"Telegram API Error: {txt}")
+
+async def _send_telegram_logged(token: str, chat_id: str, message: str, admin_id: int):
+    from ...core.database import get_db_conn
+    import uuid
+    log_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
+    try:
+        await _send_telegram(token, chat_id, message)
+        with get_db_conn() as db:
+            db.execute("""
+                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
+                VALUES (?, 'telegram', ?, 'Alert', 'sent', NULL, ?, ?)
+            """, (log_id, chat_id, now, admin_id))
+    except Exception as e:
+        with get_db_conn() as db:
+            db.execute("""
+                INSERT INTO notification_log (id, channel, recipient, subject, status, error, sent_at, admin_id)
+                VALUES (?, 'telegram', ?, 'Alert', 'failed', ?, ?, ?)
+            """, (log_id, chat_id, str(e)[:500], now, admin_id))

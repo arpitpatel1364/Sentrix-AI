@@ -358,12 +358,17 @@ async function loadRules() {
     any_face:        ['var(--primary)','var(--primary-dim)',    'ANY FACE'],
     object_detected: ['var(--cyan)',   'var(--cyan-dim)',       'OBJECT DETECTED'],
     high_confidence: ['var(--purple)', 'rgba(92,66,160,0.1)',   'HIGH CONFIDENCE'],
+    loitering:        ['var(--amber)',  'var(--amber-dim)',      'LOITERING'],
+    abandoned_object: ['#d8b4fe',       'rgba(216,180,254,0.1)', 'ABANDONED OBJECT'],
+    crowd_threshold:  ['var(--purple)', 'var(--purple-dim)',     'CROWD THRESHOLD'],
   };
 
   listEl.innerHTML = State.rules.map(r => {
     const [tc, bgc, tlabel] = typeMap[r.rule_type] || ['var(--on-surface-muted)', 'var(--surface-high)', r.rule_type];
     const condStr = r.conditions?.object_label ? ` → ${r.conditions.object_label}`
-                  : r.conditions?.min_confidence ? ` ≥ ${r.conditions.min_confidence}%` : '';
+                  : r.conditions?.min_confidence ? ` ≥ ${r.conditions.min_confidence}%` 
+                  : r.conditions?.min_dwell_seconds ? ` > ${r.conditions.min_dwell_seconds}s`
+                  : r.conditions?.crowd_threshold ? ` > ${r.conditions.crowd_threshold}p` : '';
     const acts = [];
     if (r.actions?.popup !== false) acts.push('🔔 Popup');
     if (r.actions?.email)           acts.push('📧 Email');
@@ -398,8 +403,10 @@ function openAddRule() {
 
 function onRuleTypeChange() {
   const type = document.getElementById('ar-type').value;
-  document.getElementById('ar-obj-field').style.display  = type === 'object_detected' ? '' : 'none';
-  document.getElementById('ar-conf-field').style.display = type === 'high_confidence'  ? '' : 'none';
+  document.getElementById('ar-obj-field').style.display   = type === 'object_detected' ? '' : 'none';
+  document.getElementById('ar-conf-field').style.display  = type === 'high_confidence'  ? '' : 'none';
+  document.getElementById('ar-dwell-field').style.display = type === 'loitering' ? '' : 'none';
+  document.getElementById('ar-crowd-field').style.display = type === 'crowd_threshold' ? '' : 'none';
 }
 
 async function saveRule() {
@@ -410,6 +417,9 @@ async function saveRule() {
   const conditions = {};
   if (type === 'object_detected') { const lbl = document.getElementById('ar-obj-label').value.trim(); if (lbl) conditions.object_label = lbl; }
   if (type === 'high_confidence') { conditions.min_confidence = parseFloat(document.getElementById('ar-min-conf').value) || 90; }
+  if (type === 'loitering') { conditions.min_dwell_seconds = parseInt(document.getElementById('ar-dwell').value) || 30; }
+  if (type === 'crowd_threshold') { conditions.crowd_threshold = parseInt(document.getElementById('ar-crowd-limit').value) || 10; }
+  if (type === 'abandoned_object') { conditions.must_be_abandon = true; }
   const actions = {};
   if (document.getElementById('ar-act-popup').checked) actions.popup = true;
   if (document.getElementById('ar-act-email').checked) actions.email = true;
@@ -560,6 +570,8 @@ async function openNotifConfig() {
     document.getElementById('nc-user').value = cfg.smtp_user  || '';
     document.getElementById('nc-from').value = cfg.smtp_from  || '';
     document.getElementById('nc-to').value   = cfg.smtp_to    || '';
+    document.getElementById('nc-tg-token').value = cfg.telegram_bot_token || '';
+    document.getElementById('nc-tg-chat').value  = cfg.telegram_chat_id   || '';
     document.getElementById('nc-pass').value = '';
   } catch {}
   openModal('modal-notif-config');
@@ -575,6 +587,8 @@ async function saveNotifConfig() {
     smtp_user: document.getElementById('nc-user').value.trim(),
     smtp_from: document.getElementById('nc-from').value.trim(),
     smtp_to:   document.getElementById('nc-to').value.trim(),
+    telegram_bot_token: document.getElementById('nc-tg-token').value.trim(),
+    telegram_chat_id:   document.getElementById('nc-tg-chat').value.trim(),
   };
   const pass = document.getElementById('nc-pass').value;
   if (pass) body.smtp_password = pass;
@@ -594,6 +608,7 @@ async function testEmail() {
     msg.textContent='✓ Test email sent!'; msg.style.color='var(--green)';
   } catch (e) { msg.textContent='✗ ' + e.message; msg.style.color='var(--red)'; }
 }
+
 /* ══════════════════════════════════════════
    ADMIN MANAGEMENT
    ══════════════════════════════════════════ */

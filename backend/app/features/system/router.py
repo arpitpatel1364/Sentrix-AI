@@ -1,18 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 import time
 import shutil
+import sqlite3
+import os
+import sys
+import psutil
+import uuid
+import json
+from datetime import datetime
 from ...core.security import require_admin, get_current_user
 from ...core.database import get_db, _add_user
-from ...core.face_engine import (
-    QDRANT_AVAILABLE
-)
+from ...core.face_engine import QDRANT_AVAILABLE
 from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR, DB_PATH
 from ...core.worker_state import get_live_nodes, WORKER_REGISTRY
 from ...core.orchestrator import orchestrator
 from qdrant_client.models import VectorParams, Distance
-import sqlite3
-import json
 
 router = APIRouter(prefix="/api")
 
@@ -228,7 +231,110 @@ async def get_system_health(user=Depends(require_admin)):
             "disk_used": disk.used
         },
         "platform": sys.platform,
-        "uptime": int(time.time() - psutil.boot_time())
+        "uptime": int(time.time() - psutil.boot_time()),
+        "crowd_peaks": [],
+        "alerts_today": 0
+    }
+
+
+@router.post("/camera-heartbeat")
+async def camera_heartbeat(request: Request, user=Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
+    """Worker reports headcount. Stored in crowd_density table."""
+    body = await request.json()
+    camera_id = body.get("camera_id")
+    headcount = int(body.get("headcount", 0))
+    ts = body.get("timestamp") or datetime.utcnow().isoformat()
+
+    if not camera_id:
+        raise HTTPException(status_code=400, detail="camera_id required")
+
+    # Upsert into crowd_density
+    hb_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO crowd_density (id, camera_id, headcount, timestamp, admin_id)
+        VALUES (?, ?, ?, ?, ?)
+    """, (hb_id, camera_id, headcount, ts, user["admin_id"]))
+    db.commit()
+
+    # Evaluate crowd_threshold alert rules
+    from ..alert_rules.router import evaluate_rules
+    await evaluate_rules({
+        "type": "crowd_heartbeat",
+        "camera_id": camera_id,
+        "headcount": headcount,
+        "timestamp": ts,
+        "admin_id": user["admin_id"]
+    }, db)
+
+    return {"ok": True}
+
+
+@router.get("/system/health")
+async def system_health(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+    """Aggregated health dashboard: hardware + node counts + crowd peaks + alerts."""
+    # Hardware
+    cpu_pct = psutil.cpu_percent(interval=None)
+    mem = psutil.virtual_memory()
+    db_size = os.path.getsize(DB_PATH) if DB_PATH.exists() else 0
+    snapshot_count, snapshot_size = 0, 0
+    if SNAPSHOTS_DIR.exists():
+        for f in SNAPSHOTS_DIR.glob('**/*'):
+            if f.is_file():
+                snapshot_count += 1
+                snapshot_size += f.stat().st_size
+    disk = psutil.disk_usage(str(DB_PATH.parent))
+
+    # Live nodes
+    live_nodes = get_live_nodes()
+    if user["admin_id"] != 0:
+        live_nodes = [n for n in live_nodes if n.get("admin_id") == user["admin_id"]]
+
+    # Today's alerts
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    cur = db.cursor()
+    if user["admin_id"] != 0:
+        cur.execute("SELECT COUNT(*) FROM notification_log WHERE sent_at LIKE ? AND admin_id = ?",
+                    (today + "%", user["admin_id"]))
+    else:
+        cur.execute("SELECT COUNT(*) FROM notification_log WHERE sent_at LIKE ?", (today + "%",))
+    alerts_today = cur.fetchone()[0]
+
+    # Crowd peaks
+    if user["admin_id"] != 0:
+        cur.execute("""
+            SELECT camera_id, MAX(headcount) as peak
+            FROM crowd_density
+            WHERE timestamp LIKE ? AND admin_id = ?
+            GROUP BY camera_id
+        """, (today + "%", user["admin_id"]))
+    else:
+        cur.execute("""
+            SELECT camera_id, MAX(headcount) as peak
+            FROM crowd_density
+            WHERE timestamp LIKE ?
+            GROUP BY camera_id
+        """, (today + "%",))
+    peaks = [dict(r) for r in cur.fetchall()]
+
+    return {
+        "cpu_usage": cpu_pct,
+        "memory": {"total": mem.total, "available": mem.available, "percent": mem.percent},
+        "storage": {
+            "db_bytes": db_size,
+            "snapshots_bytes": snapshot_size,
+            "snapshots_count": snapshot_count,
+            "disk_total": disk.total,
+            "disk_free": disk.free,
+            "disk_used": disk.used
+        },
+        "platform": sys.platform,
+        "uptime": int(time.time() - psutil.boot_time()),
+        "nodes": {
+            "active": len(live_nodes),
+            "total": len([k for k, v in WORKER_REGISTRY.items() if user["admin_id"] == 0 or v.get("admin_id") == user["admin_id"]])
+        },
+        "alerts_today": alerts_today,
+        "crowd_peaks": peaks
     }
 
 

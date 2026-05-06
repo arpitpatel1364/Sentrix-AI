@@ -32,6 +32,7 @@ def init_db():
                 person_name TEXT,
                 confidence REAL,
                 embedding BLOB,
+                track_id TEXT,
                 admin_id INTEGER DEFAULT 1
             )
         """)
@@ -67,7 +68,19 @@ def init_db():
                 object_label TEXT,
                 confidence REAL,
                 snapshot_path TEXT,
+                metadata TEXT,
                 admin_id INTEGER DEFAULT 1
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS crowd_density (
+                camera_id TEXT,
+                count INTEGER DEFAULT 0,
+                peak INTEGER DEFAULT 0,
+                timestamp TEXT,
+                admin_id INTEGER,
+                PRIMARY KEY (camera_id, admin_id)
             )
         """)
 
@@ -147,10 +160,18 @@ def init_db():
                 action     TEXT NOT NULL,
                 target     TEXT DEFAULT '',
                 detail     TEXT DEFAULT '',
-                ip_address TEXT DEFAULT '',
+                ip         TEXT DEFAULT '',
                 admin_id   INTEGER DEFAULT 1
             )
         """)
+
+        # Migrations
+        try:
+            cur.execute("ALTER TABLE sightings ADD COLUMN track_id TEXT")
+        except: pass
+        try:
+            cur.execute("ALTER TABLE object_detections ADD COLUMN metadata TEXT")
+        except: pass
 
         # --- NEW: Camera Stop Requests ---
         # When a worker wants to stop/remove their camera, they submit a request here.
@@ -171,6 +192,9 @@ def init_db():
             )
         """)
 
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_crowd_ts ON crowd_density(timestamp)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_crowd_cam ON crowd_density(camera_id)")
+
         # Migrations: safely add columns to existing databases
         migrations = [
             ("ALTER TABLE cameras ADD COLUMN roi    TEXT DEFAULT NULL",    "roi on cameras"),
@@ -188,6 +212,7 @@ def init_db():
             ("ALTER TABLE notification_log ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on notification_log"),
             
             # --- Tiered Multi-Tenancy Migrations ---
+            ("ALTER TABLE sightings ADD COLUMN track_id TEXT", "track_id on sightings"),
             ("ALTER TABLE audit_log ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on audit_log"),
             ("ALTER TABLE camera_stop_requests ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on camera_stop_requests"),
             ("ALTER TABLE camera_configs ADD COLUMN admin_id INTEGER DEFAULT 1", "admin_id on camera_configs"),
@@ -285,7 +310,7 @@ def log_audit(db, username: str, role: str, action: str,
     import uuid
     db.execute(
         """INSERT INTO audit_log
-               (id, timestamp, username, role, action, target, detail, ip_address, admin_id)
+               (id, timestamp, username, role, action, target, detail, ip, admin_id)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             str(uuid.uuid4()),
