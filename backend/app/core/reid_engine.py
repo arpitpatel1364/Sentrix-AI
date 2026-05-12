@@ -3,10 +3,10 @@ import numpy as np
 from typing import Optional
 
 def extract_reid_embedding(image: np.ndarray) -> Optional[np.ndarray]:
-    \"\"\"
+    """
     Extracts a global appearance embedding (ReID) from a person image.
     Uses a spatial color histogram approach as a robust, lightweight baseline.
-    \"\"\"
+    """
     if image is None or image.size == 0:
         return None
 
@@ -52,7 +52,7 @@ def extract_reid_embedding(image: np.ndarray) -> Optional[np.ndarray]:
         return None
 
 def compare_reid(emb1: np.ndarray, emb2: np.ndarray) -> float:
-    \"\"\"Calculates cosine similarity between two ReID embeddings.\"\"\"
+    """Calculates cosine similarity between two ReID embeddings."""
     if emb1 is None or emb2 is None:
         return 0.0
     return float(np.dot(emb1, emb2))
