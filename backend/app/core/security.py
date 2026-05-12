@@ -62,3 +62,11 @@ def require_super_admin(user=Depends(get_current_user)):
         print(f"[AUTH] Access Denied: User {user.get('username')} has role '{role}', but super_admin required.")
         raise HTTPException(status_code=403, detail="Super Admin access only")
     return user
+def get_real_ip(request: Request) -> str:
+    # Check for X-Forwarded-For header (common for proxies/load balancers)
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        # It can be a comma-separated list of IPs; the first one is the original client
+        return x_forwarded_for.split(",")[0].strip()
+    # Fallback to direct client host
+    return request.client.host if request.client else "unknown"

@@ -212,6 +212,7 @@ def init_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_user            ON audit_log(username)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts              ON audit_log(timestamp)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_stop_status           ON camera_stop_requests(status)")
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_cam_tenant  ON cameras(camera_id, admin_id)")
 
         conn.commit()
 

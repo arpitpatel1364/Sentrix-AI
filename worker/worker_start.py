@@ -69,7 +69,7 @@ def banner():
 
 def gather_config():
     print(f"\n{BOLD}STEP 1 — Server Connection{RESET}")
-    server = ask("Server URL (e.g. http://192.168.1.10:8000)", "http://localhost:8000")
+    server = ask("Server URL (e.g. http://localhost:8000)", "http://localhost:8000")
     server = server.rstrip("/")
 
     print(f"\n{BOLD}STEP 2 — Your Worker Credentials{RESET}")
@@ -127,8 +127,9 @@ def authenticate(server, username, password):
         detail = r.json().get("detail", r.text)
         err(f"Login failed: {detail}")
         sys.exit(1)
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as ce:
         err(f"Cannot reach server at {server}")
+        err(f"Connection Error Detail: {ce}")
         err("Check the URL and make sure the Sentrix backend is running.")
         sys.exit(1)
     except Exception as exc:
@@ -338,7 +339,7 @@ def main():
         open_dashboard(config["server"], config["cameras"])
 
     # Double-check cameras are registered
-    # verify_cameras(config["server"], token, config["cameras"])
+    verify_cameras(config["server"], token, config["cameras"])
 
     # Launch worker_agent subprocess
     proc = launch_worker(config)

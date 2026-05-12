@@ -5,7 +5,7 @@ and per-camera metadata (stream URL, description, status).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from ...core.security import require_admin, get_current_user
+from ...core.security import require_admin, get_current_user, get_real_ip
 from ...core.database import get_db
 from ..audit_log.router import write_log
 from ...core.worker_state import WORKER_REGISTRY, get_live_nodes
@@ -107,7 +107,7 @@ async def add_camera(request: Request, user=Depends(require_admin), db: sqlite3.
     """, (cam_pk, camera_id, name, location, description, stream_url,
           floor_x, floor_y, user["username"], now, 1 if face_en else 0, 1 if obj_en else 0, 1 if strm_en else 0, user["admin_id"]))
     db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=request.client.host, admin_id=user["admin_id"])
+    write_log(db, username=user["username"], role=user["role"], action="add_camera", target=camera_id, detail=f"Registered camera '{name}' ({camera_id}) at {location}", ip=get_real_ip(request), admin_id=user["admin_id"])
     return {"ok": True, "id": cam_pk, "camera_id": camera_id}
 
 
@@ -145,7 +145,7 @@ async def update_camera(camera_id: str, request: Request,
 
     db.execute(f"UPDATE cameras SET {', '.join(fields)} WHERE camera_id = ? {admin_filter}", vals)
     db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="update_camera", target=camera_id, detail=f"Updated camera {camera_id}", ip=request.client.host, admin_id=user["admin_id"])
+    write_log(db, username=user["username"], role=user["role"], action="update_camera", target=camera_id, detail=f"Updated camera {camera_id}", ip=get_real_ip(request), admin_id=user["admin_id"])
     return {"ok": True}
 
 
@@ -167,7 +167,7 @@ async def delete_camera(camera_id: str, request: Request, user=Depends(require_a
     else:
         db.execute("DELETE FROM cameras WHERE camera_id = ? AND admin_id = ?", (camera_id, user["admin_id"]))
     db.commit()
-    write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=camera_id, detail=f"Removed camera {camera_id}", ip=request.client.host, admin_id=user["admin_id"])
+    write_log(db, username=user["username"], role=user["role"], action="delete_camera", target=camera_id, detail=f"Removed camera {camera_id}", ip=get_real_ip(request), admin_id=user["admin_id"])
     return {"ok": True}
 
 

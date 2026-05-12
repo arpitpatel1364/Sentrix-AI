@@ -124,6 +124,9 @@ def match_wanted(embedding: np.ndarray, admin_id: int) -> Optional[dict]:
             )
             if hits and hits[0].score >= SIMILARITY_THRESHOLD:
                 return {"person": {"id": hits[0].payload["person_id"], "name": hits[0].payload["person_name"]}, "confidence": round(hits[0].score * 100, 1)}
+            
+            # If Qdrant is available but no high-score hits, we can skip the slow linear SQLite fallback
+            return None
         except Exception as e:
             print(f"Qdrant search error: {e}")
             

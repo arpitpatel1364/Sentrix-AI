@@ -677,6 +677,18 @@ def live_stream_worker(server, token, live_queue, cam_configs):
     except (ImportError, Exception) as e:
         print(f"[!] H.264: static-ffmpeg dependency not ready ({e}). Falling back to system 'ffmpeg'.")
 
+    # Check if FFmpeg is available at all
+    def check_ffmpeg():
+        try:
+            subprocess.run([ffmpeg_exe, "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        except FileNotFoundError:
+            return False
+
+    ffmpeg_available = check_ffmpeg()
+    if not ffmpeg_available:
+        print(f"[WARN] H.264: FFmpeg not found. Live stream will use MJPEG fallback only.")
+
     while True:
         try:
             try:
@@ -694,8 +706,8 @@ def live_stream_worker(server, token, live_queue, cam_configs):
 
             h, w = frame.shape[:2]
             
-            # 1. Ensure FFmpeg process exists for this camera
-            if cam_id not in ffmpeg_nodes:
+            # 1. Ensure FFmpeg process exists for this camera (only if ffmpeg is available)
+            if ffmpeg_available and cam_id not in ffmpeg_nodes:
                 print(f"[*] Initializing H.264 pipeline for {cam_id} ({w}x{h})")
                 cmd = [
                     ffmpeg_exe,
@@ -721,37 +733,42 @@ def live_stream_worker(server, token, live_queue, cam_configs):
                             try:
                                 chunk = node_proc.stdout.read(4096)
                                 if not chunk: break
-                                requests.post(
+                                r = requests.post(
                                     upload_url,
                                     data=chunk,
                                     headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"},
                                     params={"camera_id": c_id},
                                     timeout=1.5
                                 )
+                                if r.status_code == 404: # Endpoint not found or camera removed
+                                    break
                             except Exception:
                                 break
                         print(f"[-] H.264 Reader closed for {c_id}")
 
                     threading.Thread(target=_stream_reader, args=(cam_id, proc, ffmpeg_nodes[cam_id]["url"]), daemon=True).start()
-                except FileNotFoundError:
-                    print(f"[ERR] FFmpeg binary '{ffmpeg_exe}' not found. Live stream will be disabled.")
-                    time.sleep(10) # Wait longer before retrying to avoid spam
-                    continue
-                except Exception as e:
-                    print(f"[ERR] Failed to spawn FFmpeg process: {e}")
-                    time.sleep(5)
+                except (FileNotFoundError, Exception) as e:
+                    print(f"[ERR] Failed to spawn FFmpeg process for {cam_id}: {e}")
+                    ffmpeg_available = False # Disable for future attempts in this session
                     continue
 
-            # 2. Pipe the frame to ffmpeg
-            node = ffmpeg_nodes[cam_id]
-            try:
-                node["proc"].stdin.write(frame.tobytes())
-                node["proc"].stdin.flush()
-                node["last_active"] = time.time()
-                
-                # ── NEW: MJPEG Preview Upload (Fix for Black Screen) ──
-                mjpeg_counter += 1
-                if mjpeg_counter % mjpeg_interval == 0:
+            # 2. Pipe the frame to ffmpeg (if available)
+            node = ffmpeg_nodes.get(cam_id)
+            if node:
+                try:
+                    node["proc"].stdin.write(frame.tobytes())
+                    node["proc"].stdin.flush()
+                    node["last_active"] = time.time()
+                except Exception:
+                    print(f"[!] FFmpeg pipe failed for {cam_id}, resetting.")
+                    try: node["proc"].terminate() 
+                    except: pass
+                    del ffmpeg_nodes[cam_id]
+            
+            # ── MJPEG Preview Upload (Fallback / Dashboard Preview) ──
+            # This runs regardless of H.264 status to ensure dashboard thumbnails work
+            mjpeg_counter += 1
+            if mjpeg_counter % mjpeg_interval == 0:
                     def _push_mjpeg(img_data, c_id):
                         try:
                             _, buf = cv2.imencode(".jpg", img_data, [cv2.IMWRITE_JPEG_QUALITY, 50])

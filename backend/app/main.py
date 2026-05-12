@@ -36,9 +36,20 @@ async def lifespan(app: FastAPI):
     seed_default_users()
     init_face_engines()
     
-    # Init Object Engine for manual analysis
     from app.core.object_engine import init_object_engine
     init_object_engine()
+
+    # Background task for periodic cleanup
+    import asyncio
+    from app.core.worker_state import get_live_nodes
+    async def cleanup_task():
+        while True:
+            try:
+                get_live_nodes() # Triggers cleanup of stale workers/streams
+            except Exception as e:
+                print(f"[ERR] Background cleanup error: {e}")
+            await asyncio.sleep(60)
+    asyncio.create_task(cleanup_task())
     
     yield
     print("Sentrix-AI Server shutting down.")
@@ -95,5 +106,5 @@ async def serve_dashboard():
 if __name__ == "__main__":
     import uvicorn
     # Important: 0.0.0.0 allows access from other devices on the LAN
-    print("[*] Sentrix-AI Backend running on http://[IP_ADDRESS]")
-    uvicorn.run(app, host="[IP_ADDRESS]", port=8000)
+    print("[*] Sentrix-AI Backend running on http://0.0.0.0:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

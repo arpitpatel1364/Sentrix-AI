@@ -60,3 +60,17 @@ async def subscribe_packets(camera_id):
     finally:
         if camera_id in PACKET_LISTENERS and q in PACKET_LISTENERS[camera_id]:
             PACKET_LISTENERS[camera_id].remove(q)
+            if not PACKET_LISTENERS[camera_id]:
+                del PACKET_LISTENERS[camera_id]
+
+def cleanup_stream(camera_id):
+    """Purge all memory buffers and listeners for a camera node."""
+    if camera_id in LIVE_FRAMES:
+        del LIVE_FRAMES[camera_id]
+    if camera_id in LIVE_PACKETS:
+        del LIVE_PACKETS[camera_id]
+    if camera_id in PACKET_LISTENERS:
+        # We don't delete the queues directly as they might be in use by generators,
+        # but clearing the list stops new packets from being added.
+        del PACKET_LISTENERS[camera_id]
+    print(f"[*] Stream state purged for {camera_id}")
