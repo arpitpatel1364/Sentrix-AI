@@ -36,21 +36,27 @@ class WorkerOrchestrator:
 
     def load_nodes_from_db(self) -> List[Dict]:
         nodes = []
+        # Read worker credentials from environment.
+        worker_user = os.environ.get("WORKER_USER")
+        worker_pass = os.environ.get("WORKER_PASS")
+        
+        if not worker_user or not worker_pass:
+            print("[ORCH] WARNING: WORKER_USER or WORKER_PASS not set in environment.")
+            # Fallback to system defaults if provided by deployment script, but warn
+            worker_user = worker_user or "admin"
+            worker_pass = worker_pass or "admin123"
         try:
             with sqlite3.connect(DB_PATH) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                # We need camera_id, name, location, and stream_url.
-                # Since worker_agent needs a user/pass, we'll use 'admin' credentials for now 
-                # or assume the orchestrator has access to default worker credentials.
                 cur.execute("SELECT camera_id, name, location, stream_url FROM cameras")
                 for row in cur.fetchall():
                     nodes.append({
                         "id": row["camera_id"],
                         "location": row["location"] or "Unknown",
                         "camera": row["stream_url"] or "0",
-                        "user": "admin", # Default for internal orchestrator
-                        "pass": "admin123" # Default for internal orchestrator
+                        "user": worker_user,
+                        "pass": worker_pass
                     })
         except Exception as e:
             print(f"[ORCH] Database error: {e}")

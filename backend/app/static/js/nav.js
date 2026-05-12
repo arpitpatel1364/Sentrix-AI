@@ -61,6 +61,10 @@ function showPage(id, navEl) {
     'super-analysis': loadSuperAnalysis,
     'preview-system': loadPreviewSystem,
     'business-report': initBusinessReport,
+    'person-trail':   loadPersonTrailPage,
+    'crowd-density':  loadCrowdDensityPage,
+    'notifications':  loadNotificationsPage,
+    'travel-map':     loadTravelMapPage,
   };
   if (loaders[id]) loaders[id]();
 

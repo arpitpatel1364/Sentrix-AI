@@ -13,6 +13,7 @@ from ..audit_log.router import write_log
 from ...core.face_engine import (
     get_embedding, bytes_to_cv2, match_wanted, QDRANT_AVAILABLE
 )
+from ...core.reid_engine import extract_reid_embedding, compare_reid
 from ...core import face_engine
 from ...core.config import SNAPSHOTS_DIR
 from ...core.worker_state import update_worker_heartbeat, get_live_nodes
@@ -28,22 +29,101 @@ router = APIRouter(prefix="/api")
 
 def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embedding: np.ndarray, camera_id: str, location: str, ts: str, admin_id: int):
     try:
-        if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
-            face_engine.QDRANT_CLIENT.upsert(
-                collection_name="sightings",
-                points=[PointStruct(
-                    id=sighting_id,
-                    vector=embedding.tolist(),
-                    payload={
-                        "camera_id": camera_id,
-                        "location": location,
-                        "timestamp": ts,
-                        "person_id": sighting["person_id"],
-                        "person_name": sighting["person_name"],
-                        "admin_id": admin_id
-                    }
-                )]
-            )
+        if not (QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT):
+            return
+
+        # 1. PERSON RE-ID ACROSS CAMERAS
+        # Use both Face and ReID for superior tracking across blind spots
+        track_id = sighting.get("track_id")
+        reid_emb = extract_reid_embedding(img)
+        reid_blob = reid_emb.tobytes() if reid_emb is not None else None
+
+        if not sighting.get("person_id"):
+            # Search last 15 mins of sightings for this tenant using ReID primarily
+            # This allows tracking even if the face isn't visible (blind spots)
+            from ...core.database import get_db_conn
+            with get_db_conn() as db:
+                cur = db.cursor()
+                
+                # Filter by admin_id and recent time
+                from datetime import timedelta
+                fifteen_mins_ago = (datetime.fromisoformat(ts) - timedelta(minutes=15)).isoformat()
+                
+                cur.execute(\"\"\"
+                    SELECT track_id, reid_embedding FROM sightings 
+                    WHERE admin_id = ? AND timestamp > ? AND reid_embedding IS NOT NULL
+                    ORDER BY timestamp DESC LIMIT 50
+                \"\"\", (admin_id, fifteen_mins_ago))
+                
+                rows = cur.fetchall()
+                best_track = None
+                best_score = 0.0
+                
+                if reid_emb is not None:
+                    for r in rows:
+                        prev_reid = np.frombuffer(r["reid_embedding"], dtype=np.float32)
+                        score = compare_reid(reid_emb, prev_reid)
+                        if score > best_score:
+                            best_score = score
+                            best_track = r["track_id"]
+                
+                # Threshold for ReID match (color histogram based)
+                REID_THRESHOLD = 0.85 
+                
+                if best_track and best_score > REID_THRESHOLD:
+                    track_id = best_track
+                    print(f"[RE-ID] Linked to track {track_id} via Appearance (score: {best_score:.3f})")
+                else:
+                    # Fallback to Face Re-ID if Qdrant is available
+                    if QDRANT_AVAILABLE and face_engine.QDRANT_CLIENT:
+                         # ... existing Qdrant face search logic ...
+                         from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
+                         search_filter = Filter(
+                             must=[
+                                 FieldCondition(key="admin_id", match=MatchValue(value=admin_id)),
+                                 FieldCondition(key="timestamp", range=Range(gte=fifteen_mins_ago))
+                             ]
+                         )
+                         hits = face_engine.QDRANT_CLIENT.search(
+                             collection_name="sightings",
+                             query_vector=embedding.tolist(),
+                             query_filter=search_filter,
+                             limit=1,
+                             score_threshold=0.80
+                         )
+                         if hits:
+                             track_id = hits[0].payload.get("track_id")
+                             print(f"[FACE-ID] Linked to track {track_id} (score: {hits[0].score:.3f})")
+                         else:
+                             track_id = str(uuid.uuid4())
+                             print(f"[NEW-TRACK] Started {track_id}")
+                    else:
+                        track_id = str(uuid.uuid4())
+                        print(f"[NEW-TRACK] Started {track_id}")
+
+        # 2. Store in Qdrant
+        face_engine.QDRANT_CLIENT.upsert(
+            collection_name="sightings",
+            points=[PointStruct(
+                id=sighting_id,
+                vector=embedding.tolist(),
+                payload={
+                    "camera_id": camera_id,
+                    "location": location,
+                    "timestamp": ts,
+                    "person_id": sighting["person_id"],
+                    "person_name": sighting["person_name"],
+                    "track_id": track_id,
+                    "admin_id": admin_id
+                }
+            )]
+        )
+
+        # 3. Update SQLite with the new track_id and reid_embedding
+        from ...core.database import get_db_conn
+        with get_db_conn() as db:
+            db.execute("UPDATE sightings SET track_id = ?, reid_embedding = ? WHERE id = ?", (track_id, reid_blob, sighting_id))
+
     except Exception as e:
         print(f"Error in background task: {e}")
 
@@ -53,6 +133,8 @@ async def upload_frame(
     file: UploadFile = File(...),
     camera_id: str = Form("cam-1"),
     location: str = Form("unknown"),
+    loitering: bool = Form(False),
+    dwell_time: int = Form(0),
     user=Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db)
 ):
@@ -60,8 +142,7 @@ async def upload_frame(
     cur = db.cursor()
     user_admin_id = user["admin_id"]
 
-    print(f"[DEBUG] upload_frame: cam={camera_id}, admin=ID:{user_admin_id}, user={user['username']}")
-    
+
     # Ownership Check: Super Admin (0) can upload to any camera; others must own it
     if user_admin_id == 0:
         cur.execute("SELECT id, location FROM cameras WHERE camera_id = ?", (camera_id,))
@@ -76,23 +157,20 @@ async def upload_frame(
     is_new = update_worker_heartbeat(node_key, user["admin_id"])
     
     if is_new:
-        from ...core.sse_manager import broadcast_alert
         await broadcast_alert({
             "type": "camera_online",
             "camera_id": camera_id,
-            "location": row["location"] if "location" in row.keys() else location, # row is camera fetch
+            "location": row["location"] if row and "location" in row.keys() else location,
             "admin_id": user["admin_id"]
         })
     
     data = await file.read()
     img = bytes_to_cv2(data)
     if img is None:
-        print(f"[DEBUG] upload_frame ERROR: cv2.imdecode failed for {camera_id}")
         raise HTTPException(status_code=400, detail="Invalid image")
 
     embedding = get_embedding(img)
     if embedding is None:
-        print(f"[DEBUG] upload_frame: status=no_face for {camera_id} (img shape: {img.shape})")
         return {
             "status": "no_face",
             "config": WORKER_REGISTRY.get(node_key, {}).get("config")
@@ -170,7 +248,9 @@ async def upload_frame(
             "confidence": result["confidence"],
             "person_name": result["person"]["name"],
             "timestamp": ts,
-            "admin_id": user["admin_id"]
+            "admin_id": user["admin_id"],
+            "loitering": loitering,
+            "dwell_time": dwell_time
         }, db)
         return {
             "status": "match",
@@ -189,6 +269,17 @@ async def upload_frame(
             "snapshot": f"/api/snapshots/{filename}",
             "admin_id": user["admin_id"]
         })
+        # ── Alert Rules Engine ───────────────────────────────────────────
+        from ...features.alert_rules.router import evaluate_rules
+        await evaluate_rules({
+            "type": "face", "camera_id": camera_id, "matched": False,
+            "confidence": 0.0,
+            "person_name": "Unknown",
+            "timestamp": ts,
+            "admin_id": user["admin_id"],
+            "loitering": loitering,
+            "dwell_time": dwell_time
+        }, db)
         return {
             "status": "stored",
             "matched": False,
@@ -263,6 +354,69 @@ async def worker_offline(request: Request, camera_id: str = Form(...), user=Depe
     
     print(f"[-] Worker Offline Notification: {node_key}")
     return {"status": "offline_logged"}
+
+
+@router.get("/sightings/trail/{track_id}")
+async def get_person_trail(track_id: str, user=Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
+    """Retrieves all sightings for a specific track_id, ordered by time."""
+    cur = db.cursor()
+    
+    # Filter by admin_id for multi-tenancy
+    admin_filter = "AND admin_id = ?"
+    params = (track_id, user["admin_id"])
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = (track_id,)
+        
+    cur.execute(f"""
+        SELECT id, camera_id, location, timestamp, snapshot_path, person_name, matched, confidence
+        FROM sightings 
+        WHERE track_id = ? {admin_filter}
+        ORDER BY timestamp ASC
+    """, params)
+    
+    trail = [dict(r) for r in cur.fetchall()]
+    for s in trail:
+        s["snapshot"] = f"/api/snapshots/{s['snapshot_path']}"
+        
+    return {
+        "track_id": track_id,
+        "count": len(trail),
+        "trail": trail
+    }
+
+
+@router.get("/sightings/export")
+async def export_sightings(user=Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+    """Exports sightings history as a CSV file."""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+    
+    cur = db.cursor()
+    admin_filter = "WHERE admin_id = ?"
+    params = (user["admin_id"],)
+    if user["admin_id"] == 0:
+        admin_filter = ""
+        params = ()
+        
+    cur.execute(f"""
+        SELECT id, camera_id, location, timestamp, person_name, matched, confidence, track_id 
+        FROM sightings {admin_filter} ORDER BY timestamp DESC
+    """, params)
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Camera", "Location", "Timestamp", "Person", "Matched", "Confidence", "Track ID"])
+    for row in cur.fetchall():
+        writer.writerow(list(row))
+        
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sightings_export.csv"}
+    )
 
 # --- LIVE STREAMING ENDPOINTS ---
 @router.post("/upload-live")

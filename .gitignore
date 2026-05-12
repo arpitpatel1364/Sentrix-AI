@@ -220,5 +220,7 @@ models/
 *.jpg
 *.webp
 *.png
+!screenshots/
+!screenshots/**
 info.txt
 yolov4.onnx

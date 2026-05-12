@@ -15,17 +15,17 @@ import requests
 
 # --- CONFIG ---
 TARGET_CLASSES = [
-    "phone","water bottle", "laptop", "backpack", 
-    "remote", "keyboard", "cell phone", "book","bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
+    "phone", "water bottle", "laptop", "backpack", "remote", "keyboard", "cell phone",
+    "book", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
     "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
     "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
     "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
     "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
-    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop",
-    "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor",
+    "mouse", "microwave", "oven", "toaster", "sink",
+    "refrigerator", "clock", "vase", "scissors", "teddy bear", "hair drier",
     "toothbrush"
 ]
 
@@ -36,7 +36,7 @@ def parse_args():
     default_obj_model  = worker_dir / "models" / "yolov8s-worldv2.pt"
 
     p = argparse.ArgumentParser(description="Sentrix-AI Multi-Process CCTV Worker (Two-Core)")
-    p.add_argument("--server",    default="http://localhost:8000")
+    p.add_argument("--server",    default="http://[IP_ADDRESS]")
     p.add_argument("--user",      required=True)
     p.add_argument("--password",  required=True)
     p.add_argument("--camera",    nargs='+', default=["0"],            help="Camera indices or RTSP URLs")
@@ -160,6 +160,7 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
         return
 
     prev_gray = None
+    last_inference_time = 0
     
     while True:
         try:
@@ -171,27 +172,36 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
             # Motion gate — skip static scenes
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.resize(gray, (160, 120))
+            
+            motion_mag = 0.0
             if prev_gray is not None:
                 diff = cv2.absdiff(prev_gray, gray)
-                if np.mean(diff) < 2.0:
+                motion_mag = np.mean(diff)
+                if motion_mag < 2.0:
                     time.sleep(0.1)
                     continue
             prev_gray = gray
 
+            # Adaptive Frame Rate
+            # Low motion (< 5.0) -> ~1 FPS (1.0s interval)
+            # High motion (> 5.0) -> ~5 FPS (0.2s interval)
+            inf_interval = 1.0 if motion_mag < 5.0 else 0.2
+            now = time.time()
+            do_inference = (now - last_inference_time) >= inf_interval
+
             frame_copy = frame.copy()
             
-            # Detection queues now get FULL frame
-            try:
-                if obj_queue and not obj_queue.full():
-                    obj_queue.put_nowait((frame_copy.copy(), cam_id, location))
-            except Exception:
-                pass
+            if do_inference:
+                last_inference_time = now
+                try:
+                    if obj_queue and not obj_queue.full():
+                        obj_queue.put_nowait((frame_copy.copy(), cam_id, location))
+                except Exception: pass
 
-            try:
-                if face_queue and not face_queue.full():
-                    face_queue.put_nowait((frame_copy.copy(), cam_id, location))
-            except Exception:
-                pass
+                try:
+                    if face_queue and not face_queue.full():
+                        face_queue.put_nowait((frame_copy.copy(), cam_id, location))
+                except Exception: pass
 
             try:
                 if live_queue and not live_queue.full():
@@ -199,15 +209,112 @@ def capture_worker(cam_src, cam_id, location, interval, face_queue, obj_queue, l
             except Exception:
                 pass
 
-            time.sleep(0.03)  # High-frequency capture for live stream (~30 FPS)
+            time.sleep(0.01) # Small yielding
         except KeyboardInterrupt:
             break
 
 
+# ============================================================
+# CLASS: FACE TRACKER — loitering detection
+# ============================================================
+class FaceTracker:
+    def __init__(self, loitering_threshold=30):
+        self.faces = {} # {cam_id: {bbox_hash: {"first_seen": timestamp, "last_seen": timestamp, "alerted": bool}}}
+        self.loitering_threshold = loitering_threshold
+
+    def update(self, cam_id, bbox):
+        now = time.time()
+        # Simple hash based on bbox center to track across adjacent frames
+        bx, by, bw, bh = bbox
+        cx, cy = bx + bw//2, by + bh//2
+        # Round to nearest 30px to handle jitter
+        h = hash((cx // 30, cy // 30))
+        
+        if cam_id not in self.faces:
+            self.faces[cam_id] = {}
+            
+        is_loitering = False
+        dwell_time = 0
+        
+        if h in self.faces[cam_id]:
+            self.faces[cam_id][h]["last_seen"] = now
+            dwell_time = now - self.faces[cam_id][h]["first_seen"]
+            if dwell_time >= self.loitering_threshold and not self.faces[cam_id][h]["alerted"]:
+                self.faces[cam_id][h]["alerted"] = True
+                is_loitering = True
+        else:
+            self.faces[cam_id][h] = {"first_seen": now, "last_seen": now, "alerted": False}
+            
+        self.cleanup(cam_id)
+        return is_loitering, int(dwell_time)
+
+    def cleanup(self, cam_id):
+        now = time.time()
+        to_del = [h for h, data in self.faces[cam_id].items() if now - data["last_seen"] > 3]
+        for h in to_del:
+            del self.faces[cam_id][h]
+
+
+# ============================================================
+# CLASS: OBJECT TRACKER — abandoned object detection
+# ============================================================
+class ObjectTracker:
+    def __init__(self, threshold_seconds=300):
+        self.threshold = threshold_seconds
+        self.objects = {} # {cam_id: {obj_key: {"first_seen": ts, "last_seen": ts, "bbox": [], "alerted": bool}}}
+
+    def _iou(self, boxA, boxB):
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[0] + boxA[2], boxB[0] + boxB[2])
+        yB = min(boxA[1] + boxA[3], boxB[1] + boxB[3])
+        interArea = max(0, xB - xA) * max(0, yB - yA)
+        boxAArea = boxA[2] * boxA[3]
+        boxBArea = boxB[2] * boxB[3]
+        return interArea / float(boxAArea + boxBArea - interArea + 1e-6)
+
+    def update(self, cam_id, label, bbox):
+        now = time.time()
+        if cam_id not in self.objects:
+            self.objects[cam_id] = {}
+        
+        found_key = None
+        for key, data in self.objects[cam_id].items():
+            if data["label"] == label and self._iou(data["bbox"], bbox) > 0.85:
+                found_key = key
+                break
+        
+        is_abandoned = False
+        if found_key:
+            self.objects[cam_id][found_key]["last_seen"] = now
+            self.objects[cam_id][found_key]["bbox"] = bbox
+            dwell = now - self.objects[cam_id][found_key]["first_seen"]
+            if dwell >= self.threshold and not self.objects[cam_id][found_key]["alerted"]:
+                self.objects[cam_id][found_key]["alerted"] = True
+                is_abandoned = True
+        else:
+            new_key = str(uuid.uuid4())[:8]
+            self.objects[cam_id][new_key] = {
+                "label": label, "bbox": bbox, 
+                "first_seen": now, "last_seen": now, "alerted": False
+            }
+            
+        self.cleanup(cam_id)
+        return is_abandoned
+
+    def cleanup(self, cam_id):
+        now = time.time()
+        to_del = [k for k, d in self.objects[cam_id].items() if now - d["last_seen"] > 5]
+        for k in to_del:
+            del self.objects[cam_id][k]
+
+
 def face_detector_worker(face_model, face_queue, upload_queue, server, token, cam_configs, force_cpu=False):
     print(f"[*] Core 1 — Face Engine starting")
-
+    tracker = FaceTracker(loitering_threshold=30)
     last_face_times = {}
+    last_heartbeat_times = {} # {cam_id: timestamp}
+    last_counts = {}          # {cam_id: count}
     import onnxruntime as ort
 
     face_session = None
@@ -317,22 +424,66 @@ def face_detector_worker(face_model, face_queue, upload_queue, server, token, ca
                         # --- SIGHTING CONTEXT PADDING ---
                         # Increased to 40% for backend InsightFace compatibility
                         pad = int(max(w, h) * 0.40)
-                        crop = frame[
-                            max(0, y - pad): min(h_orig, y2 + pad),
-                            max(0, x - pad): min(w_orig, x2 + pad)
-                        ]
+                        y_min, y_max = max(0, y - pad), min(h_orig, y2 + pad)
+                        x_min, x_max = max(0, x - pad), min(w_orig, x2 + pad)
+                        crop = frame[y_min:y_max, x_min:x_max]
+                        
                         if crop.size == 0:
                             continue
+
+                        # --- QUALITY FILTER ---
+                        # Sharpness check (Laplacian variance)
+                        gray_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+                        sharpness = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
+                        
+                        # Size check
+                        is_large = (w >= 60 and h >= 60)
+                        is_sharp = (sharpness >= 40.0)
+
+                        if not is_large or not is_sharp:
+                            # Skip low-quality faces to save bandwidth
+                            continue
+
+                        # --- LOITERING CHECK ---
+                        loitering, dwell = tracker.update(cam_id, [x, y, w, h])
+
                         try:
                             if not upload_queue.full():
-                                upload_queue.put_nowait(("face", crop.copy(), cam_id, location, "person", confs[i]))
+                                # Pass loitering flag to uploader
+                                upload_queue.put_nowait((
+                                    "face", crop.copy(), cam_id, location, 
+                                    "person", confs[i], 
+                                    {"loitering": loitering, "dwell_time": dwell}
+                                ))
                                 faces_found += 1
                         except Exception:
                             pass
 
             if faces_found > 0:
                 last_face_times[cam_id] = time.time()
-                print(f"[FACE] {faces_found} face(s) queued | cam: {cam_id}")
+                print(f"[FACE] {faces_found} quality face(s) queued | cam: {cam_id}")
+
+            # --- CROWD HEARTBEAT ---
+            now = time.time()
+            last_hb = last_heartbeat_times.get(cam_id, 0)
+            last_c  = last_counts.get(cam_id, 0)
+            
+            # Send every 10s OR if count changed significantly
+            if (now - last_hb > 10) or (faces_found != last_c):
+                last_heartbeat_times[cam_id] = now
+                last_counts[cam_id] = faces_found
+                
+                def _send_hb(c_id, count):
+                    try:
+                        requests.post(
+                            f"{server}/api/camera-heartbeat",
+                            json={"camera_id": c_id, "headcount": count, "timestamp": datetime.utcnow().isoformat()},
+                            headers={"Authorization": f"Bearer {token}"},
+                            timeout=2
+                        )
+                    except Exception: pass
+                
+                threading.Thread(target=_send_hb, args=(cam_id, faces_found), daemon=True).start()
 
         except KeyboardInterrupt:
             break
@@ -363,6 +514,7 @@ class DetectionTracker:
 def object_detector_worker(obj_model, obj_queue, annotation_queue, target_objects, cam_configs, force_cpu=False):
     print(f"[*] Core 2 — Object Engine starting (YOLO World)")
     tracker = DetectionTracker(cooldown=15)
+    stationary_tracker = ObjectTracker(threshold_seconds=300) # 5 minutes
 
     obj_model_instance = None
     try:
@@ -371,48 +523,12 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
         from ultralytics.nn.tasks import WorldModel
         
         # --- PYTORCH 2.6+ SECURITY FIX ---
-        # Explicitly allowlist Ultralytics and Standard Torch classes for weights_only=True loading
-        try:
-            import torch
-            import ultralytics
-            from ultralytics.nn.tasks import WorldModel, DetectionModel
-            from ultralytics.nn.modules import conv, block, head
-            
-            # 1. Base Torch modules used in almost every model
-            safe_classes = [
-                torch.nn.modules.container.Sequential,
-                torch.nn.modules.container.ModuleList,
-                torch.nn.modules.conv.Conv2d,
-                torch.nn.modules.batchnorm.BatchNorm2d,
-                torch.nn.modules.activation.SiLU,
-                torch.nn.modules.activation.ReLU,
-                torch.nn.modules.pooling.MaxPool2d,
-                torch.nn.modules.upsampling.Upsample,
-                torch.nn.modules.linear.Linear,
-                torch.nn.modules.linear.Identity,
-                torch.FloatStorage,
-                torch.HalfStorage,
-                torch._utils._rebuild_tensor_v2,
-            ]
-            
-            # 2. Ultralytics core task models
-            safe_classes.extend([WorldModel, DetectionModel])
-            
-            # 3. Gather all classes from ultralytics modules (conv, block, head)
-            for module in [conv, block, head]:
-                for name in dir(module):
-                    attr = getattr(module, name)
-                    if isinstance(attr, type):
-                        safe_classes.append(attr)
-            
-            # 4. Additional specialized objects
-            if hasattr(ultralytics.nn.tasks, 'WorldDetect'):
-                safe_classes.append(ultralytics.nn.tasks.WorldDetect)
-            
-            torch.serialization.add_safe_globals(safe_classes)
-            print(f"[+] PyTorch 2.6 Security: Whitelisted {len(safe_classes)} classes for secure loading")
-        except Exception as e:
-            print(f"[WARN] Failed to set PyTorch safe globals: {e}")
+        if not hasattr(torch, '_original_load'):
+            torch._original_load = torch.load
+            def _safe_load(*args, **kwargs):
+                kwargs['weights_only'] = False
+                return torch._original_load(*args, **kwargs)
+            torch.load = _safe_load
         # ---------------------------------
 
         
@@ -525,6 +641,11 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                 if not tracker.should_upload(cam_id, label):
                     continue
 
+                # --- ABANDONED OBJECT CHECK ---
+                abandoned = stationary_tracker.update(cam_id, label, best_obj["bbox"])
+                if abandoned:
+                    print(f"[!] ABANDONED OBJECT DETECTED: {label} | cam: {cam_id}")
+
                 print(f"[OBJ] DETECTED: {label} ({int(best_obj['conf']*100)}%) | cam: {cam_id}")
 
                 # Offload drawing + crop + upload to annotation subprocess
@@ -533,7 +654,8 @@ def object_detector_worker(obj_model, obj_queue, annotation_queue, target_object
                         annotation_queue.put_nowait((
                             frame.copy(), cam_id, location,
                             best_obj["bbox"], best_obj["label"], best_obj["conf"],
-                            h_orig, w_orig
+                            h_orig, w_orig,
+                            {"abandoned": abandoned}
                         ))
                 except Exception:
                     pass
@@ -558,7 +680,12 @@ def _annotation_worker(annotation_queue, upload_queue):
             continue
 
         try:
-            frame, cam_id, location, bbox, label, conf, h_orig, w_orig = data
+            # Flexible unpacking for metadata support
+            if len(data) == 8:
+                frame, cam_id, location, bbox, label, conf, h_orig, w_orig = data
+                metadata = {}
+            else:
+                frame, cam_id, location, bbox, label, conf, h_orig, w_orig, metadata = data
             x, y, w, h = bbox
 
             # ── Draw on full frame first ──────────────────────────────────
@@ -587,7 +714,8 @@ def _annotation_worker(annotation_queue, upload_queue):
             # --- NO CROP: Upload full annotated frame ---
             try:
                 if not upload_queue.full():
-                    upload_queue.put_nowait(("object", annotated.copy(), cam_id, location, label, conf))
+                    # Standardized 7-element tuple for uploader
+                    upload_queue.put_nowait(("object", annotated.copy(), cam_id, location, label, conf, metadata))
             except Exception:
                 pass
 
@@ -603,7 +731,13 @@ def upload_worker(server, token, upload_queue, cam_configs):
     while True:
         try:
             try:
-                dtype, img, cam_id, location, label, conf = upload_queue.get(timeout=10)
+                # Standardized 7-element tuple: (dtype, img, cam_id, location, label, conf, metadata)
+                item = upload_queue.get(timeout=10)
+                if len(item) == 6:
+                    dtype, img, cam_id, location, label, conf = item
+                    metadata = {}
+                else:
+                    dtype, img, cam_id, location, label, conf, metadata = item
             except (mp.queues.Empty, KeyboardInterrupt):
                 if isinstance(sys.exc_info()[0], KeyboardInterrupt): break
                 continue
@@ -613,7 +747,12 @@ def upload_worker(server, token, upload_queue, cam_configs):
             if dtype == "face":
                 url   = f"{server}/api/upload-frame"
                 files = {"file": ("face.jpg", img_bytes, "image/jpeg")}
-                data  = {"camera_id": cam_id, "location": location}
+                data  = {
+                    "camera_id": camera_id, 
+                    "location": location,
+                    "loitering": str(metadata.get("loitering", False)),
+                    "dwell_time": str(metadata.get("dwell_time", 0))
+                }
             else:
                 url   = f"{server}/api/upload-object"
                 files = {"file": ("object.jpg", img_bytes, "image/jpeg")}
@@ -621,7 +760,8 @@ def upload_worker(server, token, upload_queue, cam_configs):
                     "camera_id":    cam_id,
                     "location":     location,
                     "object_label": label,
-                    "confidence":   str(conf)
+                    "confidence":   str(conf),
+                    "metadata":     json.dumps(metadata)
                 }
 
             print(f"[DEBUG] Uploader: Processing {dtype} from {cam_id}...")

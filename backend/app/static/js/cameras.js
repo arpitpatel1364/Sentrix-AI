@@ -422,6 +422,11 @@ async function startLiveMonitoring() {
           matrix.appendChild(box);
         });
       }
+      
+      // Crowd Density polling
+      if (State.activePage === 'overview') {
+        pollCrowdDensity();
+      }
     } catch {}
   }
 

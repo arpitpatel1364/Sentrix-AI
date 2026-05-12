@@ -7,17 +7,17 @@ from .config import BASE_DIR
 MODEL_PATH = BASE_DIR.parent / "yolov8s-worldv2.pt"
 
 DAILY_USAGE_CLASSES = [
-    "phone", "water bottle", "laptop", "backpack", 
-    "remote", "keyboard", "cell phone", "book", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
+    "person", "phone", "water bottle", "laptop", "backpack", "remote", "keyboard", "cell phone",
+    "book", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
     "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
     "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
     "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
     "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
     "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
-    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop",
-    "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+    "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor",
+    "mouse", "microwave", "oven", "toaster", "sink",
+    "refrigerator", "clock", "vase", "scissors", "teddy bear", "hair drier",
     "toothbrush"
 ]
 
@@ -29,7 +29,13 @@ def init_object_engine():
         from ultralytics import YOLOWorld
         from ultralytics.nn.tasks import WorldModel
         
-        torch.serialization.add_safe_globals([WorldModel, torch.nn.modules.container.Sequential])
+        # Override torch.load globally to avoid weights_only=True errors
+        if not hasattr(torch, '_original_load'):
+            torch._original_load = torch.load
+            def _safe_load(*args, **kwargs):
+                kwargs['weights_only'] = False
+                return torch._original_load(*args, **kwargs)
+            torch.load = _safe_load
 
         try:
             OBJECT_MODEL = YOLOWorld(str(MODEL_PATH))

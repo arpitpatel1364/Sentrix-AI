@@ -28,7 +28,7 @@ async def get_sightings(limit: int = 50, user=Depends(require_admin), db: sqlite
     total_count = cur.fetchone()[0]
 
     cur.execute(f"""
-        SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence 
+        SELECT id, camera_id, location, timestamp, uploaded_by, snapshot_path, matched, person_id, person_name, confidence, track_id 
         FROM sightings 
         {admin_filter}
         ORDER BY timestamp DESC LIMIT ?

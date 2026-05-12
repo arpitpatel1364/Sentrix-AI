@@ -54,7 +54,7 @@ async def create_rule(request: Request, user=Depends(require_admin),
     if not name or not rule_type:
         raise HTTPException(status_code=400, detail="name and rule_type are required")
 
-    VALID_TYPES = {"wanted_match", "object_detected", "loitering", "any_face", "high_confidence"}
+    VALID_TYPES = {"wanted_match", "object_detected", "loitering", "any_face", "high_confidence", "crowd_threshold"}
     if rule_type not in VALID_TYPES:
         raise HTTPException(status_code=400, detail=f"rule_type must be one of {VALID_TYPES}")
 
@@ -209,6 +209,23 @@ async def evaluate_rules(event: dict, db: sqlite3.Connection):
         elif rule["rule_type"] == "object_detected" and event_type == "object":
             target = cond.get("object_label", "").lower()
             if not target or object_label.lower() == target:
+                # If rule requires object to be abandoned (stationary)
+                if cond.get("must_be_abandoned"):
+                    if event.get("abandoned"):
+                        fired = True
+                else:
+                    fired = True
+
+        elif rule["rule_type"] == "loitering" and event_type == "face" and event.get("loitering", False):
+            min_dwell = cond.get("min_dwell_seconds", 30)
+            dwell_time = event.get("dwell_time", 0)
+            if dwell_time >= min_dwell:
+                fired = True
+                
+        elif rule["rule_type"] == "crowd_threshold" and event_type == "crowd_heartbeat":
+            max_count = cond.get("max_headcount", 10)
+            current_count = event.get("headcount", 0)
+            if current_count >= max_count:
                 fired = True
 
         if fired:

@@ -733,3 +733,114 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .node-active-pulse {
   animation: pulse-cyan 2s infinite;
 }
+
+/* ─── PERSON TRAIL TIMELINE ─── */
+.trail-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-left: 1rem;
+  position: relative;
+}
+.trail-item {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 2rem;
+  position: relative;
+}
+.trail-dot {
+  position: absolute;
+  left: 140px;
+  margin-left: -20px;
+  width: 10px;
+  height: 10px;
+  background: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--primary-dim);
+  z-index: 2;
+  top: 6px;
+}
+.trail-line {
+  position: absolute;
+  left: 140px;
+  margin-left: -16px;
+  width: 2px;
+  height: calc(100% + 1.5rem);
+  background: var(--outline);
+  z-index: 1;
+  top: 10px;
+}
+.trail-item:last-child .trail-line { display: none; }
+.trail-time {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--on-surface-muted);
+  text-align: right;
+  padding-top: 2px;
+}
+.trail-card {
+  display: flex;
+  gap: 1rem;
+  background: var(--surface-low);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  transition: all 0.2s;
+}
+.trail-card:hover { border-color: var(--primary); background: var(--surface-high); }
+.trail-img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; }
+.trail-info { display: flex; flex-direction: column; gap: 4px; }
+.trail-cam { font-weight: 700; font-size: 0.8rem; color: var(--primary); }
+.trail-loc { font-size: 0.7rem; color: var(--on-surface-muted); }
+
+/* ─── INTELLIGENCE BADGES ─── */
+.badge-mini {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+.badge-mini.loitering { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+.badge-mini.abandoned { background: var(--purple-dim); color: #d8b4fe; border: 1px solid #d8b4fe; }
+
+/* ─── CROWD MONITOR ─── */
+.crowd-card {
+  background: var(--surface-low);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.crowd-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+  background: var(--purple);
+}
+.crowd-count { font-size: 1.5rem; font-weight: 800; font-family: var(--font-manrope); }
+.crowd-label { font-size: 0.6rem; color: var(--on-surface-muted); font-weight: 700; letter-spacing: 0.1em; }
+.crowd-peak { font-family: var(--font-mono); font-size: 0.55rem; color: var(--purple); margin-top: 4px; }
+
+/* ─── TRAVEL MAP (ReID) ─── */
+.travel-subject-item {
+  border: 1px solid var(--outline);
+  transition: all var(--transition);
+}
+.travel-subject-item:hover {
+  border-color: var(--primary-glow);
+  background: var(--surface-high);
+}
+.travel-subject-item.active {
+  border-color: var(--primary);
+  background: var(--primary-dim);
+  box-shadow: 0 0 15px var(--primary-glow);
+}

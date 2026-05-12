@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Form, Request
 import json
+import sqlite3
 from ...core.security import get_current_user
 from .service import save_node_roi, get_all_configs_for_admin
 from ..audit_log.router import write_log
 from ...core.database import get_db
-import sqlite3
 
 router = APIRouter(prefix="/api/roi", tags=["ROI"])
 
@@ -25,14 +25,19 @@ async def save_roi(
         node_key = f"{user['username']}:{camera_id}"
     
     # Permission check: Only admins/super_admins of the same admin_id or the owner of the node can set ROI
-    target_user = node_key.split(":")[0]
-    
+    # node_key is usually username:camera_id
+    if ":" in node_key:
+        target_user = node_key.split(":")[0]
+    else:
+        # If no colon, assume the current user owns it if it's just a camera_id
+        target_user = user["username"]
+
     # Fetch target user's admin_id
     cur = db.cursor()
     cur.execute("SELECT admin_id FROM users WHERE username = ?", (target_user,))
     row = cur.fetchone()
     if not row:
-         raise HTTPException(status_code=404, detail="Target user not found")
+         raise HTTPException(status_code=404, detail=f"Target user '{target_user}' not found for node_key '{node_key}'")
     target_admin_id = row["admin_id"]
 
     if user["admin_id"] != 0 and user["admin_id"] != target_admin_id:
@@ -48,8 +53,8 @@ async def save_roi(
             return {"status": "ok", "message": "ROI cleared"}
             
         roi_list = json.loads(roi)
-        if len(roi_list) != 4:
-            raise ValueError("ROI must have 4 coordinates")
+        if not isinstance(roi_list, list) or len(roi_list) != 4:
+            raise ValueError("ROI must be a list of 4 coordinates [x1, y1, x2, y2]")
             
         save_node_roi(node_key, roi_list)
         write_log(db, username=user["username"], role=user["role"], action="roi_save", target=node_key, detail=f"Saved ROI for {node_key}: {roi_list}", ip=request.client.host if request else "", admin_id=user["admin_id"])
@@ -62,13 +67,14 @@ async def save_roi(
 @router.get("/list")
 async def get_worker_configs(user=Depends(get_current_user)):
     """Returns all camera configs (ROI + toggles) for the current worker's tenant."""
-    from .service import get_all_configs_for_admin
     configs = get_all_configs_for_admin(user['admin_id'])
     return {"status": "ok", "configs": configs}
 
 # Legacy Alias Support for Worker Sync
+@router.get("/worker/configs", include_in_schema=False)
 @router.get("/worker/rois", include_in_schema=False)
 async def legacy_get_configs(user=Depends(get_current_user)):
+    """Handle both legacy /worker/configs and worker's /worker/rois endpoints."""
     return await get_worker_configs(user)
 
 @router.post("/worker/roi", include_in_schema=False)
@@ -81,3 +87,4 @@ async def legacy_save_roi(
     db: sqlite3.Connection = Depends(get_db)
 ):
     return await save_roi(node_key, camera_id, roi, request, user, db)
+

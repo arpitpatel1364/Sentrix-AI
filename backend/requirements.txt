@@ -10,6 +10,7 @@ aiohttp==3.9.5
 # --- AUTH & SECURITY ---
 bcrypt==4.1.3
 python-jose[cryptography]==3.3.0
+python-dotenv==1.0.1
 
 # --- AI & VISION ---
 opencv-python==4.9.0.80

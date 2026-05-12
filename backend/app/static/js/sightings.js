@@ -46,6 +46,8 @@ function renderSightingsFeed(sightings, containerId) {
       confidence: s.confidence,
       matched: s.matched,
       type: 'face',
+      track_id: s.track_id,
+      loitering: s.loitering, // If added to DB later
     }).replace(/"/g, '&quot;');
 
     return `
@@ -61,6 +63,7 @@ function renderSightingsFeed(sightings, containerId) {
           </div>
           ${s.matched ? `<div class="card-conf">Confidence: ${s.confidence}%</div>` : ''}
           <div class="card-meta" style="margin-top:0.3rem">${esc(s.location || '—')}</div>
+          ${s.loitering ? `<div class="badge-mini loitering">⏳ LOITERING</div>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -96,7 +99,12 @@ function renderObjectsFeed(objects, containerId) {
       confidence: conf,
       matched: false,
       type: 'object',
+      metadata: o.metadata
     }).replace(/"/g, '&quot;');
+
+    let meta = {};
+    try { meta = JSON.parse(o.metadata || '{}'); } catch(e) {}
+    const isAbandoned = meta.abandoned === true;
 
     return `
       <div class="card" onclick='openSnapshot(${snapData})' style="cursor:pointer">
@@ -111,6 +119,7 @@ function renderObjectsFeed(objects, containerId) {
           </div>
           <div class="card-conf">Confidence: ${conf}%</div>
           <div class="card-meta" style="margin-top:0.3rem">${esc(o.location || '—')}</div>
+          ${isAbandoned ? `<div class="badge-mini abandoned">📦 ABANDONED</div>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -148,5 +157,55 @@ function openSnapshot(snap) {
     dl.download = `snapshot_${snap.camera_id}_${(snap.timestamp || '').replace(/[:.T]/g, '')}.jpg`;
   }
 
+  // --- PERSON TRAIL BUTTON ---
+  const trailBtn = document.getElementById('snap-modal-trail-btn');
+  if (trailBtn) {
+    if (snap.track_id) {
+      trailBtn.style.display = 'inline-flex';
+      trailBtn.onclick = () => {
+        closeModal('modal-snapshot');
+        showPage('travel-map');
+        setTimeout(() => visualizeTravelTrail(snap.track_id), 100);
+      };
+    } else {
+      trailBtn.style.display = 'none';
+    }
+  }
+
   openModal('modal-snapshot');
+}
+
+async function showPersonTrail(trackId) {
+  try {
+    const data = await api(`/api/sightings/trail/${trackId}`);
+    renderTrailTimeline(data.trail);
+    openModal('modal-trail');
+  } catch (err) {
+    toast(`Failed to load trail: ${err.message}`, 'red');
+  }
+}
+
+function renderTrailTimeline(trail, containerId = 'trail-timeline') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  
+  if (!trail.length) {
+    el.innerHTML = '<p>No movement history found.</p>';
+    return;
+  }
+  
+  el.innerHTML = trail.map((s, idx) => `
+    <div class="trail-item">
+      <div class="trail-dot"></div>
+      <div class="trail-line"></div>
+      <div class="trail-time">${fmtTs(s.timestamp)}</div>
+      <div class="trail-card">
+        <img src="${esc(s.snapshot)}" class="trail-img">
+        <div class="trail-info">
+          <div class="trail-cam">${esc(s.camera_id)}</div>
+          <div class="trail-loc">${esc(s.location)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
 }

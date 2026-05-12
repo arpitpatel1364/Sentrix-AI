@@ -57,9 +57,25 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Sentrix-AI CCTV System", lifespan=lifespan)
 
 # CORS
+# Production: set ALLOWED_ORIGINS env var to a comma-separated list of trusted
+# origins, e.g.:
+#   ALLOWED_ORIGINS="http://192.168.1.10:8000,https://yourdomain.com"
+# Development fallback: permits localhost and LAN access on the default port.
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+if _raw_origins.strip():
+    _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+else:
+    # Safe defaults for local/LAN development — no wildcard.
+    _allowed_origins = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000",   # common dev front-end port
+        "http://127.0.0.1:3000",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
