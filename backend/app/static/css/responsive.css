@@ -1,0 +1,216 @@
+/* ══════════════════════════════════════════
+   RESPONSIVE LAYOUT FIXES
+   ══════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .app-shell, .app-shell.collapsed {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Sidebar as an off-canvas drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px; /* Match typical sidebar-w */
+    z-index: 2000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  /* When not collapsed, it means it's open on mobile */
+  .app-shell:not(.collapsed) .sidebar {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Force sidebar content to be visible when open */
+  .app-shell:not(.collapsed) .sb-wordmark,
+  .app-shell:not(.collapsed) .sb-sub,
+  .app-shell:not(.collapsed) .sb-status-text,
+  .app-shell:not(.collapsed) .sb-node-count,
+  .app-shell:not(.collapsed) .nav-label,
+  .app-shell:not(.collapsed) .nav-badge,
+  .app-shell:not(.collapsed) .nav-section,
+  .app-shell:not(.collapsed) .user-details,
+  .app-shell:not(.collapsed) .logout-btn {
+    display: block;
+  }
+  
+  .app-shell:not(.collapsed) .sb-brand { justify-content: flex-start; }
+  .app-shell:not(.collapsed) .sb-status { justify-content: flex-start; }
+  .app-shell:not(.collapsed) .sb-header, 
+  .app-shell:not(.collapsed) .sb-footer { justify-content: space-between; padding-left: 1.5rem; padding-right: 1.5rem; }
+  .app-shell:not(.collapsed) .nav-item { justify-content: flex-start; }
+
+  /* Overlay for main area when sidebar is open */
+  .app-shell:not(.collapsed)::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1999;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Two Column Layouts */
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  /* Control Panel & Pricing */
+  .control-panel, .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Analytics Stats */
+  #analytics-stats-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Pages padding */
+  .page {
+    padding: 1.5rem;
+  }
+  
+  /* Topbar Adjustments */
+  .topbar {
+    padding: 0 1rem;
+    gap: 0.5rem;
+  }
+  .page-title {
+    font-size: 0.95rem;
+  }
+  .sys-time, #mm-toggle {
+    display: none !important;
+  }
+
+  /* Section Headers */
+  .sec-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .sec-title {
+    font-size: 1.5rem;
+  }
+  .sec-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Modals */
+  .modal {
+    padding: 1.5rem;
+  }
+  .modal-title {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .modal-close {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  /* Panels */
+  .panel {
+    padding: 1.25rem;
+  }
+
+  /* Stats Grid */
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .stat-card {
+    padding: 1.25rem;
+  }
+  .stat-val {
+    font-size: 2rem;
+  }
+
+  /* Feed Grids */
+  .feed-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+
+  /* Tables */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table {
+    min-width: 600px;
+  }
+
+  /* Login */
+  .login-box {
+    width: 100%;
+    height: 100vh;
+    max-width: 100vw;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: none;
+  }
+
+  /* Mini Monitor */
+  #mini-monitor {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  /* Control Panel Signal Buttons */
+  .signal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Business Intelligence */
+  .calc-card {
+    padding: 1.5rem;
+  }
+  .range-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .range-val {
+    text-align: left;
+  }
+  .calc-outputs {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Trail Timeline */
+  .trail-item {
+    grid-template-columns: 80px 1fr;
+    gap: 1rem;
+  }
+  .trail-dot {
+    left: 80px;
+  }
+  .trail-line {
+    left: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Smaller mobile screens */
+  .stat-grid, #analytics-stats-strip {
+    grid-template-columns: 1fr;
+  }
+  .feed-grid {
+    grid-template-columns: 1fr;
+  }
+  .topbar-right {
+    gap: 0.5rem;
+  }
+  #theme-toggle span:last-child {
+    display: none; /* Hide 'DARK'/'LIGHT' text on very small screens */
+  }
+}

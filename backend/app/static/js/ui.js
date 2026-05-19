@@ -179,7 +179,9 @@ function toggleSidebar() {
   // Icons are set after DOM ready
 
   // Sidebar
-  if (localStorage.getItem('sx-sidebar-collapsed') === '1') {
+  if (window.innerWidth <= 900) {
+    document.querySelector('.app-shell')?.classList.add('collapsed');
+  } else if (localStorage.getItem('sx-sidebar-collapsed') === '1') {
     document.querySelector('.app-shell')?.classList.add('collapsed');
   }
 })();

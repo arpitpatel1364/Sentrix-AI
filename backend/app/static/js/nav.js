@@ -39,6 +39,11 @@ function showPage(id, navEl) {
 
   State.activePage = id;
 
+  // Auto-collapse sidebar on mobile after navigation
+  if (window.innerWidth <= 900) {
+    document.querySelector('.app-shell')?.classList.add('collapsed');
+  }
+
   // Reset badges on visit
   if (id === 'sightings') { State.newSightings = 0; updateBadge('badge-sightings', 0); }
   if (id === 'objects') { State.newObjects = 0; updateBadge('badge-objects', 0); }
