@@ -49,11 +49,11 @@ def _save_sighting_task(sighting_id: str, img: np.ndarray, sighting: dict, embed
                 from datetime import timedelta
                 fifteen_mins_ago = (datetime.fromisoformat(ts) - timedelta(minutes=15)).isoformat()
                 
-                cur.execute(\"\"\"
+                cur.execute("""
                     SELECT track_id, reid_embedding FROM sightings 
                     WHERE admin_id = ? AND timestamp > ? AND reid_embedding IS NOT NULL
                     ORDER BY timestamp DESC LIMIT 50
-                \"\"\", (admin_id, fifteen_mins_ago))
+                """, (admin_id, fifteen_mins_ago))
                 
                 rows = cur.fetchall()
                 best_track = None
