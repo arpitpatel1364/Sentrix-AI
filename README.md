@@ -144,7 +144,7 @@ Once the Worker transmits the data, the Hub processes the payload and pushes rea
 |  - Live Feed Update   |
 |  - Flash UI Prompt    |
 +-----------------------+
-
+```
 ---
 
 ### Request Lifecycle
